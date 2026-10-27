@@ -93,8 +93,7 @@ Put your own music into the `media` folder and choose it in **Options → SOUNDT
 - Windows 10/11, 64-bit
 - A GPU with **Vulkan 1.3**
 - Your own copy of *Tony Hawk's Pro Skater 2X* (USA)
-- **Internet on the first start** (the compiler, about 190 MB, is downloaded once) and about **2 GB** of free disk
-  space
+- About **2 GB** of free disk space (no internet needed: the compiler ships inside the release zip)
 
 ### Supported version
 
@@ -106,15 +105,17 @@ Other versions are refused with: *"This THPS 2X version is not supported. Suppor
 a supported version."*
 
 ### First start
-1. Download `THPS 2X Recomp.exe` from the release page and put it into an empty folder of your choice.
+1. Download the release zip from the release page and unpack it into an empty folder of your choice (keep the
+   `tools\` folder next to the exe).
 2. Start `THPS 2X Recomp.exe`. It creates the folders below (each with a short `README.txt`) and asks for the game:
    put your disc image (`.iso`, XISO or full redump image) **or** the extracted disc files into `game\`, or click
    **Choose disc image...**.
 3. The first start then sets everything up, with a progress window:
    - the image is checked, extracted and verified,
-   - the compiler ([llvm-mingw](https://github.com/mstorsjo/llvm-mingw), a fixed release, checked by its SHA-256) is
-     downloaded once into the folder – without internet or on a damaged download you get a clear message (and the
-     link to download it by hand),
+   - the compiler ([llvm-mingw](https://github.com/mstorsjo/llvm-mingw), a fixed release, in the zip's
+     `tools\download\`) is checked by its SHA-256 and unpacked – only if that file is missing is it downloaded
+     (about 190 MB); if the download fails you get the real reason (name lookup, connection, secure connection or
+     the server's answer) with **Retry**, and the link to download it by hand,
    - the game's code is translated and compiled on your PC (a few minutes, only once).
 4. The game starts. Later starts go straight into the game.
 5. Optional: add your music, shader pack and boot video (see next section).
@@ -217,6 +218,18 @@ delete the `bind.` lines from `saves\settings.ini`.
 
 - Written in portable C with SDL3 and Vulkan only; platform code is kept in one thin layer.
 - Linux and Android are planned but **paused** for now. The code is kept ready for them.
+
+### Linux via Proton / Wine: best effort
+The Windows build runs under Proton and Wine too (from v0.9.1.1: the first start uses no Windows system tools any
+more, and the crash at the title screen is fixed). **Tested on Arch Linux with Proton 11.0-2 and Wine 11.20:**
+install, first start and the game work. It is not tested as thoroughly as Windows. Known limits:
+- Needs a Wine / Proton with Vulkan (winevulkan) and the host's Vulkan driver, 64-bit.
+- Only a compiler download (when `tools\download\` is missing) needs the host's CA certificates (package
+  `ca-certificates`) and 64-bit GnuTLS – a missing certificate store shows up as a *secure connection* error.
+- The first start (translate + compile) is slower than on Windows.
+- *Open folder* and the file picker depend on your Wine desktop integration.
+- Controllers go through Wine's input layer; report what does not work.
+- Native Linux builds are still paused.
 
 ---
 
