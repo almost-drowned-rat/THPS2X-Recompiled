@@ -286,7 +286,7 @@ all related names and trademarks belong to their respective owners.
 | [Python](https://www.python.org) 3.12 (embeddable), [capstone](https://github.com/capstone-engine/capstone) | the translator on the first start (shipped in `tools\`) | PSF; BSD |
 | [mstorsjo/llvm-mingw](https://github.com/mstorsjo/llvm-mingw) | the compiler (downloaded on the first start) and its runtime | Apache-2.0 with LLVM exception; MinGW-w64 runtime licences |
 
-Logo/banner artwork: **Gector Yosuke | Vivian Nathan**.
+Logo/banner artwork: [@GectorNathan](https://github.com/GectorNathan).
 
 Design references (no code taken): Cxbx-Reloaded, XboxXBE-Recomp, SCDA-XBERecomp, doa3-recomp, doaxvb-re,
 ARMSX2 (shader menu logic), black-pc, CoD3Recomp, pinyon-shift, xboxdevwiki.
