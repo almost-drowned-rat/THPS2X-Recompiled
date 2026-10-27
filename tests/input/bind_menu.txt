@@ -1,0 +1,16 @@
+# bind_menu.txt - keyboard binding a:sc15,b:sc19 (A on L, B on P): in the main menu L confirms (A), P goes back (B),
+# K (old A key, unused by the own binding) still confirms (lock-out rule), O (Black, unchanged) nothing visible.
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=k00_main
+21000:key=15:300
+26000:shot=k01_after_L
+27000:key=19:300
+31000:shot=k02_after_P
+32000:key=14:300
+37000:shot=k03_after_K
+38000:key=19:300
+42000:shot=k04_after_P2

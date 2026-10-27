@@ -1,0 +1,51 @@
+# opt_aa.txt - ANTIALIASING sub-menu (2026-10-26): main menu -> OPTIONS -> RECOMP OPTIONS -> ANTIALIASING (fifth line
+# at 4:3: DISPLAY MODE, RENDER RESOLUTION, ASPECT RATIO, ANISOTROPIC FILTER, ANTIALIASING); the list opens on the
+# choice in use, down = the next one, A picks it (saved, applied at once) and goes back on the ANTIALIASING line.
+# With antialiasing=msaa2 saved and RECOMP_VK_FAIL_ALLOC_MB set so that 4x does not fit: MSAA 4X fails to allocate,
+# the renderer and the setting go back to MSAA 2X, the line shows "ANTIALIASING: MSAA 2X" again.
+#   THPS2X.exe --max-seconds 85 --input-script tests\input\opt_aa.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+44000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# ANTIALIASING: four downs, A = its list (on the choice in use), down = the next one, A
+52000:down:300
+53000:down:300
+54000:down:300
+55000:down:300
+56000:a:300
+61000:shot=10_aa_list
+62000:down:300
+63000:a:300
+68000:shot=11_back_on_aa
+73000:shot=12_after_fallback

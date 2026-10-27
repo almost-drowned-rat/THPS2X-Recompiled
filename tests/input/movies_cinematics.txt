@@ -1,0 +1,62 @@
+# movies_cinematics.txt - testplan "Unlockables", movies: Options -> MOVIES -> CINEMATICS, the list shot, then 15
+# downs (locked lines are skipped, so the cursor shows how far the list is open) and shots, then the line it stopped
+# at played for 12 s and skipped. Run once with the ALL CHEATED save and once fresh.
+# Same walk as menu_walk.txt up to MOVIES (Options: the fifth entry). Times count from the first pad report.
+#   THPS2X.exe --max-seconds 108 --input-script movies_cinematics.txt
+0:p2-connect
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=c00_main_menu
+
+# Options: six downs from the main menu's first entry (as menu_walk.txt: two to Free Skate, four more)
+21000:down:300
+22500:down:300
+24000:down:300
+25500:down:300
+27000:down:300
+28500:down:300
+30000:shot=c01_main_options
+31000:a:300
+37000:shot=c02_options
+
+# MOVIES: four downs, A
+38000:down:300
+39500:down:300
+41000:down:300
+42500:down:300
+44000:a:300
+50000:shot=c03_movies
+
+# CINEMATICS: the first line
+51000:a:300
+57000:shot=c04_cinematics
+58000:down:300
+59000:down:300
+60000:down:300
+61000:down:300
+62000:down:300
+64000:shot=c05_cinematics_down5
+65000:down:300
+66000:down:300
+67000:down:300
+68000:down:300
+69000:down:300
+71000:shot=c06_cinematics_down10
+72000:down:300
+73000:down:300
+74000:down:300
+75000:down:300
+76000:down:300
+78000:shot=c07_cinematics_down15
+
+# A on the line the cursor stopped at (with the save an unlocked skater movie, fresh INTRO): it plays, then START
+79000:a:300
+85000:shot=c08_playing_6s
+91000:shot=c09_playing_12s
+92000:start:200
+97000:shot=c10_after_skip
+98000:b:300
+102000:shot=c11_back_movies

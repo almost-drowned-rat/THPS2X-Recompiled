@@ -1,0 +1,53 @@
+# opt_aa_fallback.txt - MSAA that fails to allocate (2026-10-26): from the default FXAA, RECOMP OPTIONS ->
+# ANTIALIASING (fifth line at 4:3) -> its list opens on FXAA, three downs = MSAA 4X, A. Run with
+# RECOMP_VK_FAIL_ALLOC_MB=3 (test switch): every normal surface (up to 1280x480, 2.5 MB) fits, the 4x image of the
+# 640x480 options surface (4.9 MB) does not -> the renderer goes back to the count that last worked (none), the
+# setting back to FXAA, the line shows "ANTIALIASING: FXAA" again.
+#   THPS2X.exe --max-seconds 85 --input-script tests\input\opt_aa_fallback.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+44000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# ANTIALIASING: four downs, A = its list on FXAA, three downs = MSAA 4X, A
+52000:down:300
+53000:down:300
+54000:down:300
+55000:down:300
+56000:a:300
+61000:shot=10_aa_list
+62000:down:300
+63000:down:300
+64000:down:300
+65000:a:300
+70000:shot=11_back_on_aa
+75000:shot=12_after_fallback

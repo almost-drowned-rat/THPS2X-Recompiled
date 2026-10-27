@@ -1,0 +1,124 @@
+# opt_shaders.txt - RECOMP OPTIONS -> SHADERS (shader module phase 4, 2026-10-27), for the contact sheet: the SHADERS
+# list, the preset browser (packs -> SHADERS SLANG -> CRT, page 3 -> CRT EASYMODE), the parameters (a value stepped,
+# page 2), RESET ALL PARAMETERS (confirmation, CANCEL), SAVE AS PRESET, the browser on MY PRESETS, SHADER OFF (the
+# SAVED AS line back to SAVE AS PRESET), SHADER ON and RECOMP OPTIONS with the FXAA note.
+# Needs the stock pack extracted (data\shaders\shaders_slang, from media\shaders\shaders_slang.zip) and librashader
+# next to the exe. 4:3 (RECOMP OPTIONS: DISPLAY MODE, RENDER RESOLUTION, ASPECT RATIO, ANISOTROPIC FILTER,
+# ANTIALIASING, FRAME RATE, SHADERS = the seventh line, BOOT ANIMATION; order since 2026-10-27).
+#   THPS2X.exe --max-seconds 182 --input-script tests\input\opt_shaders.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+44000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# SHADERS: six downs, A
+52000:down:300
+53000:down:300
+54000:down:300
+55000:down:300
+56000:down:300
+57000:down:300
+60000:a:300
+64000:shot=20_shaders
+
+# PRESET: the browser (the packs), SHADERS SLANG, CRT (the fifth folder), page 3, CRT EASYMODE (line 3)
+65000:down:300
+66000:a:300
+70000:shot=21_browse_packs
+71000:down:300
+72000:a:300
+76000:shot=22_browse_pack
+77000:down:300
+78000:down:300
+79000:down:300
+80000:down:300
+81000:down:300
+82000:a:300
+86000:shot=23_browse_crt
+87000:right:300
+88000:right:300
+92000:shot=24_browse_crt_page3
+93000:down:300
+94000:down:300
+95000:down:300
+96000:a:300
+100000:shot=25_shaders_preset
+
+# PARAMETERS: page 1, the first value three steps up, NEXT PAGE (line 10), B back
+101000:down:300
+102000:a:300
+106000:shot=26_params
+107000:right:300
+108000:right:300
+109000:right:300
+112000:shot=27_param_changed
+113000:down:300
+114000:down:300
+115000:down:300
+116000:down:300
+117000:down:300
+118000:down:300
+119000:down:300
+120000:down:300
+121000:down:300
+122000:down:300
+123000:a:300
+127000:shot=28_params_page2
+128000:b:300
+132000:shot=29_shaders_changed
+
+# RESET ALL PARAMETERS: the confirmation (on CANCEL), A = cancel
+133000:down:300
+134000:down:300
+135000:a:300
+139000:shot=30_reset_confirm
+140000:a:300
+144000:shot=31_after_cancel
+
+# SAVE AS PRESET (one up), then PRESET (two up): the browser opens on MY PRESETS
+145000:up:300
+146000:a:300
+150000:shot=32_saved
+151000:up:300
+152000:up:300
+153000:a:300
+157000:shot=33_browse_my_presets
+158000:b:300
+160000:up:300
+161000:left:300
+165000:shot=34_shader_off
+
+# SHADER ON again, then B: RECOMP OPTIONS with a shader in use (ANTIALIASING: FXAA OFF WITH SHADER)
+166000:right:300
+170000:shot=35_shader_on_again
+171000:b:300
+175000:shot=36_recomp_options_shader

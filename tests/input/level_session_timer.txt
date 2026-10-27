@@ -1,0 +1,33 @@
+# level_session_timer.txt - M4: game-logic timing at any frame rate. Main menu -> Single Session (second entry)
+# -> first skater -> first level; the session's 2:00 timer is read from the shots taken 20 s apart
+# (13_timer_a, 14_timer_b): at 30, 60 and 120 fps (THPS_FPS) the timer must have run 20 s in both.
+#   THPS2X.exe --max-seconds 115 --input-script tests\input\level_session_timer.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=01_main_menu
+
+# Single Session is the second entry
+21000:down:300
+23000:shot=02_cursor_single_session
+24000:a:300
+32000:shot=03_select_player
+33000:a:300
+41000:shot=04_select_level
+42000:a:300
+
+# loading, the rules screen (accepted with A), then the level with the clock running
+60000:shot=05_loading
+75000:shot=06_rules
+76000:a:300
+84000:shot=07_level
+
+# the clock starts when the rules are accepted (76 s); one short push, then no input
+85000:lup:400
+90000:shot=13_timer_a
+110000:shot=14_timer_b

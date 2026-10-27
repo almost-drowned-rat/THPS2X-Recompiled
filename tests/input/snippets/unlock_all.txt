@@ -1,0 +1,21 @@
+# unlock_all.txt - snippet: the official "unlock everything" cheat (all levels, skaters, extras), entered on the
+# main menu while the LEFT TRIGGER is held: Start, A, White, Up, Right, Down, A, Y, B, A, B, Y. Without the held
+# trigger the presses act as menu navigation (Start enters Career). Times from 0; include it where the main menu is
+# up and idle:
+#   @include snippets/unlock_all.txt 21000
+# It changes the game's progress: use it only with a separate test save dir (--save-dir), never with real saves.
+# Verified 2026-10-16 (tests/input/unlock_check.txt): every level selectable afterwards, incl. Crane Drop and
+# Skate Heaven. Done 7 s after the include point.
+0:lt:7000
+500:start:200
+1000:a:200
+1500:white:200
+2000:up:200
+2500:right:200
+3000:down:200
+3500:a:200
+4000:y:200
+4500:b:200
+5000:a:200
+5500:b:200
+6000:y:200

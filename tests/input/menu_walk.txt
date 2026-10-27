@@ -1,0 +1,93 @@
+# menu_walk.txt - testplan "main menu, all sub-menus reachable, back navigation works": the entries the menu tour
+# skips (Free Skate, every Options entry, Park Editor), each opened, shot, left with B and shot again.
+# Times count from the first pad report (about 1 s after start). Two controllers as in menu_tour.txt.
+#   THPS2X.exe --max-seconds 200 --input-script menu_walk.txt
+0:p2-connect
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=w00_main_menu
+
+# Free Skate -> Select Player, back
+21000:down:300
+22500:down:300
+24000:shot=w01_main_free_skate
+25000:a:300
+33000:shot=w02_free_skate
+34000:b:300
+39000:shot=w03_back_free_skate
+
+# Options (4 down from Free Skate)
+40000:down:300
+41500:down:300
+43000:down:300
+44500:down:300
+46000:shot=w04_main_options
+47000:a:300
+53000:shot=w05_options
+
+# every Options entry: A, shot, B, shot, down
+54000:a:300
+60000:shot=o01_chat_messages
+61000:b:300
+64000:shot=o01_back
+65000:down:300
+66500:a:300
+72500:shot=o02_controls
+73500:b:300
+76500:shot=o02_back
+77500:down:300
+79000:a:300
+85000:shot=o03_sound_levels
+86000:b:300
+89000:shot=o03_back
+90000:down:300
+91500:a:300
+97500:shot=o04_soundtracks
+98500:b:300
+101500:shot=o04_back
+102500:down:300
+104000:a:300
+110000:shot=o05_movies
+111000:b:300
+114000:shot=o05_back
+115000:down:300
+116500:a:300
+122500:shot=o06_memory_unit
+123500:b:300
+126500:shot=o06_back
+127500:down:300
+129000:a:300
+135000:shot=o07_cheats
+136000:b:300
+139000:shot=o07_back
+140000:down:300
+141500:a:300
+147500:shot=o08_high_scores
+148500:b:300
+151500:shot=o08_back
+152500:down:300
+154000:a:300
+160000:shot=o09_gap_checklist
+161000:b:300
+164000:shot=o09_back
+165000:down:300
+166500:a:300
+172500:shot=o10_general_options
+173500:b:300
+176500:shot=o10_back
+177500:down:300
+179000:a:300
+185000:shot=o11_recomp_options
+186000:b:300
+189000:shot=o11_back
+
+# back to the main menu, up to Park Editor, open it
+190000:b:300
+194000:shot=w06_back_main
+195000:up:300
+197000:shot=w07_main_park_editor
+198000:a:300
+215000:shot=w08_park_editor

@@ -1,0 +1,77 @@
+# opt_render.txt - RENDER RESOLUTION to the top and the BOOT ANIMATION sub-menu (2026-10-26; replaces the
+# 2026-10-23 placeholder walk): main menu -> OPTIONS -> RECOMP OPTIONS, RENDER RESOLUTION (second line) 18 x right
+# from 1.00X (4:3: up to 5.00X, the last rights stay there), then BOOT ANIMATION (last line): its status line, ON /
+# OFF greyed out without media\boot.mpg; B back.
+# With RECOMP_VK_FAIL_ALLOC_MB=20 (test switch) the step to 4.25X (2720x2040, 22 MB) fails to allocate: the render
+# scale goes back to 4.00X (log "failed to allocate -- back to"), saves\settings.ini too, RECOMP OPTIONS shows
+# 4.00X, every further right is refused.
+#   THPS2X.exe --max-seconds 110 --input-script tests\input\opt_render.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+44000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# RENDER RESOLUTION: 18 x right, 1.5 s apart
+52000:down:300
+53000:right:300
+54500:right:300
+56000:right:300
+57500:right:300
+59000:shot=10_render_200
+59500:right:300
+61000:right:300
+62500:right:300
+64000:right:300
+65500:right:300
+67000:right:300
+68500:right:300
+70000:right:300
+71500:right:300
+73000:right:300
+74500:right:300
+76000:right:300
+77500:right:300
+78500:right:300
+81000:shot=11_render_end
+
+# BOOT ANIMATION: six downs (ASPECT RATIO, ANISOTROPIC FILTER, ANTIALIASING, FRAME RATE, SHADERS, BOOT ANIMATION;
+# SHADERS before BOOT ANIMATION since 2026-10-27), A
+81500:down:300
+82300:down:300
+83100:down:300
+83900:down:300
+84700:down:300
+85500:down:300
+87000:a:300
+92000:shot=20_boot
+93000:b:300
+98000:shot=21_back_on_boot

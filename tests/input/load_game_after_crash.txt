@@ -1,0 +1,28 @@
+# load_game_after_crash.txt - as load_game.txt, after an interrupted save: at boot the game tries to load the
+# most recent save (the unfinished one) and shows "Unable to load most recent save. Press A to continue".
+#   THPS2X.exe --max-seconds 75 --input-script tests\input\load_game_after_crash.txt
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+19000:shot=ld_boot_message
+20000:a:300
+23500:shot=ld_main
+24000:up:300
+25500:shot=ld_main_up
+26000:a:300
+# Options (since 2026-10-18): Chat Messages -> Controls -> Sound Levels -> Soundtracks -> Movies -> Memory Unit
+32000:down:300
+33000:down:300
+34000:down:300
+35000:down:300
+36000:down:300
+36500:shot=ld_options
+37000:a:300
+42000:a:300
+48000:a:300
+54000:shot=load_list
+55000:a:300
+61000:shot=load_done
+62000:a:300

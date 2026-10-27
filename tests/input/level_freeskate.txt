@@ -1,0 +1,43 @@
+# level_freeskate.txt - M4 first goal: main menu -> Free Skate -> first skater -> first level, then a little
+# skating for the level measurement (frame-time counter). Screenshots at every step.
+#   THPS2X.exe --max-seconds 150 --input-script tests\input\level_freeskate.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=01_main_menu
+
+# Free Skate is the third entry
+21000:down:300
+23000:down:300
+25000:shot=02_cursor_free_skate
+26000:a:300
+34000:shot=03_select_player
+35000:a:300
+43000:shot=04_select_level
+44000:a:300
+
+# loading, then the level
+60000:shot=05_loading
+75000:shot=06_level
+80000:shot=07_level
+
+# skate: push forward, turn, ollie, a grind attempt
+82000:lup:3000
+85000:shot=08_skating
+86000:lup+lright:1500
+88000:a:300
+89000:shot=09_ollie
+90000:lup:4000
+94000:shot=10_skating
+95000:lup+lleft:2000
+97000:x:300
+99000:shot=11_trick
+100000:lup:6000
+106000:shot=12_skating
+110000:shot=13_level_idle
+120000:shot=14_level_idle

@@ -1,0 +1,26 @@
+# demo_idle.txt - no input at all: logos, intro, title screen, then the attract-mode demos (from ~190 s).
+# Same demos as on the console (DEMOA..J.REC): a no-input comparison against an emulator oracle.
+10000:shot=d_010
+20000:shot=d_020
+30000:shot=d_030
+40000:shot=d_040
+50000:shot=d_050
+60000:shot=d_060
+70000:shot=d_070
+80000:shot=d_080
+90000:shot=d_090
+100000:shot=d_100
+110000:shot=d_110
+120000:shot=d_120
+130000:shot=d_130
+140000:shot=d_140
+150000:shot=d_150
+160000:shot=d_160
+170000:shot=d_170
+180000:shot=d_180
+190000:shot=d_190
+200000:shot=d_200
+210000:shot=d_210
+220000:shot=d_220
+230000:shot=d_230
+240000:shot=d_240

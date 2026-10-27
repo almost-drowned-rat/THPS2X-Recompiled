@@ -1,0 +1,9 @@
+# never commit game data or generated output
+*.iso
+*.xiso
+*.xbe
+private/
+build/
+gen/
+*.log
+docs/xbe-raw.txt

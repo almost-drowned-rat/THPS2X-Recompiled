@@ -1,0 +1,63 @@
+# soak_hangar.txt - M4 done criterion: 10 minutes of active skating in the Hangar (Free Skate, first skater):
+# the 20 s loop of snippets/skate_loop.txt 30 times from 85 s (to 685 s), a shot every minute. Use a fresh
+# --save-dir / --data-dir.
+#   THPS2X.exe --max-seconds 700 --input-script tests\input\soak_hangar.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# Free Skate is the third entry; first skater, first level (the Hangar); rules accepted at 76 s
+21000:down:300
+23000:down:300
+26000:a:300
+35000:a:300
+44000:a:300
+76000:a:300
+84000:shot=s_000_start
+
+# 10 minutes of skating
+@include snippets/skate_loop.txt 85000
+@include snippets/skate_loop.txt 105000
+@include snippets/skate_loop.txt 125000
+@include snippets/skate_loop.txt 145000
+@include snippets/skate_loop.txt 165000
+@include snippets/skate_loop.txt 185000
+@include snippets/skate_loop.txt 205000
+@include snippets/skate_loop.txt 225000
+@include snippets/skate_loop.txt 245000
+@include snippets/skate_loop.txt 265000
+@include snippets/skate_loop.txt 285000
+@include snippets/skate_loop.txt 305000
+@include snippets/skate_loop.txt 325000
+@include snippets/skate_loop.txt 345000
+@include snippets/skate_loop.txt 365000
+@include snippets/skate_loop.txt 385000
+@include snippets/skate_loop.txt 405000
+@include snippets/skate_loop.txt 425000
+@include snippets/skate_loop.txt 445000
+@include snippets/skate_loop.txt 465000
+@include snippets/skate_loop.txt 485000
+@include snippets/skate_loop.txt 505000
+@include snippets/skate_loop.txt 525000
+@include snippets/skate_loop.txt 545000
+@include snippets/skate_loop.txt 565000
+@include snippets/skate_loop.txt 585000
+@include snippets/skate_loop.txt 605000
+@include snippets/skate_loop.txt 625000
+@include snippets/skate_loop.txt 645000
+@include snippets/skate_loop.txt 665000
+144000:shot=s_060
+204000:shot=s_120
+264000:shot=s_180
+324000:shot=s_240
+384000:shot=s_300
+444000:shot=s_360
+504000:shot=s_420
+564000:shot=s_480
+624000:shot=s_540
+684000:shot=s_600

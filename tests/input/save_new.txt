@@ -1,0 +1,25 @@
+# save_new.txt - Options -> Load/Save -> Save Game -> Xbox Hard Disk -> NEW SAVE, default name.
+# With no save present the cursor is on NEW SAVE and the name keyboard on END.
+#   THPS2X.exe --max-seconds 75 --input-script tests\input\save_new.txt
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:up:300
+22000:a:300
+# Options (since 2026-10-18): Chat Messages -> Controls -> Sound Levels -> Soundtracks -> Movies -> Memory Unit
+28000:down:300
+29000:down:300
+30000:down:300
+31000:down:300
+32000:down:300
+33000:a:300
+38000:down:300
+39000:a:300
+45000:a:300
+# Select File To Save: NEW SAVE (only entry), name keyboard: END
+51000:a:300
+57000:a:300
+63000:shot=save_new_done
+64000:a:300

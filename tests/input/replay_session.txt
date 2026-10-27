@@ -1,0 +1,43 @@
+# replay_session.txt - fps120: a whole Single Session (level_session_full.txt), then Watch Replay. The replay of the
+# 2:00 session must play in real time at any frame rate (THPS_FPS=60/120): with THPS_CLOCK_LOG=2 the log has a
+# [REC] line per recorder call and a [PLAY] line per playback call (host ms) - playback first..last ~= the recorded
+# game time (ticks / 60).
+#   THPS2X.exe --max-seconds 385 --input-script tests\input\replay_session.txt
+# After the session: STATISTICS (A continue), then UPDATE SAVE FILE / RETRY (cursor) / LEVEL SELECT / WATCH REPLAY /
+# QUIT. Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=01_main_menu
+
+# Single Session (second entry), first skater, first level, the rules screen
+21000:down:300
+24000:a:300
+33000:a:300
+42000:a:300
+75000:shot=06_rules
+76000:a:300
+
+# the clock runs from 76 s, 0:00 at 196 s; one short push, then no input
+85000:lup:400
+90000:shot=10_clock
+200000:shot=15_session_end
+
+# statistics -> the end menu -> WATCH REPLAY (two down from RETRY)
+221000:a:300
+224000:shot=18_end_menu
+225000:down:300
+226500:down:300
+228000:shot=19_watch_replay_cursor
+229000:a:300
+# Watch Replay opens PLAY REPLAY (cursor) / SAVE REPLAY / EXIT
+231000:shot=20_play_replay_cursor
+232000:a:300
+245000:shot=21_replay_12s
+305000:shot=22_replay_72s
+362000:shot=23_replay_129s
+376000:shot=24_after_replay

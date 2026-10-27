@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Neutral port icon draft (item 10): a plain skateboard seen from above, tilted. Original drawing, no game logo,
+       cover art, lettering or branding. -->
+  <defs>
+    <linearGradient id="deck" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b6cb0"/>
+      <stop offset="1" stop-color="#1a4480"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="48" fill="#1b1f27"/>
+  <g transform="rotate(-35 128 128)">
+    <!-- wheels -->
+    <g fill="#f2c94c" stroke="#1b1f27" stroke-width="4">
+      <rect x="46" y="70" width="30" height="22" rx="8"/>
+      <rect x="46" y="164" width="30" height="22" rx="8"/>
+      <rect x="180" y="70" width="30" height="22" rx="8"/>
+      <rect x="180" y="164" width="30" height="22" rx="8"/>
+    </g>
+    <!-- trucks -->
+    <g fill="#c9ced6">
+      <rect x="56" y="88" width="10" height="80" rx="4"/>
+      <rect x="190" y="88" width="10" height="80" rx="4"/>
+    </g>
+    <!-- deck -->
+    <rect x="20" y="96" width="216" height="64" rx="32" fill="url(#deck)" stroke="#e8edf3" stroke-width="6"/>
+    <!-- grip stripe -->
+    <rect x="52" y="120" width="152" height="16" rx="8" fill="#e8edf3" opacity="0.35"/>
+  </g>
+</svg>

@@ -1,0 +1,74 @@
+# soak_venice.txt - M4 heavier level: 10 minutes of active skating in Venice Beach (Free Skate, first skater,
+# fifth level). Venice is locked on a fresh save, so the unlock-all cheat goes first: a separate test --save-dir
+# only. The 20 s loop of snippets/skate_loop.txt 30 times from 106 s (to 706 s), a shot every minute.
+#   THPS2X.exe --max-seconds 720 --save-dir <temp> --data-dir <temp> --input-script tests\input\soak_venice.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# the cheat (left trigger held), 21.0 .. 28.0 s
+@include snippets/unlock_all.txt 21000
+
+# Free Skate (third entry), first skater; Select Level: four to the right = Venice Beach
+30000:down:300
+32000:down:300
+35000:a:300
+44000:a:300
+52000:right:300
+53500:right:300
+55000:right:300
+56500:right:300
+58000:shot=v_level
+59000:a:300
+# the level loads; the rules screen takes A (spare presses are ollies)
+91000:a:300
+96000:a:300
+101000:a:300
+105000:shot=s_000_start
+
+# 10 minutes of skating
+@include snippets/skate_loop.txt 106000
+@include snippets/skate_loop.txt 126000
+@include snippets/skate_loop.txt 146000
+@include snippets/skate_loop.txt 166000
+@include snippets/skate_loop.txt 186000
+@include snippets/skate_loop.txt 206000
+@include snippets/skate_loop.txt 226000
+@include snippets/skate_loop.txt 246000
+@include snippets/skate_loop.txt 266000
+@include snippets/skate_loop.txt 286000
+@include snippets/skate_loop.txt 306000
+@include snippets/skate_loop.txt 326000
+@include snippets/skate_loop.txt 346000
+@include snippets/skate_loop.txt 366000
+@include snippets/skate_loop.txt 386000
+@include snippets/skate_loop.txt 406000
+@include snippets/skate_loop.txt 426000
+@include snippets/skate_loop.txt 446000
+@include snippets/skate_loop.txt 466000
+@include snippets/skate_loop.txt 486000
+@include snippets/skate_loop.txt 506000
+@include snippets/skate_loop.txt 526000
+@include snippets/skate_loop.txt 546000
+@include snippets/skate_loop.txt 566000
+@include snippets/skate_loop.txt 586000
+@include snippets/skate_loop.txt 606000
+@include snippets/skate_loop.txt 626000
+@include snippets/skate_loop.txt 646000
+@include snippets/skate_loop.txt 666000
+@include snippets/skate_loop.txt 686000
+165000:shot=s_060
+225000:shot=s_120
+285000:shot=s_180
+345000:shot=s_240
+405000:shot=s_300
+465000:shot=s_360
+525000:shot=s_420
+585000:shot=s_480
+645000:shot=s_540
+705000:shot=s_600

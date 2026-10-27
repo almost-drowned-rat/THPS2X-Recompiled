@@ -1,0 +1,61 @@
+# opt_soundtracks.txt - Options -> SOUNDTRACKS (custom soundtracks, 2026-10-24): main menu -> OPTIONS ->
+# SOUNDTRACKS -> SOUNDTRACK (value line: left/right through GAME MUSIC, COMBINED and the albums of media\,
+# wrapping), back, PLAYBACK MODE (cursor on the mode in use; A picks SHUFFLE ALBUM and goes back), shots on the
+# way. Needs a layout with media\ albums (throw-away copy); checks saves\settings.ini afterwards.
+#   THPS2X.exe --max-seconds 95 --input-script tests\input\opt_soundtracks.txt   (RECOMP_NULL_GUARD=log)
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: SOUNDTRACKS is the fourth line
+34000:down:300
+35000:down:300
+36000:down:300
+37000:shot=01_cursor_soundtracks
+38000:a:300
+# SOUNDTRACKS: SOUNDTRACK, PLAYBACK MODE
+43000:shot=02_soundtracks
+44000:a:300
+# SOUNDTRACK: the value line shows the saved choice
+49000:shot=03_album_saved
+50000:right:300
+52000:shot=04_album_next
+53000:right:300
+55000:shot=05_album_next2
+56000:left:300
+57500:left:300
+59000:left:300
+61000:shot=06_album_back3
+62000:b:300
+# SOUNDTRACKS again, cursor on SOUNDTRACK: down to PLAYBACK MODE
+66000:shot=07_back_soundtracks
+67000:down:300
+68000:a:300
+73000:shot=08_playback_cursor
+# from the saved mode (album_order, line 1) down 5 and up 3: SHUFFLE ALBUM, the fourth mode
+74000:down:300
+75000:down:300
+76000:down:300
+77000:down:300
+78000:down:300
+79000:up:300
+80000:up:300
+81000:up:300
+82000:shot=09_playback_shuffle_album
+83000:a:300
+88000:shot=10_after_pick

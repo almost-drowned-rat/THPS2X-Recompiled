@@ -1,0 +1,61 @@
+# menu_tour.txt - M3 stage 2 (stage 3: two controllers, Multiplayer): past the movies into the main menu and through its sub-menus, with a
+# screenshot of each step (shot=<name> -> <RECOMP_SHOT_PREFIX or data\shot_><name>.bmp).
+# Times count from the first pad report the game asks for (about 1 s after start).
+#   THPS2X.exe --max-seconds 135 --input-script tests\input\menu_tour.txt
+# Presses are held 300 ms: Select Player polls the pad more slowly than the 2D menus.
+# Two controllers: player 1 (keyboard/pad/script) and a scripted player 2 (p2-connect) -- local
+# split-screen needs two, and the main menu greys Multiplayer out with one controller and no network link.
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=01_main_menu
+
+# Career Mode -> Choose Career, move the cursor, back
+21000:a:300
+26000:shot=02_career
+27000:down:300
+29000:shot=03_career_cursor
+30000:b:300
+
+# Single Session -> Select Player, next skater, Continue -> Select Level, back twice
+34000:down:300
+36000:shot=04_main_single_session
+37000:a:300
+45000:shot=05_select_player
+46000:right:300
+52000:shot=06_next_skater
+53000:a:300
+61000:shot=07_select_level
+62000:b:300
+68000:b:300
+
+# Free Skate skipped (same Select Player screen); Multiplayer (enabled: two controllers) ->
+# MULTIPLAYER GAME: 2 PLAYER selectable, 3/4 PLAYER and SYSTEM LINK greyed (no network link), back
+73000:down:300
+75000:down:300
+77000:shot=08_multiplayer
+78000:a:300
+82000:shot=09_multiplayer_game
+83000:b:300
+
+# Create Skater -> roster, back
+88000:down:300
+90000:a:300
+97000:shot=10_create_skater
+98000:b:300
+
+# Park Editor skipped (loads into the editor); Options (Player 2 Controls enabled) -> move, back
+103000:down:300
+105000:down:300
+107000:a:300
+113000:shot=11_options
+114000:down:300
+116000:shot=12_options_cursor
+117000:b:300
+122000:shot=13_main_menu_options

@@ -1,0 +1,42 @@
+# aa_hangar.txt - antialiasing cost series (2026-10-26): scale_hangar.txt (the M5 sweep's Hangar run: unlock-all
+# cheat, Free Skate, first skater, Hangar, then 60 s of snippets/skate_loop.txt) with one shot before the measured
+# window and one after it, none inside (a shot at high render scales stalls for seconds). The measured window is
+# 116 .. 172 s of the frame-time CSV.
+#   THPS2X.exe --max-seconds 180 --save-dir <temp> --data-dir <temp> --input-script tests\input\aa_hangar.txt
+# Times count from the first pad read (about 1 s after start).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# the cheat (left trigger held), 21.0 .. 28.0 s
+@include snippets/unlock_all.txt 21000
+
+# Free Skate (third entry), first skater, Select Level: the first level (Hangar)
+30000:down:300
+32000:down:300
+35000:a:300
+44000:a:300
+54000:a:300
+# the level loads; the rules screen takes A (spare presses are ollies)
+79000:a:300
+82000:a:300
+85000:a:300
+88000:a:300
+91000:a:300
+94000:a:300
+97000:a:300
+100000:a:300
+103000:a:300
+106000:a:300
+109000:a:300
+113500:shot=10_skate_00
+
+# 60 s of skating
+@include snippets/skate_loop.txt 114000
+@include snippets/skate_loop.txt 134000
+@include snippets/skate_loop.txt 154000
+173700:shot=13_skate_60

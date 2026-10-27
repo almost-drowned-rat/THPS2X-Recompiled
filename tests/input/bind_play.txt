@@ -1,0 +1,31 @@
+# bind_play.txt - same binding in gameplay (Free Skate, Hangar): Enter pauses (Start unchanged), K (old A) must do
+# nothing in the pause menu (gameplay: own binding only), L (A) continues.
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+@include snippets/unlock_all.txt 21000
+30000:down:300
+32000:down:300
+35000:a:300
+44000:a:300
+54000:a:300
+79000:a:300
+82000:a:300
+85000:a:300
+88000:a:300
+91000:a:300
+94000:a:300
+97000:a:300
+100000:a:300
+103000:a:300
+106000:a:300
+109000:a:300
+114000:lup:1500
+117000:key=40:300
+119500:shot=g01_paused
+120500:key=14:300
+123000:shot=g02_after_K
+124000:key=15:300
+126500:shot=g03_after_L

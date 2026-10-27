@@ -1,0 +1,3 @@
+// thps2x.rc -- the exe's icon in Explorer (maintainer, 2026-10-27: the approved neutral skateboard; assets/README.md).
+// Compiled with llvm-rc (tools\build.ps1 passes CMAKE_RC_COMPILER); Windows builds only.
+1 ICON "icon.ico"

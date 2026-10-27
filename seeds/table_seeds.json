@@ -1,0 +1,266 @@
+[
+ {
+  "start": "0x00014780",
+  "source": "table scan: pointer in DOLBY at 0x00326424 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x0006B9A0",
+  "source": "table scan: pointer in .rdata at 0x00239770 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00072B60",
+  "source": "table scan: pointer in .rdata at 0x00239630 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x0009B630",
+  "source": "table scan: pointer in .rdata at 0x002357E8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000B99B0",
+  "source": "table scan: pointer in .rdata at 0x00234948 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000C5650",
+  "source": "table scan: pointer in .rdata at 0x0022FF9C (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000DB9D0",
+  "source": "table scan: pointer in .rdata at 0x0022EC80 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000E3A20",
+  "source": "table scan: pointer in .rdata at 0x0022E900 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000E5210",
+  "source": "table scan: pointer in .rdata at 0x0022E7A0 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000E97C0",
+  "source": "table scan: pointer in .rdata at 0x0022DE14 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000E9C40",
+  "source": "table scan: pointer in .rdata at 0x0022DE18 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000F1090",
+  "source": "table scan: pointer in .rdata at 0x0022DCF4 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000F3540",
+  "source": "table scan: pointer in .rdata at 0x0022DD90 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x000F9CF0",
+  "source": "table scan: pointer in .rdata at 0x0022D8B0 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00110560",
+  "source": "table scan: pointer in .rdata at 0x0022C764 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00111010",
+  "source": "table scan: pointer in .rdata at 0x0022C728 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00111A60",
+  "source": "table scan: pointer in .rdata at 0x0022C714 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001121C0",
+  "source": "table scan: pointer in .rdata at 0x0022C6F0 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001158F0",
+  "source": "table scan: pointer in .rdata at 0x0022C09C (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x0011D7D0",
+  "source": "table scan: pointer in .rdata at 0x0022B9A4 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00137140",
+  "source": "table scan: pointer in .rdata at 0x0022A1D8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001389B0",
+  "source": "table scan: pointer in .rdata at 0x0022A1A0 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x0013A220",
+  "source": "table scan: pointer in .rdata at 0x0022A280 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x0013BB20",
+  "source": "table scan: pointer in .rdata at 0x0022A184 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x0013C5B0",
+  "source": "table scan: pointer in .rdata at 0x0022A210 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00144FB0",
+  "source": "table scan: pointer in .rdata at 0x00229D7C (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001827B0",
+  "source": "table scan: pointer in .rdata at 0x00227A5C (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00182F20",
+  "source": "table scan: pointer in .rdata at 0x00227514 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00183160",
+  "source": "table scan: pointer in .rdata at 0x00227540 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00183340",
+  "source": "table scan: pointer in .rdata at 0x002275D0 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00194CF0",
+  "source": "table scan: pointer in .rdata at 0x00226C44 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00195030",
+  "source": "table scan: pointer in .rdata at 0x00234500 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00195210",
+  "source": "table scan: pointer in .rdata at 0x002344B8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00195710",
+  "source": "table scan: pointer in .rdata at 0x002344BC (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00195840",
+  "source": "table scan: pointer in .rdata at 0x002275A8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00195C00",
+  "source": "table scan: pointer in .rdata at 0x002275AC (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00195D00",
+  "source": "table scan: pointer in .rdata at 0x00227584 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001963A0",
+  "source": "table scan: pointer in .rdata at 0x00227588 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00196510",
+  "source": "table scan: pointer in .rdata at 0x00227560 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00196D70",
+  "source": "table scan: pointer in .rdata at 0x00227564 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00196EF0",
+  "source": "table scan: pointer in .rdata at 0x00227534 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00197750",
+  "source": "table scan: pointer in .rdata at 0x00227538 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x00197D10",
+  "source": "table scan: pointer in .rdata at 0x00234474 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C51E0",
+  "source": "table scan: pointer in .data at 0x0023FAB8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C53F0",
+  "source": "table scan: pointer in .data at 0x0023FAC8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C5630",
+  "source": "table scan: pointer in .data at 0x0023FAD8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C5960",
+  "source": "table scan: pointer in .data at 0x0023FAA8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C5DD0",
+  "source": "table scan: pointer in .data at 0x0023FB98 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C5ED0",
+  "source": "table scan: pointer in .data at 0x0023FB6C (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C6140",
+  "source": "table scan: pointer in .data at 0x0023FB7C (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C63B0",
+  "source": "table scan: pointer in .data at 0x0023FB8C (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C6890",
+  "source": "table scan: pointer in .data at 0x0023FB60 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C6E50",
+  "source": "table scan: pointer in .data at 0x0023FC38 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C70A0",
+  "source": "table scan: pointer in .data at 0x0023FC28 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C7300",
+  "source": "table scan: pointer in .data at 0x0023FC48 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C7640",
+  "source": "table scan: pointer in .data at 0x0023FC18 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C7D10",
+  "source": "table scan: pointer in .data at 0x0023FCF0 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C7FA0",
+  "source": "table scan: pointer in .data at 0x0023FCE0 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C8240",
+  "source": "table scan: pointer in .data at 0x0023FD00 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C8620",
+  "source": "table scan: pointer in .data at 0x0023FCD0 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C8A30",
+  "source": "table scan: pointer in .data at 0x0023FDC0 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C8C50",
+  "source": "table scan: pointer in .data at 0x0023FDA8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001C9010",
+  "source": "table scan: pointer in .data at 0x0023FDB8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001D4920",
+  "source": "table scan: pointer in .data at 0x0023FD18 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x001D5740",
+  "source": "table scan: pointer in .data at 0x0023FBC8 (tools/scan_table_seeds.py)"
+ },
+ {
+  "start": "0x002000B0",
+  "source": "table scan: pointer in DOLBY at 0x00323560 (tools/scan_table_seeds.py)"
+ }
+]

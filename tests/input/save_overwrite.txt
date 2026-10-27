@@ -1,0 +1,43 @@
+# save_overwrite.txt - Options -> Load/Save -> Save Game -> Xbox Hard Disk -> overwrite the first save.
+# Needs an existing save (save_new.txt). From this menu the game builds the save screen in "new save" mode
+# (mode 1 at 0x0010CB8D; "overwrite" = mode 3 only after the in-game path, previous state 0x16 at 0x0010CB45),
+# so keeping the name ends in "a file named CAREER A already exists" -- game logic, deterministic since the
+# stage 3 relift. tests/storage.ps1 step 5.
+#   THPS2X.exe --max-seconds 90 --input-script tests\input\save_overwrite.txt
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# main menu: up wraps to Options
+20000:up:300
+22000:a:300
+# Options (since 2026-10-18): Chat Messages -> Controls -> Sound Levels -> Soundtracks -> Movies -> Memory Unit
+28000:down:300
+29000:down:300
+30000:down:300
+31000:down:300
+32000:down:300
+32500:shot=ov_options_cursor
+33000:a:300
+# Load/Save: Save Game
+38000:down:300
+38500:shot=ov_loadsave_cursor
+39000:a:300
+# Choose Storage Location: Xbox Hard Disk
+44500:shot=ov_storage
+45000:a:300
+# Select File To Save: cursor on NEW SAVE; up = the existing save (only once the list takes input)
+51500:shot=ov_list
+52500:up:300
+54000:a:300
+# "Overwrite this save game?" NO -> YES
+58000:shot=ov_confirm
+58500:left:300
+60000:a:300
+# the name keyboard again (cursor on END): keep the name. The game deletes the old save behind it;
+# confirming the name too early reports "a file named ... already exists".
+67000:shot=ov_name
+68000:a:300
+75000:shot=save_overwrite_done
+76000:a:300

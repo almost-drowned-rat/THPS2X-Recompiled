@@ -1,0 +1,32 @@
+# unlock_skaters.txt - unlock-all cheat, Free Skate Select Player, 10 x left with a shot each (2026-10-17: only the regular pros listed).
+
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+@include snippets/unlock_all.txt 21000
+30000:down:300
+32000:down:300
+35000:a:300
+42000:shot=s_00
+43000:left:300
+44500:shot=s_01
+45500:left:300
+47000:shot=s_02
+48000:left:300
+49500:shot=s_03
+50500:left:300
+52000:shot=s_04
+53000:left:300
+54500:shot=s_05
+55500:left:300
+57000:shot=s_06
+58000:left:300
+59500:shot=s_07
+60500:left:300
+62000:shot=s_08
+63000:left:300
+64500:shot=s_09
+65500:left:300
+67000:shot=s_10

@@ -1,0 +1,56 @@
+# opt_recomp_restart.txt - RESTART NEEDED (M6, 2026-10-26): from a fresh saves\ (4:3), RECOMP OPTIONS -> ASPECT
+# RATIO right = 16:9 AFTER RESTART, B -> RESTART NEEDED ("ASPECT RATIO CHANGED", cursor on RESTART NOW); down =
+# LATER, A -> OPTIONS on RECOMP OPTIONS; A into RECOMP OPTIONS again, B -> the question again; A = RESTART NOW: the
+# game starts again (host_restart: same arguments without this script, the start environment) and runs at 16:9.
+#   THPS2X.exe --max-seconds 100 --input-script tests\input\opt_recomp_restart.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+44000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# ASPECT RATIO (third line): right = 16:9 AFTER RESTART
+52000:down:300
+53000:down:300
+54000:right:300
+56500:shot=10_aspect_169
+# B: the question; down = LATER, A
+57500:b:300
+62500:shot=20_restart_question
+63500:down:300
+64500:a:300
+69500:shot=21_later_options
+# RECOMP OPTIONS again, B: the question again; A = RESTART NOW
+70500:a:300
+75500:shot=30_recomp_again
+76500:b:300
+81500:shot=31_question_again
+82500:a:300

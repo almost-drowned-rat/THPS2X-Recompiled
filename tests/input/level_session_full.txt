@@ -1,0 +1,39 @@
+# level_session_full.txt - M4: a whole Single Session (main menu -> Single Session -> first skater -> first
+# level): the 2:00 clock must run down to 0:00 in real time and the session end normally, at any frame rate
+# (THPS_FPS=30/60/120). Shots from the first input (85 s) on, then at 0:00 and after the end.
+#   THPS2X.exe --max-seconds 240 --input-script tests\input\level_session_full.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=01_main_menu
+
+# Single Session is the second entry
+21000:down:300
+23000:shot=02_cursor_single_session
+24000:a:300
+32000:shot=03_select_player
+33000:a:300
+41000:shot=04_select_level
+42000:a:300
+
+# loading, the rules screen (accepted with A), then the level with the clock running
+60000:shot=05_loading
+75000:shot=06_rules
+76000:a:300
+84000:shot=07_level
+
+# the clock starts when the rules are accepted (76 s): 0:00 is due at 196 s. One short push, then no input.
+85000:lup:400
+90000:shot=10_clock_1_46
+106000:shot=11_clock_1_30
+136000:shot=12_clock_1_00
+166000:shot=13_clock_0_30
+191000:shot=14_clock_0_05
+200000:shot=15_session_end
+215000:shot=16_session_end
+230000:shot=17_after_end

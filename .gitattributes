@@ -1,0 +1,26 @@
+# Line endings per file type (maintainer, 2026-10-26): the repository stores LF; every checkout gets the
+# line endings below, whatever core.autocrlf says (this machine's Git sets it true system-wide, so files written
+# by tools came out LF next to converted CRLF ones). Edits keep a file's line endings (CLAUDE.md, Hard Rules).
+* text=auto eol=lf
+
+# Windows scripts
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# POSIX scripts (the Linux CI build)
+*.sh text eol=lf
+
+# never converted
+*.png binary
+*.bmp binary
+*.jpg binary
+*.ico binary
+*.zip binary
+*.iso binary
+*.xbe binary
+*.bin binary
+*.mask binary
+
+# tools/lock.ps1 is a byte-identical copy of the toolkit's (copy_lock.ps1 -Verify): no line-ending conversion
+tools/lock.ps1 -text

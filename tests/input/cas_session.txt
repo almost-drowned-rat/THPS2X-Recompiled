@@ -1,0 +1,42 @@
+# cas_session.txt - the Create-a-Skater skater used in a session (testplan gap, 2026-10-24): run after cas_save.txt
+# with the same --save-dir. The game loads the most recent save (CAREER A) at boot; Free Skate's Select Player then
+# starts on the custom skater (SKATER A, menu line APPEARANCE instead of STYLE) -> CONTINUE -> first level (Hangar)
+# -> 40 s of snippets/skate_loop.txt, shots on the way.
+#   THPS2X.exe --max-seconds 150 --save-dir <the cas_save.txt dir> --input-script tests\input\cas_session.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# Free Skate is the third entry
+20000:shot=c00_main
+21000:down:300
+23000:down:300
+26000:a:300
+34000:shot=c01_select_player
+35000:a:300
+43000:shot=c02_select_level
+44000:a:300
+# the level loads; the rules screen takes A (spare presses are ollies)
+66000:a:300
+69000:a:300
+72000:a:300
+75000:a:300
+78000:a:300
+81000:a:300
+84000:a:300
+87000:a:300
+90000:shot=c03_level
+
+# 40 s of skating
+@include snippets/skate_loop.txt 91000
+93000:shot=c04_skating
+105000:shot=c05_skating
+@include snippets/skate_loop.txt 111000
+118000:shot=c06_skating
+130000:shot=c07_skating

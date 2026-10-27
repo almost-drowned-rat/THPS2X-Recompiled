@@ -1,0 +1,36 @@
+[
+ {
+  "start": "0x00219068",
+  "source": "XPP class-driver table at 0x002070D8/0x002070F0 (classes 0x03 and 0x58): XID AddDevice, only reached through the table; unresolved ICALL in the first USB run"
+ },
+ {
+  "start": "0x00218A16",
+  "source": "XPP class-driver table at 0x002070D8/0x002070F0: XID RemoveDevice, sibling of 0x00219068"
+ },
+ {
+  "start": "0x00218783",
+  "source": "XPP endpoint-type table at 0x00207178 (0x1001/0x0101 entries): control-pipe handler, fastcall; unresolved ICALL after the XID AddDevice seed"
+ },
+ {
+  "start": "0x002187E8",
+  "source": "XPP endpoint-type table at 0x00207178: sibling of 0x00218783"
+ },
+ {
+  "start": "0x00217A84",
+  "source": "XPP class-driver table at 0x00207030 (class 0x08 entry next to 0x00217902): only reached through the table"
+ },
+ {
+  "start": "0x001DCB27",
+  "source": "Bink sound callback: stored to [0x002B0074] at 0x001E0E3A (mov imm32), only called indirectly; unresolved ICALL once the APU is on"
+ },
+ {
+  "start": "0x00144FB0",
+  "observed": true,
+  "source": "observed at runtime: [ICALL] Failed to resolve VA 0x00144FB0 on B in Select Player (vtable pointer in .rdata at 0x00229D7C); behind an inline jump table 0x00144F90-0x00144FAF the sweep decodes as code, so without 'observed' the disassembler drops it as mid-instruction"
+ },
+ {
+  "start": "0x0011F760",
+  "observed": true,
+  "source": "observed at runtime: [ICALL] Failed to resolve VA 0x0011F760 in Options -> Load/Save -> Save Game (device chooser); vtable pointer in .rdata, preceded by inline data so the table scan skipped it"
+ }
+]

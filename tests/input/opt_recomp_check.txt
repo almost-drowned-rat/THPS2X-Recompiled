@@ -1,0 +1,60 @@
+# opt_recomp_check.txt - RECOMP OPTIONS values kept (M6, 2026-10-26): the run after opt_recomp_set.txt with the
+# same saves\ (16:9 running now). RECOMP OPTIONS shows DISPLAY MODE: WINDOWED, RENDER RESOLUTION 1.50X 1280X720
+# (the 4:3 2.00X 1280X960 carried over with the same width), ASPECT RATIO 16:9 (no hint), MENUS AT 16:9 STRETCHED
+# (the window: menus stretched, movies pillarboxed), ANISOTROPIC FILTER 4X; RENDER RESOLUTION right = 1.875X
+# 1600X900 (the 16:9 standard sizes). FRAME RATE: 120 NEEDS 120 HZ, VSYNC OFF (no hint), FPS COUNTER FPS AND
+# FRAME TIME, right = FRAME TIME (at once).
+#   THPS2X.exe --max-seconds 95 --input-script tests\input\opt_recomp_check.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+44000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# RENDER RESOLUTION (second line): right = 1600X900
+52000:down:300
+53000:right:300
+55500:shot=10_render_1600
+
+# FRAME RATE (seventh line with MENUS AT 16:9 shown): five downs, A
+56500:down:300
+57500:down:300
+58500:down:300
+59500:down:300
+60500:down:300
+61500:a:300
+66500:shot=20_frame_rate
+67500:down:300
+68500:down:300
+69500:right:300
+72000:shot=21_counter_frametime
+73000:b:300
+78000:shot=99_end

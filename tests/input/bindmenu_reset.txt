@@ -1,0 +1,32 @@
+# bindmenu_reset.txt - after bindmenu_record.txt: L confirms in the main menu (A on L kept), then BUTTON MAPPING ->
+# RESET TO DEFAULT (under DEVICE)
+0:p2-connect
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=r00_main
+21000:key=15:300
+26000:shot=r01_after_L
+27000:b:300
+31000:shot=r02_main
+32000:down:300
+33500:down:300
+35000:down:300
+36500:down:300
+38000:down:300
+39500:down:300
+41000:a:300
+47000:down:300
+48500:a:300
+54500:down:300
+56000:down:300
+57500:a:300
+62500:shot=r03_bm
+63500:down:300
+65000:down:300
+66500:shot=r04_on_reset
+67500:a:300
+71500:shot=r05_after_reset
+72500:a:300

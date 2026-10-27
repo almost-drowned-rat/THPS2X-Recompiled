@@ -1,0 +1,26 @@
+# load_game.txt - Options -> Load/Save -> Load Game -> Xbox Hard Disk -> load the first save.
+#   THPS2X.exe --max-seconds 70 --input-script tests\input\load_game.txt
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+19500:shot=ld_main
+20000:up:300
+21500:shot=ld_main_up
+22000:a:300
+# Options (since 2026-10-18): Chat Messages -> Controls -> Sound Levels -> Soundtracks -> Movies -> Memory Unit
+28000:down:300
+29000:down:300
+30000:down:300
+31000:down:300
+32000:down:300
+32500:shot=ld_options
+33000:a:300
+# Load/Save: Load Game (cursor already there), then Xbox Hard Disk
+38000:a:300
+44000:a:300
+50000:shot=load_list
+51000:a:300
+57000:shot=load_done
+58000:a:300

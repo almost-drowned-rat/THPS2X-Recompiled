@@ -1,0 +1,43 @@
+# opt_display.txt - DISPLAY MODE at once (2026-10-26): with display_mode=windowed saved (no env override), RECOMP
+# OPTIONS -> DISPLAY MODE (first line) left = BORDERLESS (the window covers the display for ~5 s), right = WINDOWED
+# again (SDL restores the window's size and place). Exclusive FULLSCREEN is the maintainer's manual test.
+#   THPS2X.exe --max-seconds 75 --input-script tests\input\opt_display.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+44000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# DISPLAY MODE: left = BORDERLESS, then right = WINDOWED
+52000:left:300
+56000:shot=10_borderless
+57000:right:300
+61000:shot=11_windowed

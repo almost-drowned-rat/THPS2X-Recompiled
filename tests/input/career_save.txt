@@ -1,0 +1,65 @@
+# career_save.txt - M5: New Career, first skater, Hangar, one 2-minute session, statistics, Save Career
+# (Yes -> Xbox Hard Disk -> empty slot -> name CAREER A -> Save Successful), then Save Career again (overwrite
+# from the in-game path). Separate test --save-dir. Verified 2026-10-17: saves\UDATA\41560001\<id>\CAREER - CAREER A.
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+21000:a:300
+25000:a:300
+33000:a:300
+41000:a:300
+49000:a:300
+@include snippets/skate_loop.txt 55000
+@include snippets/skate_loop.txt 75000
+@include snippets/skate_loop.txt 95000
+@include snippets/skate_loop.txt 115000
+@include snippets/skate_loop.txt 135000
+176000:a:300
+180000:down:300
+181500:down:300
+183000:down:300
+184500:down:300
+186000:down:300
+188500:shot=m_save_cursor
+189500:a:300
+197000:a:300
+203000:a:300
+209000:a:300
+215000:a:300
+221000:a:300
+227000:a:300
+233000:a:300
+239000:a:300
+190000:shot=k_190
+192000:shot=k_192
+194000:shot=k_194
+196000:shot=k_196
+198000:shot=k_198
+200000:shot=k_200
+202000:shot=k_202
+204000:shot=k_204
+206000:shot=k_206
+208000:shot=k_208
+210000:shot=k_210
+212000:shot=k_212
+214000:shot=k_214
+216000:shot=k_216
+218000:shot=k_218
+220000:shot=k_220
+222000:shot=k_222
+224000:shot=k_224
+226000:shot=k_226
+228000:shot=k_228
+230000:shot=k_230
+232000:shot=k_232
+234000:shot=k_234
+236000:shot=k_236
+238000:shot=k_238
+240000:shot=k_240
+242000:shot=k_242
+244000:shot=k_244
+246000:shot=k_246
+248000:shot=k_248
+250000:shot=k_250

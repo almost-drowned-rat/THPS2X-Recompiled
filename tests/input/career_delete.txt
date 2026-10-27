@@ -1,0 +1,36 @@
+# career_delete.txt - with CAREER A in the save dir: Options -> Memory Unit -> Save Game -> Xbox Hard Disk -> UP onto CAREER A
+# -> X (DELETE) -> NO -> YES (left) -> A. Navigation as save_overwrite.txt.
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:up:300
+22000:a:300
+28000:down:300
+29000:down:300
+30000:down:300
+31000:down:300
+32000:down:300
+33000:a:300
+38000:down:300
+39000:a:300
+45000:a:300
+52500:up:300
+54000:x:300
+58500:left:300
+60000:a:300
+46000:shot=d_46
+48000:shot=d_48
+50000:shot=d_50
+52000:shot=d_52
+54000:shot=d_54
+56000:shot=d_56
+58000:shot=d_58
+60000:shot=d_60
+62000:shot=d_62
+64000:shot=d_64
+66000:shot=d_66
+68000:shot=d_68
+70000:shot=d_70
+72000:shot=d_72

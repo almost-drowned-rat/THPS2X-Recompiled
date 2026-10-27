@@ -1,0 +1,100 @@
+# opt_recomp_set.txt - RECOMP OPTIONS values (M6, 2026-10-26), one list of value lines changed with left / right
+# (ANTIALIASING and FRAME RATE open sub-lists): main menu -> OPTIONS -> RECOMP OPTIONS, from a fresh saves\ (4:3):
+#   DISPLAY MODE right = FULLSCREEN, left = WINDOWED again (stored only until step 3)
+#   RENDER RESOLUTION 4 x right = 2.00X 1280X960; ASPECT RATIO right = 16:9 AFTER RESTART (the MENUS AT 16:9 line
+#   appears below it); MENUS AT 16:9 right = STRETCHED; ANISOTROPIC FILTER 2 x left = 4X
+#   ANTIALIASING: A opens its list (placeholders), B back on its line
+#   FRAME RATE: A; FRAME RATE right = 120 NEEDS 120 HZ (60 Hz panel); VSYNC right = OFF AFTER RESTART; FPS COUNTER
+#   2 x right = FPS AND FRAME TIME; B back on its line
+#   BOOT ANIMATION: NO BOOT FILE (no media\boot file in this layout), right changes nothing
+# Each step saves at once (saves\settings.ini). The next run with the same saves\: opt_recomp_check.txt.
+#   THPS2X.exe --max-seconds 135 --input-script tests\input\opt_recomp_set.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+44000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# DISPLAY MODE (first line)
+52000:right:300
+54500:shot=10_display_fullscreen
+55500:left:300
+58000:shot=11_display_windowed
+
+# RENDER RESOLUTION
+59000:down:300
+60000:right:300
+61500:right:300
+63000:right:300
+64500:right:300
+66500:shot=20_render_200
+# ASPECT RATIO
+67500:down:300
+68500:right:300
+71000:shot=21_aspect_169
+# MENUS AT 16:9
+72000:down:300
+73000:right:300
+75500:shot=22_menus_stretched
+# ANISOTROPIC FILTER
+76500:down:300
+77500:left:300
+79000:left:300
+81000:shot=23_aniso_4x
+
+# ANTIALIASING: its list, B back
+82000:down:300
+83000:a:300
+88000:shot=30_aa_list
+89000:b:300
+94000:shot=31_back_on_aa
+
+# FRAME RATE: its list
+95000:down:300
+96000:a:300
+101000:shot=40_frame_rate
+102000:right:300
+104500:shot=41_fps_120
+105500:down:300
+106500:right:300
+109000:shot=42_vsync_off
+110000:down:300
+111000:right:300
+112500:right:300
+114500:shot=43_counter_both
+115500:b:300
+120500:shot=44_back_on_frame_rate
+
+# BOOT ANIMATION (last line, after SHADERS since 2026-10-27): no boot file, right changes nothing
+121000:down:300
+121800:down:300
+122600:right:300
+124500:shot=50_boot

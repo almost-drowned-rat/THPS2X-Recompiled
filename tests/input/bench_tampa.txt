@@ -1,0 +1,92 @@
+# bench_tampa.txt - the M5 "heaviest level" benchmark scene (2026-10-27): Tampa (Free Skate level 21) has the most
+# work per frame while skating (executor translate + GPU) of the 25 levels in the 2026-10-16 sweep. Unlock-all cheat
+# (fresh save dir only), Free Skate, first skater, 21 x right, A; A every 3 s while the level loads (takes the rules
+# screen; spare presses are ollies), then 10 minutes of snippets/skate_loop.txt. One shot before the measured window,
+# one after it, none inside (a shot costs frames). Measured: the frames between the two shots.
+#   THPS2X.exe --max-seconds 760 --save-dir <temp> --data-dir <temp> --input-script tests\input\bench_tampa.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# the cheat (left trigger held), 21.0 .. 28.0 s
+@include snippets/unlock_all.txt 21000
+
+# Free Skate (third entry), first skater, Select Level: 21 x right = Tampa
+30000:down:300
+32000:down:300
+35000:a:300
+44000:a:300
+52000:right:300
+53600:right:300
+55200:right:300
+56800:right:300
+58400:right:300
+60000:right:300
+61600:right:300
+63200:right:300
+64800:right:300
+66400:right:300
+68000:right:300
+69600:right:300
+71200:right:300
+72800:right:300
+74400:right:300
+76000:right:300
+77600:right:300
+79200:right:300
+80800:right:300
+82400:right:300
+84000:right:300
+86600:shot=00_select
+87600:a:300
+# the level loads; the rules screen takes A
+112600:a:300
+115600:a:300
+118600:a:300
+121600:a:300
+124600:a:300
+127600:a:300
+130600:a:300
+133600:a:300
+136600:a:300
+139600:a:300
+142600:a:300
+147100:shot=10_skate_00
+
+# 10 minutes of skating
+@include snippets/skate_loop.txt 147600
+@include snippets/skate_loop.txt 167600
+@include snippets/skate_loop.txt 187600
+@include snippets/skate_loop.txt 207600
+@include snippets/skate_loop.txt 227600
+@include snippets/skate_loop.txt 247600
+@include snippets/skate_loop.txt 267600
+@include snippets/skate_loop.txt 287600
+@include snippets/skate_loop.txt 307600
+@include snippets/skate_loop.txt 327600
+@include snippets/skate_loop.txt 347600
+@include snippets/skate_loop.txt 367600
+@include snippets/skate_loop.txt 387600
+@include snippets/skate_loop.txt 407600
+@include snippets/skate_loop.txt 427600
+@include snippets/skate_loop.txt 447600
+@include snippets/skate_loop.txt 467600
+@include snippets/skate_loop.txt 487600
+@include snippets/skate_loop.txt 507600
+@include snippets/skate_loop.txt 527600
+@include snippets/skate_loop.txt 547600
+@include snippets/skate_loop.txt 567600
+@include snippets/skate_loop.txt 587600
+@include snippets/skate_loop.txt 607600
+@include snippets/skate_loop.txt 627600
+@include snippets/skate_loop.txt 647600
+@include snippets/skate_loop.txt 667600
+@include snippets/skate_loop.txt 687600
+@include snippets/skate_loop.txt 707600
+@include snippets/skate_loop.txt 727600
+747800:shot=13_skate_600

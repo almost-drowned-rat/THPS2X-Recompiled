@@ -1,0 +1,63 @@
+# opt_boot.txt - RECOMP OPTIONS -> BOOT ANIMATION (2026-10-27): the sub-list's status line (BOOT.MPG FOUND / NEEDS
+# BOOT MPG IN THE MEDIA FOLDER / CONVERT BOOT VIDEO TO BOOT.MPG  SEE README) and, with media\boot.mpg, OFF picked:
+# back on RECOMP OPTIONS with "BOOT ANIMATION: OFF", then B asks RESTART NEEDED (BOOT ANIMATION CHANGED), LATER.
+# Without the file ON / OFF are greyed, the picks do nothing and B leaves without the question.
+# 4:3 (RECOMP OPTIONS: DISPLAY MODE, RENDER RESOLUTION, ASPECT RATIO, ANISOTROPIC FILTER, ANTIALIASING, FRAME RATE,
+# SHADERS, BOOT ANIMATION = the eighth and last line; order since 2026-10-27).
+#   THPS2X.exe --max-seconds 92 --input-script tests\input\opt_boot.txt
+# Times count from the first pad read (about 1 s after start - after a boot animation); 300 ms presses.
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+44000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# BOOT ANIMATION: seven downs, A (the cursor lands on the choice in use, ON)
+51500:down:300
+52500:down:300
+53500:down:300
+54500:down:300
+55500:down:300
+56500:down:300
+57500:down:300
+59000:a:300
+63000:shot=40_boot_animation
+
+# one down (OFF), A: saved, back on RECOMP OPTIONS
+64000:down:300
+65000:a:300
+69000:shot=41_recomp_after_pick
+
+# B leaves RECOMP OPTIONS: with the file there and OFF picked, RESTART NEEDED ("BOOT ANIMATION CHANGED"); LATER
+70000:b:300
+74000:shot=42_restart_needed
+75000:down:300
+76000:a:300
+80000:shot=43_after_later

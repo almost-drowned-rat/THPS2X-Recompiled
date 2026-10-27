@@ -1,0 +1,21 @@
+# skate_loop.txt - snippet: 20 s of varied skating input for soak runs (include it back to back):
+# pushing and turning, ollies, flip tricks (X + direction), grabs (B + direction), grind attempts (Y), a spin (LT),
+# a camera change (Back). Bails happen on their own with input like this. Times from 0, last press ends at 19.4 s.
+0:lup:2500
+2500:lup+lright:800
+3300:a:400
+3800:x+lleft:200
+5000:lup:2000
+7000:a:500
+7600:b+lup:300
+9000:lup+lleft:1200
+10200:y:300
+11000:lup:1500
+12500:a:300
+12800:lt:600
+13800:x+ldown:200
+15000:back:200
+15500:lup+lright:2000
+17500:a:400
+18000:x+lright:200
+18800:b+lleft:600

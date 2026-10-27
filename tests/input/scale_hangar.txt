@@ -1,0 +1,45 @@
+# scale_hangar.txt - render-scale measurement (2026-10-23): the M5 level sweep's Hangar run, rebuilt step by step
+# from the sweep's pad log (same times): unlock-all cheat, Free Skate,
+# first skater, first level (Hangar), A every 3 s while it loads, then 60 s of snippets/skate_loop.txt with shots
+# at 0/20/40/60 s. The measured window is the frames between the first and the last skating shot.
+#   THPS2X.exe --max-seconds 180 --save-dir <temp> --data-dir <temp> --input-script tests\input\scale_hangar.txt
+# Times count from the first pad read (about 1 s after start).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# the cheat (left trigger held), 21.0 .. 28.0 s
+@include snippets/unlock_all.txt 21000
+
+# Free Skate (third entry), first skater, Select Level: the first level (Hangar)
+30000:down:300
+32000:down:300
+35000:a:300
+44000:a:300
+53000:shot=00_select
+54000:a:300
+# the level loads; the rules screen takes A (spare presses are ollies)
+79000:a:300
+82000:a:300
+85000:a:300
+88000:a:300
+91000:a:300
+94000:a:300
+97000:a:300
+100000:a:300
+103000:a:300
+106000:a:300
+109000:a:300
+113500:shot=10_skate_00
+
+# 60 s of skating
+@include snippets/skate_loop.txt 114000
+133700:shot=11_skate_20
+@include snippets/skate_loop.txt 134000
+153700:shot=12_skate_40
+@include snippets/skate_loop.txt 154000
+173700:shot=13_skate_60

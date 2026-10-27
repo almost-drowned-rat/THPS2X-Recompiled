@@ -1,0 +1,55 @@
+# unlock_check.txt - enters the unlock-all cheat on the main menu (snippets/unlock_all.txt), then walks Free Skate's
+# Select Player and Select Level with a shot per entry, to see what got unlocked. Separate test save dir only:
+#   THPS2X.exe --max-seconds 100 --save-dir <temp> --data-dir <temp> --input-script tests\input\unlock_check.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=01_main_menu
+
+# the cheat (left trigger held), 21.0 .. 28.0 s
+@include snippets/unlock_all.txt 21000
+28500:shot=02_after_cheat
+
+# Free Skate (third entry), Select Player: the skaters, one shot each
+30000:down:300
+32000:down:300
+34000:shot=03_cursor_free_skate
+35000:a:300
+42000:shot=10_player_1
+43000:right:300
+44500:shot=11_player_2
+45500:right:300
+47000:shot=12_player_3
+48000:right:300
+49500:shot=13_player_4
+50500:right:300
+52000:shot=14_player_5
+53000:right:300
+54500:shot=15_player_6
+
+# back to the first skater, then Select Level: the levels, one shot each
+55500:a:300
+63000:shot=20_level_1
+64000:right:300
+65500:shot=21_level_2
+66500:right:300
+68000:shot=22_level_3
+69000:right:300
+70500:shot=23_level_4
+71500:right:300
+73000:shot=24_level_5
+74000:right:300
+75500:shot=25_level_6
+76500:right:300
+78000:shot=26_level_7
+79000:right:300
+80500:shot=27_level_8
+81500:right:300
+83000:shot=28_level_9
+84000:right:300
+85500:shot=29_level_10

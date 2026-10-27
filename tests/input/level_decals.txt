@@ -1,0 +1,90 @@
+# level_decals.txt - M4 decal flicker (polygon offset): Free Skate in the Hangar, from the start straight over the
+# floor in front of the plane (oil/dirt decals), then right towards the wall graffiti, with a shot every 200 ms
+# from 85 s to 97 s to compare consecutive frames with and without depth bias (RECOMP_VK_DEPTH_BIAS=0) and with
+# D24S8 / forced D32_SFLOAT_S8 (RECOMP_VK_DEPTH_FMT=d32). Use a fresh --save-dir.
+#   THPS2X.exe --max-seconds 100 --input-script tests\input\level_decals.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# Free Skate is the third entry; first skater, first level (the Hangar)
+21000:down:300
+23000:down:300
+26000:a:300
+35000:a:300
+44000:a:300
+
+# loading, then the rules screen (accepted with A)
+76000:a:300
+
+# from the start: straight ahead, then right towards the wall
+84000:lup:4000
+85000:shot=d_085000
+85200:shot=d_085200
+85400:shot=d_085400
+85600:shot=d_085600
+85800:shot=d_085800
+86000:shot=d_086000
+86200:shot=d_086200
+86400:shot=d_086400
+86600:shot=d_086600
+86800:shot=d_086800
+87000:shot=d_087000
+87200:shot=d_087200
+87400:shot=d_087400
+87600:shot=d_087600
+87800:shot=d_087800
+88000:lup+lright:900
+88000:shot=d_088000
+88200:shot=d_088200
+88400:shot=d_088400
+88600:shot=d_088600
+88800:shot=d_088800
+88900:lup:4000
+89000:shot=d_089000
+89200:shot=d_089200
+89400:shot=d_089400
+89600:shot=d_089600
+89800:shot=d_089800
+90000:shot=d_090000
+90200:shot=d_090200
+90400:shot=d_090400
+90600:shot=d_090600
+90800:shot=d_090800
+91000:shot=d_091000
+91200:shot=d_091200
+91400:shot=d_091400
+91600:shot=d_091600
+91800:shot=d_091800
+92000:shot=d_092000
+92200:shot=d_092200
+92400:shot=d_092400
+92600:shot=d_092600
+92800:shot=d_092800
+93000:lup+lright:600
+93000:shot=d_093000
+93200:shot=d_093200
+93400:shot=d_093400
+93600:lup:3000
+93600:shot=d_093600
+93800:shot=d_093800
+94000:shot=d_094000
+94200:shot=d_094200
+94400:shot=d_094400
+94600:shot=d_094600
+94800:shot=d_094800
+95000:shot=d_095000
+95200:shot=d_095200
+95400:shot=d_095400
+95600:shot=d_095600
+95800:shot=d_095800
+96000:shot=d_096000
+96200:shot=d_096200
+96400:shot=d_096400
+96600:shot=d_096600
+96800:shot=d_096800

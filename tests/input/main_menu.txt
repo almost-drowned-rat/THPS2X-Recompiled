@@ -1,0 +1,11 @@
+# main_menu.txt - skip the logo movies and the title screen, enter the first main-menu item.
+# Syntax (toolkit src/usb/usb_gamepad.c): <ms>:<button>[+<button>...][:<hold ms>]
+# Times count from the first pad report the game asks for (USB enumeration, ~1 s after start).
+# Buttons: up down left right start back lthumb rthumb a b x y black white lt rt,
+#          lleft lright lup ldown / rleft rright rup rdown (stick at full throw), "p2-" prefix = pad 2.
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+24000:a:200
