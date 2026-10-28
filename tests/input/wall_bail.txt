@@ -1,0 +1,47 @@
+# wall_bail.txt - v0.9.2 item 5 (NO WALL BAIL): main menu -> Free Skate -> first skater -> first level, then
+# skating into walls with grind (Y) held at changing angles - the player's case "hold grind into a wall at an angle
+# that gives no wallride -> bail". Run with THPS_BAIL_TRACE=1: every bail is logged with its return address
+# ([BAIL] from ...), the shots show what happened.
+#   THPS2X.exe --max-seconds 150 --save-dir <temp> --data-dir <temp> --input-script tests\input\wall_bail.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# Free Skate is the third entry
+21000:down:300
+23000:down:300
+26000:a:300
+35000:a:300
+44000:a:300
+
+# loading, then the level
+75000:shot=01_level
+# straight ahead with grind held, then turning while held, four times
+76000:lup+y:4000
+80000:shot=02_wall_1
+81000:lup+lleft+y:1500
+82500:lup+y:4000
+86500:shot=03_wall_2
+87500:lup+lright+y:2500
+90000:lup+y:4000
+94000:shot=04_wall_3
+95000:lup+lleft+y:3000
+98000:lup+y:4000
+102000:shot=05_wall_4
+103000:lup+lright+y:1000
+104000:lup+y:5000
+109000:shot=06_wall_5
+110000:lup+lleft+y:2000
+112000:lup+y:6000
+118000:shot=07_wall_6
+119000:lup+lright+y:2000
+121000:lup+y:6000
+127000:shot=08_wall_7
+128000:lup+lleft+y:1000
+129000:lup+y:8000
+137000:shot=09_end

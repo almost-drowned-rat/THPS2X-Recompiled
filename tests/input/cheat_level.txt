@@ -1,0 +1,78 @@
+# cheat_level.txt - v0.9.2 item 3: what a cheat does in play. OPTIONS -> RECOMP OPTIONS -> BUTTON CHEATS
+# (opening it enters the cheats of the test switch THPS_CHEATS_ON=<code>[,<code>...] through the
+# game's checker, as A on their lines would), B back to the main menu, Free Skate -> first skater -> first level,
+# skating with shots. Run it once without cheats and once per cheat.
+# Separate test save dir only (unlocks change the game's progress):
+#   THPS2X.exe --max-seconds 150 --save-dir <temp> --data-dir <temp> --input-script tests\input\cheat_level.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the 11th line
+33000:down:300
+34000:down:300
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:a:300
+# RECOMP OPTIONS at 4:3: BUTTON CHEATS is the 8th line; opening it enters the test cheats
+48000:down:300
+49000:down:300
+50000:down:300
+51000:down:300
+52000:down:300
+53000:down:300
+54000:down:300
+56000:a:300
+62000:shot=01_cheats_page1
+# back: RECOMP OPTIONS, OPTIONS, the main menu (on OPTIONS, the 7th entry)
+66000:b:300
+68000:b:300
+70000:b:300
+75000:shot=02_main_menu
+# Free Skate is the third entry: four up from OPTIONS
+76000:up:300
+77000:up:300
+78000:up:300
+79000:up:300
+80000:shot=03_cursor_free_skate
+81000:a:300
+89000:shot=04_select_player
+90000:a:300
+98000:shot=05_select_level
+99000:a:300
+
+# loading, then the level
+125000:shot=06_level
+# skate: push forward, turn, ollie, a trick, a grind attempt
+126000:lup:3000
+129000:shot=07_skating
+130000:lup+lright:1500
+132000:a:300
+132600:shot=08_ollie
+133500:x+lleft:200
+134000:shot=09_trick
+136000:lup:4000
+140000:shot=10_skating
+141000:start:300
+143000:shot=11_pause

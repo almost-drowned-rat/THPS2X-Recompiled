@@ -3,7 +3,7 @@
 # back on RECOMP OPTIONS with "BOOT ANIMATION: OFF", then B asks RESTART NEEDED (BOOT ANIMATION CHANGED), LATER.
 # Without the file ON / OFF are greyed, the picks do nothing and B leaves without the question.
 # 4:3 (RECOMP OPTIONS: DISPLAY MODE, RENDER RESOLUTION, ASPECT RATIO, ANISOTROPIC FILTER, ANTIALIASING, FRAME RATE,
-# SHADERS, BOOT ANIMATION = the eighth and last line; order since 2026-10-27).
+# SHADERS, BUTTON CHEATS, BOOT ANIMATION = the ninth and last line; BUTTON CHEATS since 2026-10-28).
 #   THPS2X.exe --max-seconds 92 --input-script tests\input\opt_boot.txt
 # Times count from the first pad read (about 1 s after start - after a boot animation); 300 ms presses.
 
@@ -39,7 +39,8 @@
 46000:a:300
 51000:shot=05_recomp_options
 
-# BOOT ANIMATION: seven downs, A (the cursor lands on the choice in use, ON)
+# BOOT ANIMATION: eight downs (BUTTON CHEATS before it since 2026-10-28), A (the cursor lands on the
+# choice in use, ON)
 51500:down:300
 52500:down:300
 53500:down:300
@@ -47,6 +48,7 @@
 55500:down:300
 56500:down:300
 57500:down:300
+58200:down:300
 59000:a:300
 63000:shot=40_boot_animation
 

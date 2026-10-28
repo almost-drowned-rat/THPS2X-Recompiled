@@ -28,7 +28,19 @@ Everything is set inside the game's own **Options** menu – no external tool, n
 |---|---|
 | **CONTROLS** | Per player: pick the input device, then remap its buttons (**BUTTON MAPPING**). Unconnected pads are greyed out. |
 | **SOUNDTRACKS** | Pick the music source and one of 8 playback modes (see *Custom soundtracks*). |
+| **GENERAL OPTIONS** | The game's own four options plus the gameplay options (see below). |
 | **RECOMP OPTIONS** | All port settings (see below). |
+
+### GENERAL OPTIONS
+One list, changed with left / right or A and saved at once. **Y puts the selected line back to its default** -
+only that line.
+
+| Setting | Values |
+|---|---|
+| **Trick tips, Score display, Quick chat, Motion blur** | The game's own options, ON (default) or OFF. Motion blur is the game's own effect while skating fast. |
+| **Playstyle** | XBOX (original) or PS2: spins on Black / White (on a modern pad the shoulder buttons LB / RB), nollie and switch stay on the triggers. Works on top of your button mapping - if Black / White are not mapped to anything, PS2 has no spins. |
+| **180 spin taps** | ON (original) or OFF: tapping a trigger in the air no longer turns 180°; holding it still spins. |
+| **Big drop** | ORIGINAL: a drop from a moderate height scores BIG DROP, from a very great height you bail. NO BAIL: no bail, the drop counts as BIG DROP. OFF: neither - every drop lands like a normal one. |
 
 ### RECOMP OPTIONS
 Changes are saved immediately. Settings that need a restart are marked, and leaving the menu asks **RESTART NEEDED**.
@@ -43,6 +55,7 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 | **Antialiasing** | Off, FXAA (default), SMAA, MSAA 2x, MSAA 4x |
 | **Frame rate** | Original (60 fps) or 120 fps (needs a display with 120 Hz or more), V-Sync, FPS counter (FPS, frame time or both) |
 | **Shaders** | RetroArch slang shaders with preset browser, live parameters and your own presets |
+| **Button cheats** | The game's button cheats as a list - no typing codes with LT held. Each line says what the cheat does and shows ON / OFF; A switches it, any combination works, Y switches the selected one off. One-time ones (unlock everything, 5000 cash, all gaps) say DO IT / DONE and cannot be undone. Only in the main menu's Options. |
 | **Boot animation** | Plays your own intro video before the game for example a video of original xbox boot animation ;) |
 
 ### Widescreen (16:9)
@@ -221,9 +234,28 @@ delete the `bind.` lines from `saves\settings.ini`.
 
 ### Linux via Proton / Wine: best effort
 The Windows build runs under Proton and Wine too (from v0.9.1.1: the first start uses no Windows system tools any
-more, and the crash at the title screen is fixed). **Tested on Arch Linux with Proton 11.0-2 and Wine 11.20:**
-install, first start and the game work. It is not tested as thoroughly as Windows. Known limits:
+more, and the crash at the title screen is fixed). It is not tested as thoroughly as Windows. **Known to work:**
+- **Steam Deck (Proton):** a player finished all three careers (v0.9.x).
+- **Arch Linux with Proton 11.0-2 and Wine 11.20:** install, first start and the game.
+- **Wine 9.0 (Ubuntu 24.04):** saving, overwriting and deleting saves (v0.9.2).
+
+**Fixed in v0.9.2:** every save after the first failed with "the memory unit was removed during use", and saves
+or replays could not be deleted (Proton / Wine only). If a start fails, the log `data\thps2x.log` now says why
+instead of the game crashing after the intro.
+
+Known limits:
 - Needs a Wine / Proton with Vulkan (winevulkan) and the host's Vulkan driver, 64-bit.
+- Under Gamescope (Steam Deck) the frame rate follows the Steam performance settings: a framerate limit of 30 there
+  makes the game run at 30. If the present mode in the log (`[VK] present mode`) is FIFO, occasional uneven frames
+  can occur (see *Known issues*).
+- **Our FPS counter and the Steam overlay can show different numbers:** ours counts the frames the game itself
+  renders; the Steam overlay measures further down the chain, after Gamescope.
+
+**Reporting frame rate or stutter problems (from v0.9.2):** turn on **FPS COUNTER** (RECOMP OPTIONS -> FRAME RATE),
+or start with the launch option `RECOMP_FPS_LOG=1 %command%`. `data\thps2x.log` then gets an `[fps]` line every
+5 seconds - frames per second and how a frame's time splits into the game, its own wait for the display ("vblank
+wait"), translating the graphics, the GPU and presenting - and a `[hitch]` line for every frame over 50 ms that
+names what took the time (shader compiles, textures, file reads, sleeps). Please attach that log to a report.
 - Only a compiler download (when `tools\download\` is missing) needs the host's CA certificates (package
   `ca-certificates`) and 64-bit GnuTLS – a missing certificate store shows up as a *secure connection* error.
 - The first start (translate + compile) is slower than on Windows.

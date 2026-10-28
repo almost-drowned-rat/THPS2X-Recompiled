@@ -1,0 +1,69 @@
+# general_menu.txt - GENERAL OPTIONS as our list (maintainer, 2026-10-28; replaces the game's screen and
+# gameplay_menu.txt): OPTIONS -> GENERAL OPTIONS (the 10th line). Lines: PRESS Y FOR DEFAULT SETTINGS, a blank
+# (greyed), TRICK TIPS, SCORE DISPLAY, QUICK CHAT, MOTION BLUR (the game's four, ON by default), PLAYSTYLE, 180 SPIN
+# TAPS, BIG DROP; it opens on TRICK TIPS.
+# MOTION BLUR A = OFF; PLAYSTYLE right = PS2; 180 SPIN TAPS right = OFF; BIG DROP right = NO BAIL, right = OFF;
+# Y on BIG DROP: only BIG DROP back to ORIGINAL; up, up: PLAYSTYLE, Y: only it back to XBOX; B, then GENERAL
+# OPTIONS again: the values kept (MOTION BLUR OFF in the game's memory, the rest in saves\settings.ini).
+# Expected saves\settings.ini afterwards: control_layout=xbox, spin_taps=off, big_drop=original.
+#   THPS2X.exe --max-seconds 100 --save-dir <temp> --data-dir <temp> --input-script tests\input\general_menu.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: GENERAL OPTIONS is the 10th line
+33000:down:300
+34000:down:300
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:shot=g01_options_general_line
+43000:a:300
+47000:shot=g02_general_defaults
+# MOTION BLUR (4th line): A = OFF
+48000:down:300
+49000:down:300
+50000:down:300
+51000:a:300
+52500:shot=g03_motion_blur_off
+# PLAYSTYLE: right = PS2; 180 SPIN TAPS: right = OFF; BIG DROP: right = NO BAIL, right = OFF
+53500:down:300
+54500:right:300
+55500:down:300
+56500:right:300
+57500:down:300
+58500:right:300
+59500:right:300
+61000:shot=g04_changed
+# Y on BIG DROP: only it back to ORIGINAL
+62000:y:300
+63500:shot=g05_y_big_drop
+# up, up: PLAYSTYLE; Y: only it back to XBOX
+64500:up:300
+65500:up:300
+66500:y:300
+68000:shot=g06_y_layout
+# B: OPTIONS on GENERAL OPTIONS, A: the list again with the values kept
+69000:b:300
+72000:shot=g07_options_back
+73000:a:300
+77000:shot=g08_general_again

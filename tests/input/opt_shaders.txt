@@ -4,7 +4,7 @@
 # SAVED AS line back to SAVE AS PRESET), SHADER ON and RECOMP OPTIONS with the FXAA note.
 # Needs the stock pack extracted (data\shaders\shaders_slang, from media\shaders\shaders_slang.zip) and librashader
 # next to the exe. 4:3 (RECOMP OPTIONS: DISPLAY MODE, RENDER RESOLUTION, ASPECT RATIO, ANISOTROPIC FILTER,
-# ANTIALIASING, FRAME RATE, SHADERS = the seventh line, BOOT ANIMATION; order since 2026-10-27).
+# ANTIALIASING, FRAME RATE, SHADERS = the seventh line, BUTTON CHEATS, BOOT ANIMATION; since 2026-10-28).
 #   THPS2X.exe --max-seconds 182 --input-script tests\input\opt_shaders.txt
 # Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
 
@@ -40,7 +40,7 @@
 46000:a:300
 51000:shot=05_recomp_options
 
-# SHADERS: six downs, A
+# SHADERS: six downs (BUTTON CHEATS after it since 2026-10-28), A
 52000:down:300
 53000:down:300
 54000:down:300

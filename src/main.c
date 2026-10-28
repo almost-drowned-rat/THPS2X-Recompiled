@@ -169,7 +169,9 @@ int main(int argc, char **argv)
     printf("XBE loaded: %zu bytes\n", xbe_size);
 
     if (!xbox_MemoryLayoutInit(xbe, xbe_size)) {
-        host_fatal("Failed to map the Xbox memory layout (address range unavailable).");
+        host_fatal("The game's memory window could not be placed (address range in use). "
+                   "data\\thps2x.log names the part that did not fit - under Proton / Wine please report it "
+                   "with that log.");
         free(xbe);
         return 1;
     }

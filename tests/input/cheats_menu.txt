@@ -1,0 +1,73 @@
+# cheats_menu.txt - v0.9.2 item 3 (maintainer, 2026-10-28: every cheat listed, any combination, the text says what
+# it does): OPTIONS -> RECOMP OPTIONS -> BUTTON CHEATS (the 8th line at 4:3). The list opens on page 1, cursor on the
+# first cheat (BIG HEADS). A: BIG HEADS ON; down, A: KID SIZED SKATER ON and BIG HEADS OFF (the game's own rule);
+# down, A: SPECIAL ALWAYS FULL ON next to it (a combination); right: page 2, right: 3, right: wraps to 1
+# (the ON / OFF states kept); Y on SPECIAL ALWAYS FULL: that line OFF, KID SIZED SKATER stays ON; B: RECOMP OPTIONS
+# on BUTTON CHEATS.
+# With THPS_CHEAT_PROBE=1 opening the list enters every code once first and logs what each changed ([CHEAT]).
+# Separate test save dir only (cheats change the game's state):
+#   THPS2X.exe --max-seconds 100 --save-dir <temp> --data-dir <temp> --input-script tests\input\cheats_menu.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the 11th line
+33000:down:300
+34000:down:300
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:a:300
+# RECOMP OPTIONS at 4:3: BUTTON CHEATS is the 8th line (after SHADERS, before BOOT ANIMATION; maintainer, 2026-10-28)
+48000:down:300
+49000:down:300
+50000:down:300
+51000:down:300
+52000:down:300
+53000:down:300
+54000:down:300
+55500:shot=c01_recomp_cheats_line
+56500:a:300
+66000:shot=c02_page1
+# BIG HEADS on, then KID SIZED SKATER (BIG HEADS goes off), then SPECIAL ALWAYS FULL
+67000:a:300
+68500:shot=c03_big_heads_on
+69500:down:300
+70500:a:300
+72000:shot=c04_kid_sized_on_big_heads_off
+73000:down:300
+74000:a:300
+75500:shot=c05_special_too
+# the pages
+76500:right:300
+78000:shot=c06_page2
+79000:right:300
+80500:shot=c07_page3
+81500:right:300
+85500:shot=c09_page1_again
+# Y on the cursor line (SPECIAL ALWAYS FULL): only that cheat OFF, KID SIZED SKATER stays ON
+86000:y:300
+88000:shot=c10_y_line_off
+# B: RECOMP OPTIONS on BUTTON CHEATS
+89000:b:300
+91500:shot=c11_back_on_cheats_line

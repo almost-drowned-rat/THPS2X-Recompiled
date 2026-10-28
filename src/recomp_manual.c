@@ -1165,9 +1165,34 @@ void sub_0001F300(void)
 #include "shader_pack.h"                                  /* SHADERS: the pack index, saved presets */
 #include "boot_video.h"                                   /* BOOT ANIMATION: media\boot.mpg */
 #include <SDL3/SDL_stdinc.h>                              /* SDL_strcasecmp (SHADERS browser) */
-extern void sub_001B9DB6(void);
 extern void sub_0015AFA0_gen(void);
 /* s_limiter_calls (declared above sub_00018F90): limiter runs since the last swap. */
+
+/* ── The 3 s hold after a save is loaded, sub_001205D0 ───────────────────────
+ *
+ * Why: a busy wait (A10). After reading a career save the game holds its
+ * screen for 3000 ms by polling QueryPerformanceCounter in a loop - ~40
+ * million kernel calls in 3 s, one core fully loaded (the Steam Deck tester's
+ * log: 28 M calls between the intro and Select Player; v0.9.2).
+ * Address: sub_001205D0, loop 0x00120B50..0x00120BAD (ebx = 0xBB8 ms), its
+ * call of the XAPI wrapper sub_001B9DB6 returns to 0x00120B5A. Found with the
+ * toolkit's RECOMP_KCALL_WHERE=126 (KeQueryPerformanceCounter).
+ * How: called from there, the wrapper sleeps 1 ms first (no spin); the loop
+ * still ends after the game's own 3000 ms, every other time read goes
+ * straight through.
+ * Verified: docs/status.md (v0.9.2, QPC calls and the [hitch] line with a save). */
+extern void sub_001B9DB6_gen(void);
+extern void xbox_GuestSleepNs(uint64_t ns);       /* toolkit: the guest waits' high-resolution sleep */
+extern void xbox_ft_sleep(double ms);
+
+void sub_001B9DB6(void)
+{
+    if (GUEST32(g_esp) == 0x00120B5Au) {
+        xbox_GuestSleepNs(1000000);
+        xbox_ft_sleep(1.0);                       /* the [hitch] line: a sleep, not game work */
+    }
+    sub_001B9DB6_gen();
+}
 
 /* The player's choice, saves\settings.ini frame_rate = original | 120 (the
  * RECOMP OPTIONS FRAME RATE line writes it, M6). 120 on every display at
@@ -1194,9 +1219,19 @@ static int thps_fps_setting(void)
         why = "120 asked, the display is below 120 Hz -> 60";
     else
         fps = 120, why = "120";
-    if (why != last)
-        fprintf(stderr, "  frame rate: %s (display %.2f Hz, %s)\n", why, hz,
-                hz <= 0.0f ? "-" : even ? "120 divides evenly" : "120 does not divide evenly");
+    /* the display's rate only once it is known (v0.9.2: "display 0.00 Hz"
+     * at the start confused a tester); again when it becomes known */
+    {
+        static int known = -1;
+        if (why != last || (hz > 0.0f) != known) {
+            if (hz <= 0.0f)
+                fprintf(stderr, "  frame rate: %s (display refresh not known yet)\n", why);
+            else
+                fprintf(stderr, "  frame rate: %s (display %.2f Hz, %s)\n", why, hz,
+                        even ? "120 divides evenly" : "120 does not divide evenly");
+        }
+        known = hz > 0.0f;
+    }
     last = why;
     return fps;
 }
@@ -1385,12 +1420,19 @@ static double guest_us_per_tick(void)
     return d;
 }
 
+/* toolkit frame_time.c: the limiter's wait in the [fps] / [hitch] lines */
+extern int xbox_ft_on(void);
+extern long long xbox_ft_now(void);
+extern double xbox_ft_ms(long long since);
+extern void xbox_ft_vblank_wait(double ms);
+
 void sub_0015AFA0(void)
 {
     double k = guest_us_per_tick();
     uint32_t target = (uint32_t)(1000000 / (thps_fps() + 1));      /* 60: 16393 = 0x4009 */
     uint32_t start = guest_time_lo(), now = start;
     double el;
+    long long wait_t0;
 
     s_limiter_calls++;
     {
@@ -1407,6 +1449,8 @@ void sub_0015AFA0(void)
     }
     if (!(k > 0.0))
         k = 1.0;
+    /* the toolkit's [fps] / [hitch] lines: the limiter's wait is waiting, not game work */
+    wait_t0 = xbox_ft_on() ? xbox_ft_now() : 0;
     if (xbox_GuestHz() == thps_fps() && nv2a_vk_present_fifo()) {
         /* FIFO (fallback, or RECOMP_PRESENT=fifo): the behaviour before
          * fix B -- a sleep to 1.5 ms before the deadline, no spin. Without
@@ -1430,6 +1474,8 @@ void sub_0015AFA0(void)
     }
     /* else: the guest vblank paces (the swap throttle waits on it) and the
      * display does not (mailbox/immediate): no wait. */
+    if (wait_t0)
+        xbox_ft_vblank_wait(xbox_ft_ms(wait_t0));
     g_eax = (uint32_t)(int64_t)((double)(uint32_t)(now - start) * k);
     g_esp += 4;                                          /* ret */
 }
@@ -1808,6 +1854,153 @@ void sub_001603C0(void)
     *fov = a;
 }
 
+/* ── BUTTON CHEATS, the game's code checker sub_00147460 ─────────────────────
+ *
+ * Why: player request (v0.9.2 item 3): the button cheats from a list instead
+ * of typing them with LT held.
+ * Address: sub_00147460 (cdecl, one argument, ret 4) runs while player 1 holds
+ * LT (0x00305378) on the main menu (sub_00121530, argument 0), in a level's
+ * pause (sub_00104210, its own argument) and in one more front-end screen
+ * (sub_001232A0, 0). Unless 0x003068C9 is set it takes the first new press of
+ * U R D L Y B A X Black(C) White(T) Start(S) - player 1's latches at 0x00305338
+ * + 0xA1 / 0x91 / 0xB1 / 0x81 / 0x01 / 0x21 / 0x31 / 0x11 / 0xC1 / 0xD1 / 0xE1,
+ * pads 2-4 at + k * 0x18C - appends its letter to the buffer 0x00306218
+ * (sub_00147380, at most 0x12 letters; cleared when the timer 0x0030622C runs
+ * out) and compares the whole buffer with the 34 code strings at 0x00229A8C ..
+ * 0x00229BF4 (repe cmpsb, NUL included); a match does its action (most toggle
+ * byte 2 of an entry of the cheat table 0x002FFDBC, 19 entries of 4 bytes,
+ * named by sub_000764B0 - the game's own CHEATS screen) and returns 1.
+ * How: A on the code's line writes the code but its last letter into the
+ * buffer, sets only that last letter's latch of player 1 (all other latches
+ * of the four pads cleared for the call, then put back) and calls the checker
+ * with the main menu's argument 0 - the same path as typing it there. Front-
+ * end Options only (like BUTTON MAPPING). The names come from the game's
+ * CHEATS screen where a code toggles one of its entries, otherwise from what
+ * the probe saw it change.
+ * Verified: THPS_CHEAT_PROBE=1 (v0.9.2 tests, cheat list). */
+extern void sub_00147460(void);
+
+/* a code: the list's text (what it does), and where its state is read - a
+ * byte or dword at va that means ON when nonzero (CHEAT_NZ), zero (CHEAT_Z)
+ * or equal to a value; va 0 = a one-time action (DONE after it) */
+#define CHEAT_NZ 0xFFFFFFFFu
+#define CHEAT_Z  0xFFFFFFFEu
+typedef struct {
+    const char *code, *text;
+    uint32_t va, size, on;
+} Cheat;
+
+/* the probe (2026-10-28, main menu): every code here is taken there;
+ * ADDABSURDSCR, BURLYDUDS and STYXDUDS are taken only in a level's pause
+ * (argument != 0) and are not listed. The stat codes share 0x00306BD0 (one
+ * value: entering one replaces the other, again = off); KID SIZED and BIG
+ * HEADS switch each other off (the game's own rule). */
+static const Cheat s_cheats[] = {
+    { "BURLYSCULLS",   "BIG HEADS",                 0x002FFDEAu, 1, CHEAT_NZ },
+    { "RASCALLYBRATS", "KID SIZED SKATER",          0x002FFDCEu, 1, CHEAT_NZ },
+    { "STUDLYSTAR",    "SPECIAL ALWAYS FULL",       0x002FFDD6u, 1, CHEAT_NZ },
+    { "RULSRAYLS",     "NEVER LOSE BALANCE",        0x002FFDD2u, 1, CHEAT_NZ },
+    { "LUSRULS",       "LOW GRAVITY",               0x002FFDF6u, 1, CHEAT_NZ },
+    { "YARDSSDARY",    "MIRRORED LEVELS",           0x002FFDFEu, 1, CHEAT_NZ },
+    { "RASTABUDDY",    "SLOW MOTION",               0x002FFDE6u, 1, CHEAT_NZ },
+    { "CRUSTYSCABS",   "REALISTIC PHYSICS",         0x002FFDEEu, 1, CHEAT_NZ },
+    { "ALLSTYX",       "WIREFRAME",                 0x002FFDE2u, 1, CHEAT_NZ },
+    { "DULLYARDS",     "SMOOTH",                    0x002FFDF2u, 1, CHEAT_NZ },
+    { "STUDLYTUX",     "DISCO MODE",                0x002FFDFAu, 1, CHEAT_NZ },
+    { "CUULSTARTS",    "RESTART POINTS IN PAUSE",   0x002FFDCAu, 1, CHEAT_NZ },
+    /* the frame time step x 1.25 (sub_0015B080, 0x00300850) */
+    { "XTRABUUST",     "GAME RUNS FASTER",          0x003061D0u, 4, CHEAT_NZ },
+    { "USTAT",         "ALL STATS AT 5",            0x00306BD0u, 4, 5 },
+    { "DSTAT",         "ALL STATS AT 6",            0x00306BD0u, 4, 6 },
+    { "LSTAT",         "ALL STATS AT 7",            0x00306BD0u, 4, 7 },
+    { "RSTAT",         "ALL STATS AT 8",            0x00306BD0u, 4, 8 },
+    { "CSTAT",         "ALL STATS AT 9",            0x00306BD0u, 4, 9 },
+    { "STATSTUD",      "ALL STATS AT 10",           0x00306BD0u, 4, 10 },
+    { "BURLYSTATS",    "ALL STATS AT 13",           0x00306BD0u, 4, 13 },
+    { "RADCUULBABY",   "ALL GAPS FOUND",            0, 0, 0 },         /* one way: fills the gap list */
+    /* the official "unlock everything" (tests/input/snippets/unlock_all.txt) */
+    { "SATURDAYBABY",  "UNLOCK EVERYTHING",         0, 0, 0 },
+    { "BUCUBUX",       "5000 MORE CASH",            0, 0, 0 },         /* the career's cash + 5000 */
+    /* not listed until their effect is known (planned for v1.0): XTRALUSRULS
+     * (0x00306BC8), RADBLAST (0x00306BCC), XBLURRY (table entry 17 + motion
+     * blur), TBUARDS (entry 18 + 0x003061D4), SCABS (0x002761F0),
+     * TRYALLYARDS (0x003061BC), RADSCRTCARS, DULLBABY */
+};
+#define CHEAT_COUNT ((int)(sizeof s_cheats / sizeof s_cheats[0]))
+
+#define GUEST8(va) (*(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + (uint32_t)(va)))
+
+/* 1 when code i's state is on (an action: never) */
+static int cheat_on(int i)
+{
+    const Cheat *c = &s_cheats[i];
+    uint32_t v;
+    if (!c->va)
+        return 0;
+    v = c->size == 1 ? GUEST8(c->va) : GUEST32(c->va);
+    return c->on == CHEAT_NZ ? v != 0 : c->on == CHEAT_Z ? v == 0 : v == c->on;
+}
+
+/* the checker's letters and their latches (offset in a pad record) */
+static const char s_cheat_letters[] = "URDLYBAXCTS";
+static const uint8_t s_cheat_off[] = { 0xA1, 0x91, 0xB1, 0x81, 0x01, 0x21, 0x31, 0x11, 0xC1, 0xD1, 0xE1 };
+
+/* code i through the checker: 1 accepted, 0 refused, -1 the checker is shut */
+static int cheat_enter(int i)
+{
+    uint8_t saved[4][sizeof s_cheat_off];
+    const char *c = s_cheats[i].code, *p;
+    size_t n = strlen(c), j;
+    uint32_t k, last;
+    int res;
+    p = strchr(s_cheat_letters, c[n - 1]);
+    if (GUEST8(0x003068C9u) || !p)
+        return -1;
+    last = s_cheat_off[p - s_cheat_letters];
+    for (k = 0; k < 4; k++)
+        for (j = 0; j < sizeof s_cheat_off; j++) {
+            saved[k][j] = GUEST8(0x00305338u + k * 0x18Cu + s_cheat_off[j]);
+            GUEST8(0x00305338u + k * 0x18Cu + s_cheat_off[j]) = 0;
+        }
+    for (j = 0; j + 1 < n; j++)
+        GUEST8(0x00306218u + j) = (uint8_t)c[j];
+    GUEST8(0x00306218u + n - 1) = 0;
+    GUEST32(0x0030622Cu) = 0x1E;                  /* the buffer's timer: not run out */
+    GUEST8(0x00305338u + last) = 1;
+    g_esp -= 4;
+    GUEST32(g_esp) = 0;                           /* the main menu's argument */
+    g_esp -= 4;
+    GUEST32(g_esp) = 0x00121547u;                 /* return address (the main menu's call), popped by ret 4 */
+    sub_00147460();
+    res = (g_eax & 0xFFu) != 0;
+    for (k = 0; k < 4; k++)
+        for (j = 0; j < sizeof s_cheat_off; j++)
+            GUEST8(0x00305338u + k * 0x18Cu + s_cheat_off[j]) = saved[k][j];
+    GUEST8(0x00306218u) = 0;
+    return res;
+}
+
+/* THPS_CHEAT_PROBE=1 (test, a throw-away layout): every code entered once,
+ * each byte of the game's data 0x00270000 .. 0x00320000 it changed logged */
+static void cheat_probe(void)
+{
+    enum { LO = 0x00270000u, HI = 0x00320000u };
+    static uint8_t before[HI - LO];
+    int i;
+    for (i = 0; i < CHEAT_COUNT; i++) {
+        uint32_t a, shown = 0;
+        int r;
+        memcpy(before, (const void *)((uintptr_t)g_xbox_mem_offset + LO), sizeof before);
+        r = cheat_enter(i);
+        fprintf(stderr, "[CHEAT] %-13s -> %d\n", s_cheats[i].code, r);
+        for (a = LO; a < HI; a++)
+            if (GUEST8(a) != before[a - LO] && shown++ < 24)
+                fprintf(stderr, "[CHEAT]   %08X %02X -> %02X\n", a, before[a - LO], GUEST8(a));
+        if (shown > 24)
+            fprintf(stderr, "[CHEAT]   ... %u bytes changed\n", shown);
+    }
+}
+
 /* ── Options menu: CONTROLS and RECOMP OPTIONS lists (M6 groundwork) ─────────
  * Why: maintainer, 2026-10-18 -- tidy the Options list: PLAYER 1-4 CONTROLS
  * move into one CONTROLS entry, and RECOMP OPTIONS holds the port's settings
@@ -1842,7 +2035,8 @@ typedef struct {
 } OptList;
 
 enum { OPT_MAIN, OPT_CONTROLS, OPT_RECOMP, OPT_FPS, OPT_AA, OPT_BOOT, OPT_RESTART, OPT_SOUND,
-       OPT_ALBUM, OPT_PLAYBACK, OPT_BINDKEYS, OPT_SHADERS, OPT_SHBROWSE, OPT_SHPARAMS, OPT_SHRESET, OPT_LISTS };
+       OPT_ALBUM, OPT_PLAYBACK, OPT_BINDKEYS, OPT_SHADERS, OPT_SHBROWSE, OPT_SHPARAMS, OPT_SHRESET,
+       OPT_GENERAL, OPT_CHEATS, OPT_LISTS };
 
 /* SHADERS lists (see "SHADERS" below): titles and lines built when shown */
 static char s_sh_title[4][40];
@@ -1888,7 +2082,10 @@ static const OptList s_opt[OPT_LISTS] = {
     [OPT_MAIN] = { "OPTIONS",
         { "CHAT MESSAGES", "CONTROLS", "SOUND LEVELS", "SOUNDTRACKS", "MOVIES", "MEMORY UNIT", "CHEATS", "HIGH SCORES",
           "GAP CHECKLIST", "GENERAL OPTIONS", "RECOMP OPTIONS" },
-        { 0x21, OPT_SUB(OPT_CONTROLS), 0x24, OPT_SUB(OPT_SOUND), 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, OPT_SUB(OPT_RECOMP) },
+        /* GENERAL OPTIONS: our list instead of the game's screen (state 0x2A), see
+         * OPT_GENERAL */
+        { 0x21, OPT_SUB(OPT_CONTROLS), 0x24, OPT_SUB(OPT_SOUND), 0x25, 0x26, 0x27, 0x28, 0x29, OPT_SUB(OPT_GENERAL),
+          OPT_SUB(OPT_RECOMP) },
         -1, 0 },
     /* BUTTON MAPPING here, not in the game's PLAYER n CONTROLS screen: that
      * screen keeps per-line state for three lines only (see thps_ctl_panel) */
@@ -1907,10 +2104,13 @@ static const OptList s_opt[OPT_LISTS] = {
      * 16:9 saved, ANISOTROPIC FILTER), ANTIALIASING and FRAME RATE as
      * sub-lists (their line: opt_parent_line), BOOT ANIMATION -- built by opt_build (texts, next states and
      * value lines move with the MENUS line); RESOLUTION dropped (2026-10-26) */
+    /* all 12 slots: with 16:9 saved the list has 10 lines (the 9 slots it
+     * had dropped BOOT ANIMATION once GAMEPLAY OPTIONS came in, v0.9.2) */
     [OPT_RECOMP] = { "RECOMP OPTIONS",
         { s_val_text[OPT_RECOMP][0], s_val_text[OPT_RECOMP][1], s_val_text[OPT_RECOMP][2],
           s_val_text[OPT_RECOMP][3], s_val_text[OPT_RECOMP][4], s_val_text[OPT_RECOMP][5],
-          s_val_text[OPT_RECOMP][6], s_val_text[OPT_RECOMP][7], s_val_text[OPT_RECOMP][8] },
+          s_val_text[OPT_RECOMP][6], s_val_text[OPT_RECOMP][7], s_val_text[OPT_RECOMP][8],
+          s_val_text[OPT_RECOMP][9], s_val_text[OPT_RECOMP][10], s_val_text[OPT_RECOMP][11] },
         { OPT_STAY },                             /* opt_next */
         OPT_MAIN, 10 },
     /* FRAME RATE, VSYNC, FPS COUNTER -- VSYNC and the counter belong with the
@@ -1965,7 +2165,82 @@ static const OptList s_opt[OPT_LISTS] = {
     [OPT_SHBROWSE] = { s_sh_title[1], SH_LINES(1), SH_STAY, OPT_SHADERS, 1 },
     [OPT_SHPARAMS] = { s_sh_title[2], SH_LINES(2), SH_STAY, OPT_SHADERS, 2 },
     [OPT_SHRESET]  = { s_sh_title[3], SH_LINES(3), SH_STAY, OPT_SHADERS, 4 },
+    /* GENERAL OPTIONS (maintainer, 2026-10-28): our list in place of the
+     * game's screen (vtable 0x0022A810, four fixed lines with ON / OFF
+     * elements): the game's four options read and written where its screen
+     * keeps them (see "GENERAL OPTIONS values"), then LAYOUT and the v0.9.2
+     * gameplay values (default = the original game; a changed one says NOT
+     * ORIGINAL), the Y hint last; built by opt_build */
+    [OPT_GENERAL] = { "GENERAL OPTIONS",
+        { s_val_text[OPT_GENERAL][0], s_val_text[OPT_GENERAL][1], s_val_text[OPT_GENERAL][2],
+          s_val_text[OPT_GENERAL][3], s_val_text[OPT_GENERAL][4], s_val_text[OPT_GENERAL][5],
+          s_val_text[OPT_GENERAL][6], s_val_text[OPT_GENERAL][7], s_val_text[OPT_GENERAL][8],
+          s_val_text[OPT_GENERAL][9], s_val_text[OPT_GENERAL][10], s_val_text[OPT_GENERAL][11] },
+        { OPT_STAY },                             /* opt_next */
+        OPT_MAIN, 9 },
+    /* BUTTON CHEATS (v0.9.2 item 3; maintainer 2026-10-28: every cheat listed,
+     * any combination, the text says what it does): the hint, CHEAT_PAGE
+     * cheats with ON / OFF (A switches, through the game's checker, see
+     * "BUTTON CHEATS" above), NEXT PAGE; built by cheat_build */
+    [OPT_CHEATS] = { "BUTTON CHEATS",
+        { s_val_text[OPT_CHEATS][0], s_val_text[OPT_CHEATS][1], s_val_text[OPT_CHEATS][2],
+          s_val_text[OPT_CHEATS][3], s_val_text[OPT_CHEATS][4], s_val_text[OPT_CHEATS][5],
+          s_val_text[OPT_CHEATS][6], s_val_text[OPT_CHEATS][7], s_val_text[OPT_CHEATS][8],
+          s_val_text[OPT_CHEATS][9], s_val_text[OPT_CHEATS][10], s_val_text[OPT_CHEATS][11] },
+        { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY,
+          OPT_STAY, OPT_STAY },
+        OPT_RECOMP, 0 },
 };
+
+#define CHEAT_PAGE 10                             /* cheats a page: lines 1 .. 10, then NEXT PAGE */
+#define CHEAT_PAGES ((CHEAT_COUNT + CHEAT_PAGE - 1) / CHEAT_PAGE)
+static int s_cheat_page;
+static uint8_t s_cheat_done[CHEAT_COUNT];         /* an action taken in this run (DONE) */
+static int8_t s_cheat_refused = -1;               /* the code the game did not take at the last A */
+
+/* the cheats on s_cheat_page (NEXT PAGE is the line after them: an empty
+ * line would end the list, opt_lines) */
+static int cheat_on_page(void)
+{
+    int n = CHEAT_COUNT - s_cheat_page * CHEAT_PAGE;
+    return n < CHEAT_PAGE ? n : CHEAT_PAGE;
+}
+
+/* BUTTON CHEATS' texts for s_cheat_page */
+static void cheat_build(void)
+{
+    int line, n = cheat_on_page();
+    memset(s_val_text[OPT_CHEATS], 0, sizeof s_val_text[OPT_CHEATS]);
+    snprintf(s_val_text[OPT_CHEATS][0], sizeof s_val_text[OPT_CHEATS][0], "PAGE %d OF %d  Y: LINE OFF",
+             s_cheat_page + 1, CHEAT_PAGES);
+    for (line = 1; line <= n; line++) {
+        int i = s_cheat_page * CHEAT_PAGE + line - 1;
+        snprintf(s_val_text[OPT_CHEATS][line], sizeof s_val_text[OPT_CHEATS][line], "%s: %s", s_cheats[i].text,
+                 i == s_cheat_refused ? "NOT HERE" : !s_cheats[i].va ? (s_cheat_done[i] ? "DONE" : "DO IT")
+                 : cheat_on(i) ? "ON" : "OFF");
+    }
+    if (CHEAT_PAGES > 1)
+        snprintf(s_val_text[OPT_CHEATS][n + 1], sizeof s_val_text[OPT_CHEATS][n + 1], "NEXT PAGE");
+}
+
+/* A on BUTTON CHEATS' line: switch its cheat, or the next page; the line the cursor stays on */
+static uint32_t cheat_action(uint32_t line)
+{
+    int i = s_cheat_page * CHEAT_PAGE + (int)line - 1, n = cheat_on_page();
+    s_cheat_refused = -1;
+    if (CHEAT_PAGES > 1 && line == (uint32_t)n + 1) {
+        s_cheat_page = (s_cheat_page + 1) % CHEAT_PAGES;
+        line = 1;
+    } else if (line >= 1 && line <= (uint32_t)n) {
+        int r = cheat_enter(i);
+        if (r == 1 && !s_cheats[i].va)
+            s_cheat_done[i] = 1;
+        else if (r != 1)
+            s_cheat_refused = (int8_t)i;
+    }
+    cheat_build();
+    return line;
+}
 
 char g_thps_media_dir[512];                       /* set by main.c: <layout>\media (boot player, soundtracks, shaders) */
 
@@ -2206,7 +2481,49 @@ static uint32_t s_bind_cursor;
  * the unblocked present modes, RECOMP_VSYNC=0). BOOT ANIMATION: media\boot.mpg,
  * ON / OFF in its sub-list (see "BOOT ANIMATION" above). */
 enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE, VAL_VSYNC, VAL_COUNTER,
-       VAL_COUNT };
+       VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
+       VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_COUNT };
+#define VAL_FIRST_GAME VAL_TIPS                   /* the game's own GENERAL OPTIONS values .. */
+#define VAL_LAST_GAME VAL_BLUR
+
+/* ── GENERAL OPTIONS values: the game's four ─────────────────────────────────
+ * The game's screen (init sub_00130D00, exit sub_001314E0) shows the globals
+ * below as ON / OFF and, on leaving (unless 0x003068B4 is set), writes them
+ * back and calls sub_00073810, which copies every option into the save block
+ * (TRICK TIPS -> 0x002FFF20, SCORE DISPLAY -> 0x002FFF24, QUICK CHAT ->
+ * 0x002FFF1C, MOTION BLUR -> 0x002FFF60; sub_00073A30 loads them back). Nonzero
+ * = ON; the game starts with all four ON (sub_00073D20). Our list does the
+ * same at each step: the global, then sub_00073810. */
+static const struct { uint32_t va, size; } s_game_opt[VAL_LAST_GAME - VAL_FIRST_GAME + 1] = {
+    { 0x002B18DCu, 4 },                           /* TRICK TIPS */
+    { 0x002B18E0u, 4 },                           /* SCORE DISPLAY */
+    { 0x002B18D8u, 4 },                           /* QUICK CHAT */
+    { 0x002B191Cu, 1 },                           /* MOTION BLUR */
+};
+extern void sub_00073810(void);
+
+static int game_opt_on(int id)
+{
+    uint32_t va = s_game_opt[id - VAL_FIRST_GAME].va;
+    return (s_game_opt[id - VAL_FIRST_GAME].size == 1 ? *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + va)
+                                                      : GUEST32(va)) != 0;
+}
+
+/* set it like the game's screen does on leaving; 0 when the game keeps them now */
+static int game_opt_set(int id, int on)
+{
+    uint32_t va = s_game_opt[id - VAL_FIRST_GAME].va;
+    if (GUEST32(0x003068B4u))
+        return 0;
+    if (s_game_opt[id - VAL_FIRST_GAME].size == 1)
+        *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + va) = (uint8_t)(on != 0);
+    else
+        GUEST32(va) = on != 0;
+    g_esp -= 4;
+    GUEST32(g_esp) = 0;                           /* return address, popped by its ret */
+    sub_00073810();
+    return 1;
+}
 
 typedef struct {
     const char *label, *key, *def;
@@ -2235,6 +2552,19 @@ static const OptVal s_val[VAL_COUNT] = {
      * the last half second in ms (maintainer, 2026-10-26: either or both) */
     [VAL_COUNTER]   = { "FPS COUNTER", "fps_counter", "off", { "off", "fps", "fps_frametime", "frametime" },
                         { "OFF", "FPS", "FPS AND FRAME TIME", "FRAME TIME" }, 4 },
+    /* v0.9.2 gameplay options (maintainer, 2026-10-28; player requests):
+     * default = the original game; read where they act (ps2_layout,
+     * spin_taps_off, ...), so a change applies at once */
+    /* the game's own, in its memory (game_opt_*): key NULL */
+    [VAL_TIPS]      = { "TRICK TIPS", NULL, NULL, { NULL }, { "ON", "OFF" }, 2 },
+    [VAL_SCORE]     = { "SCORE DISPLAY", NULL, NULL, { NULL }, { "ON", "OFF" }, 2 },
+    [VAL_CHAT]      = { "QUICK CHAT", NULL, NULL, { NULL }, { "ON", "OFF" }, 2 },
+    [VAL_BLUR]      = { "MOTION BLUR", NULL, NULL, { NULL }, { "ON", "OFF" }, 2 },
+    /* PLAYSTYLE (maintainer, 2026-10-28; was LAYOUT): the key stays control_layout */
+    [VAL_LAYOUT]    = { "PLAYSTYLE", "control_layout", "xbox", { "xbox", "ps2" }, { "XBOX", "PS2" }, 2 },
+    [VAL_SPINTAPS]  = { "180 SPIN TAPS", "spin_taps", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
+    [VAL_BIGDROP]   = { "BIG DROP", "big_drop", "original", { "original", "no_bail", "off" },
+                        { "ORIGINAL", "NO BAIL", "OFF" }, 3 },
 };
 
 /* line -> VAL_* + 1, 0 = not a value line (opt_build). Zero means none on
@@ -2261,7 +2591,7 @@ static uint32_t s_sub_line[OPT_LISTS];            /* a sub-list's line in RECOMP
 /* a line's next state: built lists keep theirs in s_line_next */
 static uint32_t opt_next(int list, uint32_t line)
 {
-    if (list == OPT_RECOMP)
+    if (list == OPT_RECOMP || list == OPT_GENERAL)
         return line < 12 ? s_line_next[list][line] : OPT_STAY;
     return s_opt[list].next[line];
 }
@@ -2276,8 +2606,11 @@ static uint32_t opt_parent_line(int list)
 static int opt_val_index(int id)
 {
     const OptVal *v = &s_val[id];
-    const char *cur = settings_get(v->key, v->def);
+    const char *cur;
     int i;
+    if (id >= VAL_FIRST_GAME && id <= VAL_LAST_GAME)
+        return game_opt_on(id) ? 0 : 1;           /* ON, OFF */
+    cur = settings_get(v->key, v->def);
     for (i = 0; i < v->nval; i++)
         if (!strcmp(cur, v->val[i]))
             return i;
@@ -2524,6 +2857,7 @@ static void opt_val_text(int id, char *out, size_t n)
         if (hz > 0.0f && hz < 0.99f * 120.0f)
             hint = " NEEDS 120 HZ";                /* kept for a 120 Hz display; plays at 60 here */
     }
+    /* no NOT ORIGINAL mark any more: Y puts a line back (maintainer, 2026-10-28) */
     snprintf(out, n, "%s: %s%s", s_val[id].label, s_val[id].txt[opt_val_index(id)], hint);
 }
 
@@ -2552,12 +2886,23 @@ static int opt_restart_pending(void)
 /* a list's lines: texts, the line -> value map and (RECOMP OPTIONS) the
  * next states; an entry >= OPT_E_SUB opens list (entry - OPT_E_SUB) */
 #define OPT_E_SUB 100
+#define OPT_E_HINT 99
+#define OPT_E_BLANK 98                            /* " ": an empty text would end the list (opt_lines) */
+#define OPT_GENERAL_FIRST 2                       /* GENERAL OPTIONS: its first value line */
 static void opt_build(int list)
 {
+    /* SHADERS before BOOT ANIMATION (maintainer, 2026-10-27); BUTTON CHEATS
+     * between them (maintainer, 2026-10-28) */
     static const short recomp[] = { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO,
                                     OPT_E_SUB + OPT_AA, OPT_E_SUB + OPT_FPS, OPT_E_SUB + OPT_SHADERS,
-                                    OPT_E_SUB + OPT_BOOT };   /* SHADERS before BOOT ANIMATION (maintainer, 2026-10-27) */
+                                    OPT_E_SUB + OPT_CHEATS, OPT_E_SUB + OPT_BOOT };
     static const short frame[] = { VAL_FRAMERATE, VAL_VSYNC, VAL_COUNTER };
+    /* the game's four, then LAYOUT and the gameplay values (maintainer,
+     * 2026-10-28); OPT_E_HINT: a text line without an action */
+    /* the Y hint on top, a blank line (greyed: the cursor skips it, see
+     * sub_0013D400), then the values (maintainer, 2026-10-28) */
+    static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
+                                     VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP };
     const short *e = NULL;
     int n = 0, i, line = 0;
     if (list >= OPT_SHADERS && list <= OPT_SHRESET) {
@@ -2568,6 +2913,8 @@ static void opt_build(int list)
         e = recomp, n = (int)(sizeof recomp / sizeof recomp[0]);
     else if (list == OPT_FPS)
         e = frame, n = (int)(sizeof frame / sizeof frame[0]);
+    else if (list == OPT_GENERAL)
+        e = general, n = (int)(sizeof general / sizeof general[0]);
     if (!e)
         return;
     memset(s_val_map[list], 0, sizeof s_val_map[list]);
@@ -2577,7 +2924,11 @@ static void opt_build(int list)
     for (i = 0; i < n; i++) {
         if (e[i] == VAL_MENUS && opt_val_index(VAL_ASPECT) != 1)
             continue;                              /* MENUS AT 16:9: only with 16:9 saved */
-        if (e[i] >= OPT_E_SUB) {
+        if (e[i] == OPT_E_BLANK) {
+            snprintf(s_val_text[list][line], sizeof s_val_text[list][line], " ");
+        } else if (e[i] == OPT_E_HINT) {           /* Y resets the line's value (sub_001E66E0) */
+            snprintf(s_val_text[list][line], sizeof s_val_text[list][line], "PRESS Y FOR DEFAULT SETTINGS");
+        } else if (e[i] >= OPT_E_SUB) {
             int to = e[i] - OPT_E_SUB;
             if (to == OPT_AA)                      /* the sub-menu's title with the choice in use; */
                 snprintf(s_val_text[list][line], sizeof s_val_text[list][line], "%s: %s%s", s_opt[to].title,
@@ -2626,6 +2977,8 @@ static int opt_val_step(int id, int dir)
         s_render_undo_frames = 180;
         return 1;
     }
+    if (id >= VAL_FIRST_GAME && id <= VAL_LAST_GAME)
+        return game_opt_set(id, !game_opt_on(id));   /* ON <-> OFF, in the game's memory */
     {
         int was = opt_val_index(id), nv = s_val[id].nval;
         int to = (was + dir + nv) % nv;             /* wraps */
@@ -2674,8 +3027,8 @@ void sub_0013D470(void)
     n = opt_next(s_opt_list, line);
     if (n >= 0x1000u) {
         int to = (int)(n - 0x1000u);
-        if (to == OPT_BINDKEYS && s_in_level)
-            return;                                /* button mapping: front-end Options only */
+        if ((to == OPT_BINDKEYS || to == OPT_CHEATS) && s_in_level)
+            return;                                /* button mapping, cheats: front-end Options only */
         if (to == OPT_BINDKEYS)
             bind_open();
         s_opt_list = to;
@@ -2692,7 +3045,34 @@ void sub_0013D470(void)
             char bp[700];
             if (boot_state(bp, sizeof bp))
                 GUEST32(0x00306250u) = boot_on() ? 1u : 2u;
+        } else if (s_opt_list == OPT_GENERAL) {    /* on its first value, under the Y hint */
+            GUEST32(0x00306250u) = OPT_GENERAL_FIRST;
+        } else if (s_opt_list == OPT_CHEATS) {     /* on the first cheat of the first page */
+            static int probed;
+            const char *e = getenv("THPS_CHEAT_PROBE"), *on = getenv("THPS_CHEATS_ON");
+            if (!probed) {
+                int i;
+                probed = 1;
+                if (e && *e == '1')
+                    cheat_probe();
+                /* THPS_CHEATS_ON=<code>,<code>... (test, cheat_level.txt):
+                 * those codes entered at the first opening, as A would */
+                for (i = 0; on && i < CHEAT_COUNT; i++) {
+                    const char *p = strstr(on, s_cheats[i].code);
+                    size_t n = strlen(s_cheats[i].code);
+                    if (p && (p == on || p[-1] == ',') && (p[n] == ',' || !p[n]))
+                        fprintf(stderr, "[CHEAT] %s (%s) -> %d\n", s_cheats[i].code, s_cheats[i].text,
+                                cheat_enter(i));
+                }
+            }
+            s_cheat_page = 0;
+            s_cheat_refused = -1;
+            cheat_build();
+            GUEST32(0x00306250u) = 1;
         }
+        g_eax = OPT_STAY;
+    } else if (s_opt_list == OPT_CHEATS) {         /* A: a cheat switched through the game's checker */
+        GUEST32(0x00306250u) = cheat_action(line);
         g_eax = OPT_STAY;
     } else if (s_opt_list == OPT_BINDKEYS) {       /* record a press, next page or reset */
         GUEST32(0x00306250u) = bind_keys_action(line);
@@ -2796,6 +3176,16 @@ static void opt_lr(uint32_t screen, int dir, int pad)
         }
         return;
     }
+    if (s_opt_shown == OPT_CHEATS) {               /* the next / previous page, wraps; the cursor stays */
+        s_cheat_page = (s_cheat_page + dir + CHEAT_PAGES) % CHEAT_PAGES;
+        s_cheat_refused = -1;
+        cheat_build();
+        if (line > (uint32_t)cheat_on_page() + 1)
+            GUEST32(0x00306250u) = (uint32_t)cheat_on_page() + 1;   /* past a short page's end: NEXT PAGE */
+        s_val_refresh = 1;
+        PAD_LATCH(0x00305369u, pad) = 1;
+        return;
+    }
     if (s_opt_shown == OPT_ALBUM && line == OPT_ALBUM_VALUE_LINE) {
         int n = thps_st_choices(), c = (thps_st_choice() + dir + n) % n;   /* wraps */
         thps_st_set_choice(c);
@@ -2888,6 +3278,52 @@ void sub_001E65E0(void)
     opt_lr(screen, +1, pad);
 }
 
+/* Y (maintainer, 2026-10-28: only the selected line): in GENERAL OPTIONS
+ * the line's value back to its default (the game's four: ON), in BUTTON
+ * CHEATS the line's cheat off - entered once more if it is on (the game's
+ * checker switches it off; one-time actions cannot be undone). The base
+ * front-end handler (vtable +0x1C, 0x001E66E0) only clears the Y latches; the
+ * screen is rebuilt through the A latch like a left / right step (opt_lr). */
+static int opt_val_default(int id)                /* 1 when it changed */
+{
+    if (id >= VAL_FIRST_GAME && id <= VAL_LAST_GAME)
+        return !game_opt_on(id) && game_opt_set(id, 1);
+    if (!s_val[id].key || !strcmp(settings_get(s_val[id].key, s_val[id].def), s_val[id].def))
+        return 0;
+    settings_set(s_val[id].key, s_val[id].def);
+    return 1;
+}
+
+extern void sub_001E66E0_gen(void);
+void sub_001E66E0(void)
+{
+    uint32_t screen = g_ecx, line;
+    int pad = opt_latch_pad(0x00305339u), changed = 0;
+    sub_001E66E0_gen();
+    if (!opt_menu_on() || GUEST32(screen) != 0x0022A2B0u)
+        return;
+    line = GUEST32(screen + 0x1B8u);
+    if (s_opt_shown == OPT_GENERAL) {
+        int id = opt_val_at(OPT_GENERAL, line);
+        if (id < 0)
+            return;
+        changed = opt_val_default(id);
+        opt_build(OPT_GENERAL);
+    } else if (s_opt_shown == OPT_CHEATS) {
+        int i = s_cheat_page * CHEAT_PAGE + (int)line - 1;
+        if (line < 1 || line > (uint32_t)cheat_on_page())
+            return;
+        changed = cheat_on(i) && cheat_enter(i) == 1;
+        s_cheat_refused = -1;
+        cheat_build();
+    } else
+        return;
+    fprintf(stderr, "  options: Y in %s line %u - %s\n", s_opt[s_opt_shown].title, line,
+            changed ? "back to the default" : "already the default");
+    s_val_refresh = 1;
+    PAD_LATCH(0x00305369u, pad) = 1;
+}
+
 /* The Options screen's runner: after B in a sub-list, Options again. */
 extern void sub_0013D050_gen(void);
 void sub_0013D050(void)
@@ -2933,6 +3369,8 @@ void sub_0013D400(void)
             v = s_boot_text[0] == 'B';                  /* ON / OFF: only with media\boot.mpg (boot_state) */
         else if (s_opt_shown == OPT_SHADERS && !sh_menu_usable())
             v = 0;                                      /* no librashader / no pack: the hint, the rest greyed */
+        else if (s_opt_shown == OPT_GENERAL && line < OPT_GENERAL_FIRST)
+            v = 0;                                      /* GENERAL OPTIONS: the blank under the Y hint */
         GUEST32(0x003054A4u + k * 0x18Cu) = v;
     }
     sub_0013D400_gen();
@@ -3937,4 +4375,210 @@ static void thps_bind_tick(void)
         xbox_InputBindSuppress(0);
         bind_refresh(s_cap_line);
     }
+}
+
+/* ── PS2-style layout: spins on Black / White, nollie + switch on the triggers ──
+ *
+ * Why: player request (v0.9.2). The Xbox
+ * version put all four PS shoulder roles on the two triggers: spin in the air,
+ * nollie / switch on the ground. BUTTON MAPPING cannot split them - both read
+ * the same trigger records. The PS2 games had spins on L1 / R1 (Black / White
+ * on the Xbox pad, the shoulder buttons on a modern pad) and nollie / switch
+ * on L2 / R2.
+ * Addresses (runtime trace, report part B): the pad struct per player at
+ * 0x305338 + n*0x18C holds one 16-byte record per button - LT +0x40, RT +0x60,
+ * Black +0xC0, White +0xD0 (gameplay never reads Black / White). In the air
+ * the spin is read by sub_000AC9D0 (held trigger, every frame) and
+ * sub_000A85E0 (the per-press impulse); on the ground nollie / switch by
+ * sub_000B18A0 / sub_000B2520, which keep the triggers.
+ * How: with control_layout = ps2 (saves\settings.ini; THPS_CONTROL_LAYOUT),
+ * the two air readers run with the Black / White records swapped into the
+ * trigger slots of every player's pad, swapped back after the call - so their
+ * latch updates land on Black / White, the triggers stay untouched. Default
+ * xbox = the original, both calls straight through.
+ * Verified: v0.9.2 tests (PS2 layout test). */
+extern void sub_000AC9D0_gen(void);
+extern void sub_000A85E0_gen(void);
+const char *settings_get(const char *key, const char *def);
+
+static int ps2_layout(void)
+{
+    static int on = -1;
+    static unsigned calls;
+    if (on < 0 || ++calls % 600u == 0)          /* the setting re-read every ~10 s of play */
+        on = !strcmp(settings_get("control_layout", "xbox"), "ps2");
+    return on;
+}
+
+static void ps2_swap_shoulders(void)
+{
+    uint32_t n, k;
+    for (n = 0; n < 4; n++) {
+        volatile uint8_t *pad = (volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + 0x305338u + n * 0x18Cu);
+        for (k = 0; k < 0x10; k++) {
+            uint8_t t = pad[0x40 + k]; pad[0x40 + k] = pad[0xC0 + k]; pad[0xC0 + k] = t;
+            t = pad[0x60 + k]; pad[0x60 + k] = pad[0xD0 + k]; pad[0xD0 + k] = t;
+        }
+    }
+}
+
+void sub_000AC9D0(void)
+{
+    /* THPS_LAYOUT_TRACE=1 (test, either layout): player 1's shoulder records
+     * and the spin value the reader returned, while any of the four is down. */
+    static int tr = -1;
+    int ps2 = ps2_layout();
+    if (tr < 0) {
+        const char *e = getenv("THPS_LAYOUT_TRACE");
+        tr = e && *e == '1';
+    }
+    if (!ps2 && !tr) {
+        sub_000AC9D0_gen();
+        return;
+    }
+    if (ps2)
+        ps2_swap_shoulders();
+    sub_000AC9D0_gen();
+    if (ps2)
+        ps2_swap_shoulders();
+    {
+        volatile uint8_t *p = (volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + 0x305338u);
+        if (p[0x40] | p[0x60] | p[0xC0] | p[0xD0])
+            fprintf(stderr, "[LAYOUT] air spin: LT %u RT %u black %u white %u -> %08X\n",
+                    p[0x40], p[0x60], p[0xC0], p[0xD0], g_eax);
+    }
+}
+
+/* ── 180 spin taps on / off, sub_000A85E0 ────────────────────────────────────
+ *
+ * Why: player request (v0.9.2 item 1): a toggle for the automatic 180s.
+ * Address: sub_000A85E0 (the skater's air update, cdecl, skater at [esp+4]).
+ * In the air (state [skater+0x5984] 1 or 2, [skater+0x5520] == 0) a fresh
+ * trigger press - the new-press latch, LT record +0x41 / RT +0x61 of the pad at
+ * [skater+0x556C] - clears the latch and queues one 180 in [skater+0x572C]
+ * (LT -1, RT +1, 0x000A87A1 / 0x000A87CC); the queue turns the skater
+ * 0x8C * dt per frame and counts down at each 0x800 (180 of 0x1000) at
+ * 0x000A88A2. A held trigger spins through sub_000AC9D0 instead.
+ * How: spin_taps = off (saves\settings.ini; THPS_SPIN_TAPS) clears both
+ * latches before the call in exactly that state, so nothing is queued; the
+ * original clears them there anyway, nothing else reads them in the air. With
+ * the PS2 layout the clear comes after the swap, so it hits Black / White.
+ * Default on = the original.
+ * Verified: v0.9.2 tests (spin taps test). */
+static int spin_taps_off(void)
+{
+    static int off = -1;
+    static unsigned calls;
+    if (off < 0 || ++calls % 600u == 0)
+        off = !strcmp(settings_get("spin_taps", "on"), "off");
+    return off;
+}
+
+void sub_000A85E0(void)
+{
+    int ps2 = ps2_layout(), off = spin_taps_off();
+    uint32_t sk = GUEST32(g_esp + 4);
+    static int tr = -1;
+
+    if (tr < 0) {
+        const char *e = getenv("THPS_SPIN_TRACE");
+        tr = e && *e == '1';
+    }
+    if (tr && thps_replay_playing()) {            /* do the gameplay options reach a replay? */
+        static unsigned n;
+        if (n++ % 120 == 0)
+            fprintf(stderr, "[SPINTAP] air update runs during replay playback (%u)\n", n);
+    }
+    if (!ps2 && !off && !tr) {
+        sub_000A85E0_gen();
+        return;
+    }
+    if (ps2)
+        ps2_swap_shoulders();
+    if (off && sk) {
+        uint32_t state = GUEST32(sk + 0x5984), pad = GUEST32(sk + 0x556C);
+        if ((state == 1 || state == 2) && GUEST32(sk + 0x5520) == 0 && pad) {
+            volatile uint8_t *p = (volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + pad);
+            p[0x41] = 0;
+            p[0x61] = 0;
+        }
+    }
+    {
+        uint32_t q0 = sk ? GUEST32(sk + 0x572C) : 0;
+        sub_000A85E0_gen();
+        /* THPS_SPIN_TRACE=1 (test): the 180 queue of the skater whenever it changes */
+        if (tr && sk && GUEST32(sk + 0x572C) != q0)
+            fprintf(stderr, "[SPINTAP] queue %d -> %d (state %u, taps %s)\n", (int)q0,
+                    (int)GUEST32(sk + 0x572C), GUEST32(sk + 0x5984), off ? "off" : "on");
+    }
+    if (ps2)
+        ps2_swap_shoulders();
+}
+
+/* ── BIG DROP original / no bail / off, sub_000A5970 + sub_000A4C30 ──────────
+ *
+ * Why: player request (v0.9.2 item 4; maintainer 2026-10-28: all three).
+ * Address: the landing code sub_000A6CA0 compares the fall height
+ * (([skater+0x57EC] + [skater+0x57E4]) >> 12) with two limits: above
+ * [skater+0x57E8] + (11 - [skater+0x5694]) * 80 (when +0x5694 is set) it bails
+ * - sub_000A5970 (skater in edi, 2 arguments, ret 8), return address
+ * 0x000A7003; above [skater+0x57E8] alone it awards BIG DROP -
+ * sub_000A4C30 (skater in eax; "BIG DROP" 0x002353E4, ([skater+0x5694] - 11) *
+ * 100, 0, -1; ret 16), return address 0x000A7027. MOON PHYSICS and the codes
+ * XTRALUSRULS / RADBLAST (0x00306BC8 / 0x00306BCC) skip both.
+ * How: big_drop (saves\settings.ini; THPS_BIG_DROP): original = both calls
+ * straight through; no_bail = the bail from 0x000A7003 becomes that award (the
+ * drop scores like one under the bail limit); off = neither (the drop lands
+ * like any other). sub_000A5970's 32 other callers (every other bail) and
+ * sub_000A4C30's other callers go straight through.
+ * Verified: v0.9.2 tests (big drop test). */
+extern THPS_TLS uint32_t g_edi;
+extern void sub_000A5970_gen(void);
+extern void sub_000A4C30_gen(void);
+void sub_000A4C30(void);
+
+static int big_drop_mode(void)                    /* 0 original, 1 no bail, 2 off */
+{
+    const char *v = settings_get("big_drop", "original");
+    return !strcmp(v, "no_bail") ? 1 : !strcmp(v, "off") ? 2 : 0;
+}
+
+void sub_000A5970(void)
+{
+    static int tr = -1;
+    uint32_t sk;
+    int mode;
+    if (tr < 0) {
+        const char *e = getenv("THPS_BAIL_TRACE");
+        tr = e && *e == '1';
+    }
+    if (tr)                                       /* THPS_BAIL_TRACE=1 (test): every bail, where from */
+        fprintf(stderr, "[BAIL] from %08X args %08X %08X skater %08X\n", GUEST32(g_esp), GUEST32(g_esp + 4),
+                GUEST32(g_esp + 8), g_edi);
+    if (GUEST32(g_esp) != 0x000A7003u || (mode = big_drop_mode()) == 0) {
+        sub_000A5970_gen();
+        return;
+    }
+    sk = g_edi;
+    g_esp += 4 + 8;                               /* the bail's return address and arguments */
+    fprintf(stderr, "[BIGDROP] bail -> %s\n", mode == 1 ? "award" : "nothing");
+    if (mode == 1) {
+        g_esp -= 4; GUEST32(g_esp) = 0xFFFFFFFFu;
+        g_esp -= 4; GUEST32(g_esp) = 0;
+        g_esp -= 4; GUEST32(g_esp) = (uint32_t)(((int32_t)GUEST32(sk + 0x5694) - 11) * 100);
+        g_esp -= 4; GUEST32(g_esp) = 0x002353E4u;      /* "BIG DROP" */
+        g_esp -= 4; GUEST32(g_esp) = 0x000A7003u;      /* popped by ret 16 */
+        g_eax = sk;
+        sub_000A4C30();
+    }
+}
+
+void sub_000A4C30(void)
+{
+    if (GUEST32(g_esp) == 0x000A7027u && big_drop_mode() == 2) {
+        g_esp += 4 + 16;                          /* no BIG DROP award */
+        fprintf(stderr, "[BIGDROP] award -> nothing\n");
+        return;
+    }
+    sub_000A4C30_gen();
 }
