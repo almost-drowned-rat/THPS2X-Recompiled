@@ -103,7 +103,7 @@ Put your own music into the `media` folder and choose it in **Options → SOUNDT
 ## Getting started
 
 ### Requirements
-- Windows 10/11, 64-bit
+- Windows 10/11, 64-bit, or Linux with Proton / Wine (best effort, see *Linux via Proton / Wine*)
 - A GPU with **Vulkan 1.3**
 - Your own copy of *Tony Hawk's Pro Skater 2X* (USA)
 - About **2 GB** of free disk space (no internet needed: the compiler ships inside the release zip)
@@ -118,8 +118,8 @@ Other versions are refused with: *"This THPS 2X version is not supported. Suppor
 a supported version."*
 
 ### First start
-1. Download the release zip from the release page and unpack it into an empty folder of your choice (keep the
-   `tools\` folder next to the exe).
+1. Download `THPS2X-Recompiled-v<version>-win64.zip` (about 210 MB, the compiler included) from the release page
+   and unpack it into an empty folder of your choice (keep the `tools\` folder next to the exe).
 2. Start `THPS 2X Recomp.exe`. It creates the folders below (each with a short `README.txt`) and asks for the game:
    put your disc image (`.iso`, XISO or full redump image) **or** the extracted disc files into `game\`, or click
    **Choose disc image...**.
@@ -132,6 +132,10 @@ a supported version."*
    - the game's code is translated and compiled on your PC (a few minutes, only once).
 4. The game starts. Later starts go straight into the game.
 5. Optional: add your music, shader pack and boot video (see next section).
+
+### Updating from an earlier version
+Unpack the new zip over the old folder. The game is built once more at the next start (a few minutes); your
+`saves\` and `media\` stay.
 
 > **Windows warning:** the exe is not signed. **SmartScreen** shows "Windows protected your PC" – click
 > **More info → Run anyway**. **Smart App Control** (Windows 11) blocks unsigned apps completely; the port can only
