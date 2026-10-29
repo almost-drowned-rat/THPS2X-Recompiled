@@ -4,6 +4,23 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v0.9.3 - 2026-10-29
+
+Compatibility fixes from a player report (AMD RX 580 on Windows). No gameplay changes.
+
+### Fixed
+- **A clear message instead of a black screen** when the graphics card or its driver lacks a Vulkan feature the
+  renderer needs: the game stops and names the card, the driver's Vulkan version and what is missing (the same text
+  goes to `data\thps2x.log`). Before, it ran on without a picture.
+- **AMD Polaris (RX 400 / RX 500, e.g. RX 580) on Windows is now supported** through a fallback for drivers without
+  `VK_EXT_vertex_input_dynamic_state` (the vertex formats are built into the pipelines). Tested with the fallback
+  forced, not yet on a real RX 580 - feedback welcome.
+- **The log is written when `THPS2X.exe` is started directly** (without the launcher); before, `data\thps2x.log`
+  stayed empty.
+
+### Known
+- Linux via Proton / Wine is best effort.
+
 ## v0.9.2 - 2026-10-28
 
 Fixes and wishes from player reports on the Steam Deck (Proton) and on Arch Linux (Wine), new gameplay options,

@@ -104,7 +104,12 @@ Put your own music into the `media` folder and choose it in **Options → SOUNDT
 
 ### Requirements
 - Windows 10/11, 64-bit, or Linux with Proton / Wine (best effort, see *Linux via Proton / Wine*)
-- A GPU with **Vulkan 1.3**
+- A GPU whose driver offers **Vulkan 1.3** with the extension `VK_KHR_push_descriptor` (NVIDIA GTX 900 and newer,
+  AMD RX 400 and newer, Intel HD 500 / UHD 600 and newer, Intel Arc, Steam Deck). If something is missing, the game
+  says so at the start and names your GPU, its Vulkan version and what it lacks.
+- `VK_EXT_vertex_input_dynamic_state` is used when the driver has it, but no longer required. **AMD Polaris (RX 400 /
+  RX 500 series, e.g. RX 580) on Windows** lacks it and runs on a fallback since v0.9.3 - tested by us with the
+  fallback forced, not yet on a real RX 580; feedback welcome.
 - Your own copy of *Tony Hawk's Pro Skater 2X* (USA)
 - About **2 GB** of free disk space (no internet needed: the compiler ships inside the release zip)
 

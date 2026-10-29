@@ -44,6 +44,11 @@ void host_debug_start(void);
 /* End the process now (window closed): log drained, exit code 0. */
 void host_quit(void);
 
+/* End the process now because the renderer cannot start (toolkit
+ * nv2a_vk_set_fatal_handler; the reason is already logged and shown): log
+ * drained, exit code 3. */
+void host_renderer_failed(void);
+
 /* Start the exe again with the same arguments and the environment it started
  * with, then end this process (RECOMP OPTIONS: RESTART NOW). Returns only
  * when the new process could not be started. */

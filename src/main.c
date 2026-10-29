@@ -305,6 +305,11 @@ int main(int argc, char **argv)
             /* The window's keys drive pad 1; closing it ends the run. */
             nv2a_vk_set_key_handler(xbox_InputKeyEvent);
             nv2a_vk_set_quit_handler(host_quit);
+            /* A GPU without what the renderer needs: a message naming it, then
+             * the end -- never on without a picture (player report 2026-10-29). */
+            nv2a_vk_set_fatal_handler(host_renderer_failed, "THPS 2X Recomp",
+                                      "Requirements: https://github.com/almost-drowned-rat/THPS2X-Recompiled"
+                                      "#requirements\nDetails: data\\thps2x.log");
             nv2a_vk_install();   /* every batch goes to Vulkan (toolkit nv2a_vk) */
             /* RECOMP OPTIONS values the renderer takes at run time */
             extern void thps_options_apply(void);

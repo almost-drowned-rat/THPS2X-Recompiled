@@ -199,8 +199,8 @@ Priority over the 2026-10-14 directions below where they conflict. Apply to ever
 ### Low-end target (A11, 2026-10-15)
 
 "Runs on a potato" – meaning weak **Vulkan 1.3** hardware. **Vulkan 1.3 is the fixed baseline** (maintainer,
-2026-10-16): dynamic rendering, extended dynamic state and vertex-input dynamic state are required (what `nv2a_vk`
-uses); devices with only Vulkan 1.1/1.2 drivers are not supported, and there is no 1.1 fallback (the earlier
+2026-10-16): dynamic rendering and extended dynamic state are required (what `nv2a_vk` uses; vertex-input dynamic
+state is optional since 2026-10-29 - without it the vertex formats are baked into the pipelines); devices with only Vulkan 1.1/1.2 drivers are not supported, and there is no 1.1 fallback (the earlier
 nv2a_vk downgrade plan is dropped). Further: DXT → ETC2/ASTC transcode cached on disk (RGBA fallback), hard cache
 caps and a RAM budget, a "low" profile (native resolution, 30 fps with decoupled logic, no MSAA), background shader
 pre-warm, reached-code-only builds, game thread + render thread. Reference low-end set: Radeon Vega 7 iGPU (Ryzen 5

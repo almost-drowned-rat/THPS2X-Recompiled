@@ -580,6 +580,12 @@ void host_quit(void)
     host_terminate(0);
 }
 
+void host_renderer_failed(void)
+{
+    fprintf(stderr, "[HOST] the renderer cannot start, exiting\n");
+    host_terminate(3);
+}
+
 /* ── restart (RECOMP OPTIONS: RESTART NOW, maintainer 2026-10-26) ──────
  * The same exe with the same arguments, plus --restart-wait <pid>: the new
  * process waits until this one is gone before it opens the log or any file.
@@ -832,6 +838,14 @@ static void open_log(const char *data_dir)
     s_log = _wfopen(wlog, L"w");
     if (!s_log)
         return;
+    /* The player's THPS2X.exe is a GUI-subsystem exe: started without
+     * inherited handles (double-clicked, not through the launcher) its stdout
+     * and stderr have no descriptor (_fileno -2), the _dup2 below reaches
+     * nothing and the log stays empty. Give both one first. */
+    if (_fileno(stdout) < 0)
+        freopen("NUL", "w", stdout);
+    if (_fileno(stderr) < 0)
+        freopen("NUL", "w", stderr);
     if (_pipe(fds, 1 << 16, _O_BINARY) != 0) {
         /* No filter then, but still a log. */
         fclose(s_log);
