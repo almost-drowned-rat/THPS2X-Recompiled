@@ -23,7 +23,7 @@
 # compare and reported as "manual visual check".
 param(
     [Parameter(Mandatory = $true)][string]$Run,
-    [string]$Ref = "C:\rc\private\reference\menu_tour",
+    [string]$Ref = "",                    # default: private\reference\menu_tour
     [double]$Threshold = 0.5,
     [switch]$Update,
     [switch]$LearnMask,
@@ -37,6 +37,7 @@ param(
     [double]$MaskCap = 25.0
 )
 $ErrorActionPreference = "Stop"
+if (-not $Ref) { . (Join-Path $PSScriptRoot "paths.ps1"); $Ref = Join-Path $Private "reference\menu_tour" }
 Add-Type -AssemblyName System.Drawing
 
 if (($Update -or $LearnMask -or $MaskRect) -and -not $MaintainerOk) {

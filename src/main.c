@@ -29,6 +29,7 @@
 #endif
 
 #include "platform/host.h"
+#include "platform/host_info.h"     /* toolkit: the log's version + host lines */
 #include "settings.h"
 #include "input.h"
 #include "xinput_xbox.h"
@@ -153,6 +154,7 @@ int main(int argc, char **argv)
     }
 
     printf("=== THPS 2X - static recompilation ===\n");
+    host_log_version_and_host(opt.game_dir);       /* "version: ..." / "host: ..." for bug reports (#1) */
     printf("game: %s\nsaves: %s\ndata: %s\n", opt.game_dir, opt.save_dir, opt.data_dir);
 
 #if defined(THPS_INSTALLER)

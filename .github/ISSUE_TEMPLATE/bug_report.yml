@@ -1,0 +1,57 @@
+name: Bug report
+description: Something does not work, looks wrong or runs badly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! The log is the most useful part: `data\thps2x.log` in the game folder, copied right
+        after the run where the problem happened (the next start overwrites it).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The release you downloaded (e.g. v0.9.3)
+      placeholder: v0.9.3
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - Steam Deck - Game Mode
+        - Steam Deck - Desktop Mode
+        - Linux desktop - Steam / Proton
+        - Linux desktop - Wine
+        - Other (say below)
+    validations:
+      required: true
+  - type: input
+    id: gpu
+    attributes:
+      label: GPU and driver
+      description: GPU model and driver version (Linux / Deck - Mesa version; Proton / Wine version too)
+      placeholder: "RTX 3060, driver 581.xx / Steam Deck LCD, SteamOS 3.x, Proton 10"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What happened, and how to get there
+      description: Level / menu, what you did, what you expected. Settings you changed from the defaults (RECOMP OPTIONS, launch options, Steam performance settings).
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Drag `data\thps2x.log` here. For frame-rate or stutter reports start the game with `RECOMP_FRAME_TIME=1` (Steam launch options `RECOMP_FRAME_TIME=1 %command%`) and attach `data\frametime.csv` too.
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshot or video (optional)
+      description: On the Steam Deck record in Desktop Mode with OBS - the Steam recorder captures Gamescope's composition, not the game's own frames.

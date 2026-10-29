@@ -4,17 +4,15 @@
 #
 # Safe to run again: installed tools and existing clones are skipped.
 # Installs build tools with winget, clones the toolkit candidates and the read-only
-# references, and creates the short path C:\rc -> the repos' parent folder for tools
-# that cannot cope with spaces. Never touches the disc images in roms\xbox.
+# references into <root>\tools\refs (tools\paths.ps1; the folders must be space-free - no short-path junction
+# any more since the SSD move 2026-10-29). Never touches the disc images in roms\xbox.
 
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Interactive script; console status output only.')]
 param()
 $ErrorActionPreference = "Stop"
-$Projects = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)   # ...\projects
-$Repo     = Split-Path -Parent $PSScriptRoot                         # ...\projects\thps2x_recomp
-$Refs     = Join-Path $Projects "refs"
-$Private  = Join-Path $Projects "private"
-$Log      = Join-Path $Private "setup.log"
+. (Join-Path $PSScriptRoot "paths.ps1")                                # $Repo, $Private, $ToolsRoot, $Shared
+$Refs     = Join-Path $ToolsRoot "refs"
+$Log      = Join-Path $Shared "setup.log"
 New-Item -ItemType Directory -Force -Path $Refs, $Private | Out-Null
 Start-Transcript -Path $Log -Append | Out-Null
 
@@ -52,16 +50,9 @@ if ($py) {
     if ($LASTEXITCODE -eq 0) { Note "pip capstone pytest pefile numpy unicorn" "installed" } else { Note "pip capstone pytest pefile numpy unicorn" "FAILED" }
 } else { Note "pip packages" "skipped: py launcher not found yet - open a new terminal and run setup again" }
 
-# --- 2. Short path without spaces --------------------------------------------
-$Short = "C:\rc"
-if (Test-Path $Short) {
-    Note "junction C:\rc" "exists"
-} else {
-    try {
-        New-Item -ItemType Junction -Path $Short -Target $Projects | Out-Null
-        Note "junction C:\rc" "created -> $Projects"
-    } catch { Note "junction C:\rc" "FAILED: $($_.Exception.Message)" }
-}
+# --- 2. Paths without spaces --------------------------------------------------
+# tools\paths.ps1 has already refused a layout with spaces (no short-path junction needed).
+Note "paths" "repo $Repo, private $Private, tools $ToolsRoot"
 
 # --- 3. Clones ----------------------------------------------------------------
 # Toolkits and ports: full history without blobs (git log searches work, small download).
@@ -118,6 +109,6 @@ $results | Format-Table -AutoSize
 Write-Host "Log: $Log"
 Write-Host ""
 Write-Host "Next (Def Jam toolchain test, interactive):"
-Write-Host "  C:\rc\private\defjam_test\defjam_recomp\installer.bat"
-Write-Host "  -> pick your Def Jam - Fight for NY (USA) disc image"
+Write-Host "  $DjRoot\defjam_recomp\installer.bat"
+Write-Host "  -> pick: $Roms\xbox\Def Jam - Fight for NY (USA).iso"
 Write-Host "Then: powershell -ExecutionPolicy Bypass -File tools\m0_analyze.ps1"

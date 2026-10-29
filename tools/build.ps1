@@ -5,7 +5,7 @@
 # -Lle: the test build with the LLE fallbacks (MCPX APU, USB/OHCI; THPS_LLE=ON) as
 #   THPS2X_lle.exe in the same layout, from its own build directory (<name>-lle).
 #
-# - one build at a time, across all projects: the global lock C:\rc\private\build.lock (tools\lock.ps1;
+# - one build at a time, across all projects: the global lock (tools\lock.ps1, tools\private\build.lock;
 #   waits while another build, relift or game test run holds it; a line in coordination.md meanwhile)
 # - max. 2 compiler processes, incremental; -Clean only after lifter changes
 # - one build directory per worktree, outside the repo:
@@ -13,10 +13,10 @@
 # - output goes into the portable install layout, never into the repo:
 #     private\install\THPS 2X Recomp\THPS2X.exe
 # -Variant <name>: a toolkit branch under test in its own worktree (CLAUDE.md, Agents): toolkit
-#   projects\xboxrecomp_<name>, generated C private\thps2x_<name>, build dir private\build\thps2x_recomp-<name>,
+#   tools\xboxrecomp_<name>, generated C private\thps2x_<name>, build dir private\build\thps2x_recomp-<name>,
 #   layout private\install_<name>\THPS 2X Recomp (its game\ folder may be a junction to the normal one).
 #   The normal toolkit, generated C and install layout are left alone.
-# Compiler: llvm-mingw clang + Ninja via the short path C:\rc (no spaces).
+# Paths: tools\paths.ps1 (space-free; llvm-mingw clang + Ninja use them directly).
 # glslang/SDL3 for the Vulkan renderer: built with the same compiler by tools\deps.ps1 (docs/toolkit.md).
 
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Interactive script; console status output only.')]
@@ -29,23 +29,21 @@ param(
     [string]$Variant
 )
 $ErrorActionPreference = "Stop"
-$Repo   = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "paths.ps1")           # $Repo, $Private, $ToolsRoot, $Shared
 $Name   = Split-Path -Leaf $Repo
-$Short  = "C:\rc"                                   # junction -> the repos' parent folder
-if (-not (Test-Path $Short)) { throw "Junction $Short missing - run tools\setup.ps1" }
-$Src    = Join-Path $Short $Name
+$Src    = $Repo
 $Sfx    = if ($Variant) { "_$Variant" } else { "" }
-$Build  = Join-Path $Short "private\build\$Name"
+$Build  = Join-Path $Private "build\$Name"
 if ($Variant) { $Build = "$Build-$Variant" }
 if ($Lle) { $Build = "$Build-lle" }
-if (-not $Layout) { $Layout = Join-Path $Short "private\install$Sfx\THPS 2X Recomp" }
-$Toolkit = Join-Path $Short "xboxrecomp$Sfx"
-$GenDir = Join-Path $Short "private\thps2x$Sfx\gen"
+if (-not $Layout) { $Layout = Join-Path $Private "install$Sfx\THPS 2X Recomp" }
+$Toolkit = Join-Path $ToolsRoot "xboxrecomp$Sfx"
+$GenDir = Join-Path $Private "thps2x$Sfx\gen"
 if (-not (Test-Path $Toolkit)) { throw "toolkit $Toolkit missing" }
 # A branch that does not touch the lifter (renderer, kernel) needs no relift: without its own generated C the
 # variant builds from the normal one.
 if ($Variant -and -not (Test-Path $GenDir)) {
-    $GenDir = Join-Path $Short "private\thps2x\gen"
+    $GenDir = Join-Path $Private "thps2x\gen"
     Write-Host "variant $Variant has no generated C of its own - using $GenDir"
 }
 if ($Jobs -gt 2) { $Jobs = 2 }
@@ -53,12 +51,12 @@ if ($Jobs -gt 2) { $Jobs = 2 }
 $clang = (Get-Command clang -ErrorAction SilentlyContinue).Source
 if (-not $clang) { throw "clang (llvm-mingw) not on PATH - run tools\setup.ps1" }
 $bin = Split-Path -Parent $clang
-$Deps = Join-Path $Short "private\deps\install"     # glslang + SDL3 (tools\deps.ps1)
+$Deps = Join-Path $Shared "deps\install"           # glslang + SDL3 (tools\deps.ps1)
 if (-not (Test-Path (Join-Path $Deps "lib\libglslang.a"))) { throw "glslang/SDL3 missing - run tools\deps.ps1" }
 
 New-Item -ItemType Directory -Force -Path $Build, $Layout | Out-Null
 . (Join-Path $PSScriptRoot "lock.ps1")
-$lock = Enter-GlobalLock -Class shared -Who "A (THPS 2X)" -What "build $Name$Sfx$(if ($Lle) { ' -Lle' })$(if ($Clean) { ' -Clean' })"
+$lock = Enter-GlobalLock -Class shared -Heavy:([bool]$Clean) -Who "A (THPS 2X)" -What "build $Name$Sfx$(if ($Lle) { ' -Lle' })$(if ($Clean) { ' -Clean' })"
 try {
     if ($Clean) {
         Get-ChildItem $Build -Exclude "build.lock" | Remove-Item -Recurse -Force

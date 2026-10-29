@@ -16,14 +16,15 @@
 # shared global lock (tools\lock.ps1) for the whole run - storage.ps1 runs under it. Exit code 0 = all three passed.
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console test report.')]
 param(
-    [string]$Exe = "C:\rc\private\install\THPS 2X Recomp\THPS2X.exe",   # a -Variant build: its layout's exe
+    [string]$Exe = "",                                                  # default: private\install\THPS 2X Recomp\THPS2X.exe; a -Variant build: its layout's exe
     [string]$Out = ""                                                   # default: private\evidence\regress\<stamp>
 )
 $ErrorActionPreference = "Stop"
-$Repo = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "paths.ps1")   # $Repo, $Private
 . (Join-Path $Repo "tools\run_dir.ps1")
 . (Join-Path $Repo "tools\lock.ps1")
-if (-not $Out) { $Out = "C:\rc\private\evidence\regress\$(Get-RunStamp)" }
+if (-not $Exe) { $Exe = Join-Path $Private "install\THPS 2X Recomp\THPS2X.exe" }
+if (-not $Out) { $Out = Join-Path $Private "evidence\regress\$(Get-RunStamp)" }
 $Out = New-RunDir $Out
 $Problems = "\[NULLPTR\]|\[UNIMPL\]|FATAL|Failed to resolve|is not code|access violation|unhandled exception"
 # Known untranslated instructions, no-ops on a PC, in every build since M3 (v0.9.1.1 has the same three): D3D 3947's
@@ -60,7 +61,7 @@ function GameRun([string]$name, [string]$script, [int]$seconds, [string]$Shots) 
 }
 
 Write-Host "regress: $Exe -> $Out"
-$lock = Enter-GlobalLock -Class shared -Who "A (THPS 2X)" -What "full regression tools\regress.ps1 (untimed)"
+$lock = Enter-GlobalLock -Class shared -Heavy -Who "A (THPS 2X)" -What "full regression tools\regress.ps1 (untimed)"
 try {
     # 1. menu tour + compare
     $tour = New-RunDir (Join-Path $Out "menu_tour")

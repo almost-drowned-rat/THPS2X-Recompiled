@@ -15,26 +15,28 @@
 # Overwriting files in place is covered by the toolkit test tests/storage_layout.
 # Screenshots (shot=...) and logs go to -Out, a folder that must not exist yet (tools\run_dir.ps1: a run never
 # clears or overwrites an earlier run's evidence). Exit code 0 = every check passed.
-# Holds the global lock C:\rc\private\build.lock (tools\lock.ps1) for all runs of the test.
+# Holds the global lock (tools\lock.ps1) for all runs of the test.
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console test report.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingPositionalParameters', '', Justification = 'Local helper Run, called like a table.')]
 param(
     [string]$Out = "",                                                  # default: evidence\m3\storage\<stamp>
-    [string]$Exe = "C:\rc\private\install\THPS 2X Recomp\THPS2X.exe"   # -Variant builds: their layout
+    [string]$Exe = ""                                                   # default: private\install\...\THPS2X.exe; -Variant builds: their layout
 )
 $ErrorActionPreference = "Stop"
 $Repo = Split-Path -Parent $PSScriptRoot
+. (Join-Path $Repo "tools\paths.ps1")    # $Private
 . (Join-Path $Repo "tools\run_dir.ps1")
 $stamp = Get-RunStamp
-if (-not $Out) { $Out = "C:\rc\private\evidence\m3\storage\$stamp" }
+if (-not $Exe) { $Exe = Join-Path $Private "install\THPS 2X Recomp\THPS2X.exe" }
+if (-not $Out) { $Out = Join-Path $Private "evidence\m3\storage\$stamp" }
 $Out = New-RunDir $Out
-$Work = New-RunDir "C:\rc\private\tests\storage_$stamp"
+$Work = New-RunDir (Join-Path $Private "tests\storage_$stamp")
 $Saves = Join-Path $Work "saves"
 $Data = Join-Path $Work "data"
 $SaveRoot = Join-Path $Saves "UDATA\41560001"
 $failed = 0
 . (Join-Path $Repo "tools\lock.ps1")
-$lock = Enter-GlobalLock -Class shared -Who "A (THPS 2X)" -What "game test tests\storage.ps1"
+$lock = Enter-GlobalLock -Class shared -Heavy -Who "A (THPS 2X)" -What "game test tests\storage.ps1"
 trap { Exit-GlobalLock $lock; break }
 
 function Check([bool]$ok, [string]$what) {

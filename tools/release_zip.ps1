@@ -2,7 +2,7 @@
 #
 #   powershell -File tools\release_zip.ps1 -Version <v> -Notes <release_notes.md>
 #
-# Into a new folder C:\rc\private\deliver\v<v>\ (refused if it exists): zip\ (the exe, README.txt from
+# Into a new folder private\deliver\v<v>\ (refused if it exists): zip\ (the exe, README.txt from
 # tools\release_readme.txt, LICENSES\ from the release's payload, tools\download\ with the pinned llvm-mingw zip),
 # THPS2X-Recompiled-v<v>-win64.zip, SHA256SUMS.txt, release_notes.md. The compiler ships inside the zip
 # (maintainer, 2026-10-27, v0.9.1): the first start needs no internet - the launcher finds the zip in
@@ -15,9 +15,9 @@ param(
 [string]$Folder                                  # the folder name below private\deliver (default v<Version>)
 )
 $ErrorActionPreference = "Stop"
-$Short = "C:\rc"
-$Deliver = Join-Path $Short "private\deliver"
-$Cache = Join-Path $Short "private\deps\release_cache"
+. (Join-Path $PSScriptRoot "paths.ps1")   # $Private, $Shared
+$Deliver = Join-Path $Private "deliver"
+$Cache = Join-Path $Shared "deps\release_cache"
 $Exe = Join-Path $Deliver "THPS 2X Recomp.exe"
 $utf8 = New-Object Text.UTF8Encoding($false)
 . (Join-Path $PSScriptRoot "lock.ps1")
@@ -38,7 +38,7 @@ $exeVer = [Text.Encoding]::ASCII.GetString($t, 16, 32).TrimEnd([char]0)
 if ($exeVer -ne $Version) { throw "$Exe is version '$exeVer', not '$Version' - run tools\release.ps1 -Version $Version" }
 
 # the release's payload stage (newest of this version): licences + the pinned toolchain
-$stage = Get-ChildItem (Join-Path $Short "private\release") -Directory | Where-Object { $_.Name -like "*_$Version" } |
+$stage = Get-ChildItem (Join-Path $Private "release") -Directory | Where-Object { $_.Name -like "*_$Version" } |
     Sort-Object Name | Select-Object -Last 1
 if (-not $stage) { throw "no release stage for $Version in private\release" }
 $P = Join-Path $stage.FullName "payload"

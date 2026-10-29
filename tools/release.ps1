@@ -1,4 +1,4 @@
-# release.ps1 - the release exe "THPS 2X Recomp.exe": written to C:\rc\private\deliver\ only, never committed (a
+# release.ps1 - the release exe "THPS 2X Recomp.exe": written to private\deliver\ only, never committed (a
 # release is uploaded by hand after review).
 #
 #   powershell -ExecutionPolicy Bypass -File tools\release.ps1 -Version <name> [-Variant <toolkit variant>]
@@ -16,17 +16,16 @@ param(
     [string]$Variant
 )
 $ErrorActionPreference = "Stop"
-$Repo = Split-Path -Parent $PSScriptRoot
-$Short = "C:\rc"
+. (Join-Path $PSScriptRoot "paths.ps1")   # $Repo, $Private, $ToolsRoot, $Shared
 $Name = Split-Path -Leaf $Repo
 $Sfx = if ($Variant) { "_$Variant" } else { "" }
-$Toolkit = Join-Path $Short "xboxrecomp$Sfx"
-$Build = Join-Path $Short "private\build\$Name$(if ($Variant) { "-$Variant" })"
-$Cache = Join-Path $Short "private\deps\release_cache"
+$Toolkit = Join-Path $ToolsRoot "xboxrecomp$Sfx"
+$Build = Join-Path $Private "build\$Name$(if ($Variant) { "-$Variant" })"
+$Cache = Join-Path $Shared "deps\release_cache"
 $PyZip = Join-Path $Cache "python-3.12.10-embed-amd64.zip"
 $PyZipSha = "4ACBED6DD1C744B0376E3B1CF57CE906F9DC9E95E68824584C8099A63025A3C3"
 $Capstone = Join-Path $env:LOCALAPPDATA "Programs\Python\Python312\Lib\site-packages\capstone"   # winget's Python 3.12 (setup.ps1)
-$Deliver = Join-Path $Short "private\deliver"
+$Deliver = Join-Path $Private "deliver"
 $Toolchain = @{
     url    = "https://github.com/mstorsjo/llvm-mingw/releases/download/20260908/llvm-mingw-20260908-ucrt-x86_64.zip"
     sha256 = "1bcf74d06b724aeecaa6412ca85f5b26fb1da770e7cdcefa9263c9c5c3ad34b6"
@@ -40,7 +39,7 @@ function Norm([string]$p) { return ([IO.Path]::GetFullPath(($p -replace '/', '\'
 function Fwd([string]$p) { return ($p -replace '\\', '/') }
 $utf8 = New-Object Text.UTF8Encoding($false)
 
-$lock = Enter-GlobalLock -Class shared -Who "A (THPS 2X)" -What "release: payload + launcher exe $Version"
+$lock = Enter-GlobalLock -Class shared -Heavy -Who "A (THPS 2X)" -What "release: payload + launcher exe $Version"
 try {
     $ninja = Join-Path $Build "build.ninja"
     if (-not (Test-Path $ninja)) { throw "no build in $Build - run tools\build.ps1$(if ($Variant) { " -Variant $Variant" }) first" }
@@ -48,7 +47,7 @@ try {
     if (-not (Test-Path -LiteralPath $launcher)) { throw "no launcher exe in $Build\launcher (toolkit without src/launcher?)" }
     if ((Get-FileHash $PyZip).Hash -ne $PyZipSha) { throw "$PyZip is not the pinned python-3.12.10-embed-amd64.zip" }
     $stamp = Get-RunStamp
-    $Stage = New-RunDir (Join-Path $Short "private\release\${stamp}_$Version")
+    $Stage = New-RunDir (Join-Path $Private "release\${stamp}_$Version")
     $P = Join-Path $Stage "payload"
     New-Item -ItemType Directory $P | Out-Null
     $lines = Get-Content $ninja
@@ -69,7 +68,7 @@ try {
     $roots = [ordered]@{}
     $roots[(Norm (Join-Path $Repo "src"))] = "src"
     $roots[(Norm $Toolkit)] = "sdk/toolkit"
-    $roots[(Norm "C:\rc\private\deps\install\include")] = "sdk/include"
+    $roots[(Norm (Join-Path $Shared "deps\install\include"))] = "sdk/include"
     $roots[(Norm $Build)] = "sdk/build"
     function Map-Path([string]$p) {
         $n = Norm $p
@@ -89,7 +88,7 @@ try {
         if ($a -eq "-isystem") { $k++; $a = "-I" + $inc[$k] }
         if ($a -notlike "-I*") { continue }
         $path = $a.Substring(2)
-        if ((Norm $path) -eq (Norm (Join-Path $Short "private\thps2x$Sfx\gen")) -or $path -match '[\\/]thps2x[^\\/]*[\\/]gen$') { $cc.Add("-I{GEN}"); continue }
+        if ((Norm $path) -eq (Norm (Join-Path $Private "thps2x$Sfx\gen")) -or $path -match '[\\/]thps2x[^\\/]*[\\/]gen$') { $cc.Add("-I{GEN}"); continue }
         if ($path -like "*VulkanSDK*") { continue }                         # the port's sources include no Vulkan header
         $m = Map-Path $path
         if (-not $m) { throw "include folder $path is not under a known root" }
@@ -187,7 +186,7 @@ try {
 
     # -- librashader, licences, descriptors -------------------------------------------------------------------
     New-Item -ItemType Directory "$P\dll", "$P\licenses" | Out-Null
-    Copy-Item "C:\rc\private\deps\install\bin\librashader.dll" "$P\dll\librashader.dll"
+    Copy-Item (Join-Path $Shared "deps\install\bin\librashader.dll") "$P\dll\librashader.dll"
     # every licence text of what the release carries or the launcher links / fetches (maintainer, 2026-10-27: all
     # of them before a public release); a missing source file stops the release
     $Mingw = Join-Path (Split-Path (Split-Path (Get-Command clang.exe).Source)) "x86_64-w64-mingw32\share\mingw32"
@@ -199,9 +198,9 @@ try {
         "LICENSE-pl_mpeg-MIT.txt"                  = "$Toolkit\src\bootvideo\third_party\pl_mpeg\LICENSE"
         "LICENSE-miniz-MIT.txt"                    = "$Toolkit\src\shaderpack\third_party\miniz\LICENSE"
         "LICENSE-SMAA-MIT.txt"                     = "$Toolkit\src\nv2a_vk\third_party\smaa\LICENSE.txt"
-        "LICENSE-SDL3-zlib.txt"                    = "C:\rc\private\deps\src\SDL3\LICENSE.txt"
-        "LICENSE-glslang.txt"                      = "C:\rc\private\deps\src\glslang\LICENSE.txt"
-        "LICENSE-librashader-MPL-2.0.txt"          = "C:\rc\private\deps\src\librashader\LICENSE.md"
+        "LICENSE-SDL3-zlib.txt"                    = (Join-Path $Shared "deps\src\SDL3\LICENSE.txt")
+        "LICENSE-glslang.txt"                      = (Join-Path $Shared "deps\src\glslang\LICENSE.txt")
+        "LICENSE-librashader-MPL-2.0.txt"          = (Join-Path $Shared "deps\src\librashader\LICENSE.md")
         "LICENSE-Vulkan-SDK.txt"                   = (Get-ChildItem "C:\VulkanSDK\*\Licenses\LICENSE.txt" | Select-Object -Last 1).FullName
         "LICENSE-capstone-BSD.txt"                 = (Join-Path (Split-Path $Capstone) "capstone-5.0.9.dist-info\LICENSE.TXT")
         "LICENSE-Python.txt"                       = "$P\python\LICENSE.txt"

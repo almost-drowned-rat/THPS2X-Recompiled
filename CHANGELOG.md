@@ -4,6 +4,18 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v0.9.3.1 - 2026-10-29
+
+Better logs for frame-rate reports (Steam Deck report #1). No gameplay changes.
+
+### Changed
+- **`data\thps2x.log` starts with the version and the system:** the release and its source commits, then Windows
+  with its build, or Wine / Proton with the Linux version under it, and whether it runs on a Steam Deck in Game Mode
+  (Gamescope) or Desktop Mode.
+- **With the FPS counter on, the 5-second log lines now also show the GPU time per frame**, and the time spent
+  handing the picture to the display is split into its two steps (`present ... (acquire ...)`). Before, the GPU time
+  needed the `RECOMP_FRAME_TIME=1` launch option.
+
 ## v0.9.3 - 2026-10-29
 
 Compatibility fixes from a player report (AMD RX 580 on Windows). No gameplay changes.
@@ -56,7 +68,7 @@ the button cheats as a list, and diagnostics for frame-rate reports.
 - Overwriting a save from **Options -> Load/Save -> Save Game** keeps refusing an existing name ("already
   exists"), as the game's own menu logic does (the same on an emulator - thanks to the tester who checked); save
   over a career from the end-of-run menu (SAVE CAREER), or pick a new name.
-- Our FPS counter counts the game's own frames; the Steam overlay measures after Gamescope, so the two can differ.
+- The recomp's FPS counter counts the game's own frames; the Steam overlay measures after Gamescope, so the two can differ.
 - THPS 2X shows no interpolated or generated frames: 60 and 120 fps are the game's own frames.
 
 ## v0.9.1.1 - 2026-10-27

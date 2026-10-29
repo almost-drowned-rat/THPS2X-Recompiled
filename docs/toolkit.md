@@ -143,7 +143,7 @@ packs (phase 3, decision 2):** miniz's `tinfl` (richgel999/miniz `3.1.2`, commit
 - **Toolkit tests:** `py -3 -m pytest tools/` in `projects\xboxrecomp`. Needs `capstone pytest pefile numpy`
   (installed by `tools\setup.ps1`, same set as the toolkit's `tools/macos/setup.sh`); without them the suite
   shows import errors that are not code bugs.
-- Short path `C:\rc` (junction to the parent folder of the repos) for tools that break on spaces.
+- Folder paths without spaces (`tools\paths.ps1`; since the SSD move 2026-10-29 no short-path junction).
 
 ## Toolchain decision (M2 stage 2, 2026-10-13)
 
@@ -169,9 +169,9 @@ Why:
   `6248012` `nv2a_vk` + shader generators on SDL3, option `XBOXRECOMP_VULKAN` (off by default).
 - Only the NV2A parts of burnout3-sw's kernel were taken; the rest is listed in `docs/sources.md` (findings).
 - `tests/nv2a_vk_window` (fork): the back end alone – window, clear, one vertex-coloured triangle via `draw_raw`, flip.
-  Build: `cmake -S C:/rc/xboxrecomp/tests/nv2a_vk_window -B C:/rc/private/build/nv2a_vk_window -G Ninja
-  -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-  -DCMAKE_PREFIX_PATH=C:/rc/private/deps/install`.
+  Build: `cmake -S <root>/tools/xboxrecomp/tests/nv2a_vk_window -B <root>/tools/private/build/nv2a_vk_window
+  -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+  -DCMAKE_PREFIX_PATH=<root>/tools/private/deps/install`.
 
 ## Open (filled in by `tools\m0_analyze.ps1` on the device)
 

@@ -1,7 +1,7 @@
 # run_dir.ps1 - per-run folders for test and evidence scripts (dot-source it).
 #
 #   . tools\run_dir.ps1
-#   $out = New-RunDir "C:\rc\private\evidence\m6\options\$(Get-RunStamp)"   # refuses a folder that exists
+#   $out = New-RunDir (Join-Path $Private "evidence\m6\options\$(Get-RunStamp)")   # refuses a folder that exists
 #   Remove-RunItem (Join-Path $out "data")                                  # only inside a folder made here
 #
 # Rule (maintainer, 2026-10-26; CLAUDE.md "Resources"): a test or evidence script writes only into a folder it

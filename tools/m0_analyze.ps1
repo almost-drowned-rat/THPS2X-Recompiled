@@ -9,13 +9,13 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Interactive script; console status output only.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingBrokenHashAlgorithms', '', Justification = 'SHA1 identifies the XBE version (docs/toolkit.md), not a security use.')]
 param(
-    [string]$Iso = (Join-Path $PSScriptRoot "..\..\..\roms\xbox\Tony Hawk's Pro Skater 2x (USA).iso")   # <parent>\roms\xbox
+    [string]$Iso                          # default: <root>\roms\xbox\Tony Hawk's Pro Skater 2x (USA).iso
 )
 $ErrorActionPreference = "Stop"
-$Projects = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$Repo     = Split-Path -Parent $PSScriptRoot
-$Toolkit  = Join-Path $Projects "refs\xboxrecomp-upstream"
-$Out      = Join-Path $Projects "private\thps2x"
+. (Join-Path $PSScriptRoot "paths.ps1")   # $Repo, $Private, $ToolsRoot, $Roms
+if (-not $Iso) { $Iso = Join-Path $Roms "xbox\Tony Hawk's Pro Skater 2x (USA).iso" }
+$Toolkit  = Join-Path $ToolsRoot "refs\xboxrecomp-upstream"
+$Out      = Join-Path $Private "thps2x"
 New-Item -ItemType Directory -Force -Path $Out | Out-Null
 
 if (-not (Test-Path -LiteralPath $Iso)) { throw "Disc image not found: $Iso" }

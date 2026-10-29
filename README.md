@@ -108,7 +108,7 @@ Put your own music into the `media` folder and choose it in **Options → SOUNDT
   AMD RX 400 and newer, Intel HD 500 / UHD 600 and newer, Intel Arc, Steam Deck). If something is missing, the game
   says so at the start and names your GPU, its Vulkan version and what it lacks.
 - `VK_EXT_vertex_input_dynamic_state` is used when the driver has it, but no longer required. **AMD Polaris (RX 400 /
-  RX 500 series, e.g. RX 580) on Windows** lacks it and runs on a fallback since v0.9.3 - tested by us with the
+  RX 500 series, e.g. RX 580) on Windows** lacks it and runs on a fallback since v0.9.3 - I tested it with the
   fallback forced, not yet on a real RX 580; feedback welcome.
 - Your own copy of *Tony Hawk's Pro Skater 2X* (USA)
 - About **2 GB** of free disk space (no internet needed: the compiler ships inside the release zip)
@@ -257,7 +257,7 @@ Known limits:
 - Under Gamescope (Steam Deck) the frame rate follows the Steam performance settings: a framerate limit of 30 there
   makes the game run at 30. If the present mode in the log (`[VK] present mode`) is FIFO, occasional uneven frames
   can occur (see *Known issues*).
-- **Our FPS counter and the Steam overlay can show different numbers:** ours counts the frames the game itself
+- **The recomp's FPS counter and the Steam overlay can show different numbers:** the recomp's counter counts the frames the game itself
   renders; the Steam overlay measures further down the chain, after Gamescope.
 
 **Reporting frame rate or stutter problems (from v0.9.2):** turn on **FPS COUNTER** (RECOMP OPTIONS -> FRAME RATE),
@@ -298,12 +298,17 @@ names what took the time (shader compiles, textures, file reads, sleeps). Please
 ## Building from source
 
 The release exe is built from this repository and the toolkit
-[xboxrecomp-vulkan](https://github.com/almost-drowned-rat/xboxrecomp-vulkan) (branch `vulkan-backend` state). Both
-folders side by side in one parent folder, the toolkit folder named `xboxrecomp`; Windows 10/11 x64.
+[xboxrecomp-vulkan](https://github.com/almost-drowned-rat/xboxrecomp-vulkan) (branch `vulkan-backend` state); Windows 10/11 x64.
+Folder layout (`tools\paths.ps1`; every path **without spaces**, the compiler and Ninja use them directly):
+
+```
+<root>\projects\thps2x\<this repo>    generated files go to <root>\projects\thps2x\private\
+<root>\tools\xboxrecomp               the toolkit; its dependencies go to <root>\tools\private\
+<root>\roms\xbox\                     your disc image (optional, lift.ps1 -Iso takes any path)
+```
 
 1. `powershell -ExecutionPolicy Bypass -File tools\setup.ps1` – installs Python 3.12, CMake, Ninja, LLVM-MinGW (UCRT)
-   and the Vulkan SDK with winget, `capstone` for Python, and a short-path junction to the parent folder (default
-   `C:\rc`) for paths with spaces.
+   and the Vulkan SDK with winget, and `capstone` for Python.
 2. `tools\deps.ps1` – builds glslang, SDL3 and librashader from source with the same compiler.
 3. `tools\lift.ps1 -Iso "<path to your USA .iso>"` – extracts the disc into the install folder and generates the C
    code (into a `private\` folder next to the repo, never into it).

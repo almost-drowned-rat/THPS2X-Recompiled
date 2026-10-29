@@ -9,31 +9,31 @@
 #   private\thps2x\pipeline\  intermediate JSON
 #   private\thps2x\gen\       generated C + headers (CMake: RECOMP_GEN_DIR)
 # A full rebuild is needed after every lift (CLAUDE.md: only after lifter changes).
-# Holds the global lock C:\rc\private\build.lock (tools\lock.ps1) for the whole lift.
+# Holds the global lock (tools\lock.ps1) for the whole lift. Paths: tools\paths.ps1.
 # -Variant <name>: a toolkit branch under test in its own worktree (CLAUDE.md, Agents): toolkit
-#   projects\xboxrecomp_<name>, generated C private\thps2x_<name>, build dir private\build\thps2x_recomp-<name>,
+#   tools\xboxrecomp_<name>, generated C private\thps2x_<name>, build dir private\build\thps2x_recomp-<name>,
 #   layout private\install_<name>\THPS 2X Recomp (its game\ folder may be a junction to the normal one).
 #   The normal toolkit, generated C and install layout are left alone.
 
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Interactive script; console status output only.')]
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingBrokenHashAlgorithms', '', Justification = 'SHA1 identifies the XBE version (docs/xbe.md), not a security use.')]
 param(
-    [string]$Iso = (Join-Path $PSScriptRoot "..\..\..\roms\xbox\Tony Hawk's Pro Skater 2x (USA).iso"),   # <parent>\roms\xbox
+    [string]$Iso,                         # default: <root>\roms\xbox\Tony Hawk's Pro Skater 2x (USA).iso
     [string]$Layout,
     [string]$Variant
 )
 $ErrorActionPreference = "Stop"
-$Repo     = Split-Path -Parent $PSScriptRoot
-$Projects = Split-Path -Parent $Repo
+. (Join-Path $PSScriptRoot "paths.ps1")   # $Repo, $Private, $ToolsRoot, $Roms
+if (-not $Iso) { $Iso = Join-Path $Roms "xbox\Tony Hawk's Pro Skater 2x (USA).iso" }
 $Sfx      = if ($Variant) { "_$Variant" } else { "" }
-$Toolkit  = Join-Path $Projects "xboxrecomp$Sfx"
-$Private  = Join-Path $Projects "private\thps2x$Sfx"
-if (-not $Layout) { $Layout = Join-Path $Projects "private\install$Sfx\THPS 2X Recomp" }
+$Toolkit  = Join-Path $ToolsRoot "xboxrecomp$Sfx"
+$LiftDir  = Join-Path $Private "thps2x$Sfx"
+if (-not $Layout) { $Layout = Join-Path $Private "install$Sfx\THPS 2X Recomp" }
 if (-not (Test-Path $Toolkit)) { throw "toolkit $Toolkit missing" }
 $Game     = Join-Path $Layout "game"
 $Xbe      = Join-Path $Game "default.xbe"
-$Pipe     = Join-Path $Private "pipeline"
-$Gen      = Join-Path $Private "gen"
+$Pipe     = Join-Path $LiftDir "pipeline"
+$Gen      = Join-Path $LiftDir "gen"
 $XbeSha1  = "469818E015AED2730641C0BDCBD2557D8A6B8BB4"   # THPS 2X (USA), docs/xbe.md
 
 function Run([string]$what, [string[]]$a) {
@@ -43,7 +43,7 @@ function Run([string]$what, [string[]]$a) {
 }
 
 . (Join-Path $PSScriptRoot "lock.ps1")
-$lock = Enter-GlobalLock -Class shared -Who "A (THPS 2X)" -What "relift thps2x_recomp$Sfx (tools\lift.ps1)"
+$lock = Enter-GlobalLock -Class shared -Heavy -Who "A (THPS 2X)" -What "relift thps2x_recomp$Sfx (tools\lift.ps1)"
 Push-Location $Toolkit
 try {
     if (-not (Test-Path -LiteralPath $Xbe)) {
