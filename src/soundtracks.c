@@ -523,8 +523,10 @@ static void ensure_next_line(uint32_t menu)
 }
 
 extern void sub_000FF600_gen(void);
+void pause_quit_line(uint32_t menu);               /* recomp_manual.c: QUIT GAME in the pause menu */
 void sub_000FF600(void)
 {
+    pause_quit_line(g_ecx);
     if (on() && g_ecx && g_ecx == GUEST32(SND_MENU))
         ensure_next_line(g_ecx);
     sub_000FF600_gen();
@@ -626,9 +628,11 @@ static void select_track_step(void)
 /* A on NEXT SONG while SOUND OPTIONS is open (before the game's frame UI
  * reads the pads; it ignores A on a line it does not know). */
 extern void sub_00104210_gen(void);
+void classic_frame(void);                         /* recomp_manual.c: classic career screens */
 void sub_00104210(void)
 {
     uint32_t menu = GUEST32(SND_MENU);
+    classic_frame();
     if (on() && menu && s_next_text && GUEST32(UI_STATE) == 0x2Fu) {
         uint32_t sel = *GPTR(menu + 6), k, a = 0;
         if (GUEST32(menu + 0x18u + sel * 0x18u) == TRACK_LINE)

@@ -1,11 +1,15 @@
-# bindmenu_record.txt - Options -> CONTROLS -> BUTTON MAPPING: NEXT PAGE, the A line, record L (key=15);
-# PLAYER line right (player 2) and left; back out
+# bindmenu_record.txt - Options -> CONTROLS -> RECOMP CONTROL OPTIONS -> PLAYER 1 (maintainer 2026-10-31, issue #6):
+# FREE CAMERA right (ON), INVERT CAMERA right (X); BUTTON MAPPING (keyboard: DEVICE, RESET TO DEFAULT, 9 bindings,
+# NEXT PAGE): the A line (the 9th binding), record L (key=15); NEXT PAGE twice to page 3, CAMERA RESET, record R
+# (key=21); back out. saves\settings.ini then has free_camera_p1=on, invert_camera_p1=x, camera_reset_keyboard=sc21
+# and the keyboard binding a:sc15.
 0:p2-connect
 3000:start:200
 6000:start:200
 9000:start:200
 12000:start:200
 15000:start:200
+# main menu: OPTIONS is the seventh entry
 20000:down:300
 21500:down:300
 23000:down:300
@@ -13,46 +17,61 @@
 26000:down:300
 27500:down:300
 29000:a:300
+# OPTIONS: CONTROLS is the second line
 35000:down:300
 36500:a:300
+# CONTROLS (pads 1 and 2 connected: PLAYER 3 / 4 CONTROLS greyed): two downs to RECOMP CONTROL OPTIONS
 42500:down:300
 44000:down:300
-45500:a:300
-50500:shot=m01_bm
-51500:down:300
-53000:down:300
-54500:down:300
-56000:down:300
-57500:down:300
-59000:down:300
-60500:down:300
-62000:down:300
-63500:down:300
-65000:down:300
-66500:down:300
-68000:shot=m02_on_next
-69000:a:300
-74000:shot=m03_page2
-75000:up:300
-76500:up:300
-78000:up:300
-79500:up:300
-81000:up:300
-82500:up:300
-84000:up:300
-85500:up:300
-87000:shot=m04_on_A
-88000:a:300
-90500:shot=m05_press
-91500:key=15:300
-94500:shot=m06_recorded
-95500:up:300
-97000:up:300
-98500:up:300
-100000:shot=m07_on_player
-101000:right:300
-105000:shot=m08_player2
-106000:left:300
-110000:shot=m09_player1
-111000:b:300
-115000:shot=m10_controls
+45500:shot=m01_controls
+46500:a:300
+51500:shot=m02_ctlrec
+52500:a:300
+57500:shot=m03_player1
+# FREE CAMERA: right = ON; INVERT CAMERA: right = X
+58500:down:300
+60000:right:300
+62000:shot=m04_freecam_on
+63000:down:300
+64500:right:300
+66500:shot=m05_invert_x
+# up twice: BUTTON MAPPING
+67500:up:300
+69000:up:300
+70500:a:300
+75500:shot=m06_bm
+# ten downs: the A line (line 10)
+76500:down:300
+77700:down:300
+78900:down:300
+80100:down:300
+81300:down:300
+82500:down:300
+83700:down:300
+84900:down:300
+86100:down:300
+87300:down:300
+88500:shot=m07_on_A
+89500:a:300
+91500:shot=m08_press
+92500:key=15:300
+95500:shot=m09_recorded
+# NEXT PAGE (one down), twice: page 3
+96500:down:300
+98000:a:300
+102000:shot=m10_page2
+103000:a:300
+107000:shot=m11_page3
+# up from NEXT PAGE: CAMERA RESET, record R
+108000:up:300
+109500:shot=m12_on_camreset
+110500:a:300
+112500:key=21:300
+115500:shot=m13_camreset_recorded
+# back: PLAYER 1, RECOMP CONTROL OPTIONS, CONTROLS
+116500:b:300
+120000:shot=m14_player1_back
+121000:b:300
+124500:shot=m15_ctlrec_back
+125500:b:300
+129000:shot=m16_controls_back

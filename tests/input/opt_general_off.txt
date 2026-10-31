@@ -1,4 +1,5 @@
 # general options effect (off): Options -> General Options, SCORE DISPLAY and MOTION BLUR off, then Free Skate in Hangar
+# (General Options opens on CAREER MODE since 2026-10-31: one down to TRICK TIPS first)
 0:p2-connect
 3000:start:200
 6000:start:200
@@ -24,9 +25,10 @@
 51000:down:300
 53000:a:300
 59000:shot=g02_general_before
-60000:down:300
-61500:right:300
-63000:down:300
+59500:down:300
+60500:down:300
+62500:right:300
+63500:down:300
 64500:down:300
 66000:right:300
 68000:shot=g03_general_after

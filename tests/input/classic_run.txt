@@ -1,0 +1,49 @@
+# classic_run.txt - classic career:New Career, first skater, Warehouse, one 2-minute run,
+# then the screens after it (the after-run unlock check, sub_00108FA0). With RECOMP_CC_PRESET=roswell the run must
+# open the THPS 2 part ("[CAREER] classic: THPS 2 part open" in the log), with =subway the mirrored Subway
+# ("[CAREER] classic: Subway open" and the game's Subway screen). Separate test save dir only:
+#   THPS2X.exe --max-seconds 230 --save-dir <temp> --data-dir <temp> --input-script tests\input\classic_run.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# Career -> NEW CAREER -> Select Player CONTINUE -> Warehouse -> the goals screen
+21000:a:300
+25000:a:300
+33000:a:300
+40000:shot=01_level_list
+41000:a:300
+48000:shot=02_goals
+49000:a:300
+@include snippets/skate_loop.txt 55000
+@include snippets/skate_loop.txt 75000
+@include snippets/skate_loop.txt 95000
+@include snippets/skate_loop.txt 115000
+@include snippets/skate_loop.txt 135000
+# the run ends at about 2:00 after the goals screen: the unlock screen (CONGRATULATIONS, if any), SAVE CAREER?
+# (YES / NO: NO), STATISTICS, then the end menu (RETRY, LEVEL GOALS, LEVEL SELECT, ...). Without an unlock the
+# first A is STATISTICS' and the rest lands in the end menu.
+172000:shot=03_unlock
+173700:shot=03_unlock_b
+174000:a:300
+177000:shot=04_save_career
+178000:down:300
+179500:a:300
+183000:shot=05_statistics
+184000:a:300
+188000:shot=06_end_menu
+# LEVEL SELECT -> the level list -> back to Select Player -> the part line, Modify twice
+189000:down:300
+190500:down:300
+192000:shot=07_level_select_cursor
+193000:a:300
+199000:shot=08_level_list
+200000:b:300
+205000:shot=09_select_player
+206000:down:300
+207500:a:300
+209500:shot=10_modify_1
+210500:a:300
+212500:shot=11_modify_2

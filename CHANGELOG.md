@@ -4,6 +4,37 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.0.0 - 2026-10-31
+
+The first full release: a classic career, a free camera, more gameplay options and the fixes for the GitHub reports
+#2, #3, #5 and #6.
+
+### Added
+- **Classic career:** OPTIONS -> GENERAL OPTIONS -> CAREER MODE ORIGINAL / CLASSIC (for new careers). A classic
+  career plays the THPS 1 levels first (opened by tapes), a Roswell medal opens the THPS 2 levels (their cash
+  thresholds count from $0), a Bullring medal the 2X levels. **The THPS 1 part pays no cash, on purpose:** its goals
+  are easier than the THPS 2X career's, so as a small challenge the skater cannot be pushed with stat points until
+  the THPS 2 part, where cash and the shop work as usual. Free Skate and Single Session list the levels in the same
+  order (THPS 1 first) and open each part's levels only when the career has opened that part (The Hangar after the
+  Roswell medal, Club London after the Bullring medal). A classic career saved with v1.0.0 and loaded in an older
+  version plays on there as an original career.
+- **QUIT GAME** as the last line of OPTIONS and in the pause menu (GitHub issue #5): asks first, opens on NO.
+- **FREE CAMERA** per player (GitHub issue #6): OPTIONS -> CONTROLS -> RECOMP CONTROL OPTIONS -> PLAYER 1-4 with
+  BUTTON MAPPING, FREE CAMERA ON / OFF, INVERT CAMERA (OFF / X / Y / X AND Y), CAMERA SENSITIVITY X and Y (0-10,
+  0 locks that axis) and CAMERA RESET SPEED (0 slow to 9 fast, 10 jumps back at once). With it on, the right stick
+  turns the camera and it stays where it was turned; CAMERA RESET (BUTTON MAPPING, right stick click by default)
+  brings it back.
+- **WALL BAIL ORIGINAL / NO BAIL** in GENERAL OPTIONS: with NO BAIL, holding grind into a wall at an angle too steep
+  for a wallride (60 degrees or more) no longer bails; the skater meets the wall as without grind.
+- **BUTTON CHEATS** lists 30 cheats, each as WHAT IT DOES (CODE), MOON JUMP (RADBLAST) among them.
+
+### Changed
+- **GENERAL OPTIONS order:** CAREER MODE is the first value line.
+
+### Fixed
+- **Garbage on water, glass and metal surfaces** (GitHub issue #2).
+- **TRICK TIPS, SCORE DISPLAY, QUICK CHAT and MOTION BLUR are kept** between starts (GitHub issue #3).
+
 ## v0.9.3.1 - 2026-10-29
 
 Better logs for frame-rate reports (Steam Deck report #1). No gameplay changes.

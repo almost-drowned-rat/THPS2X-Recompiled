@@ -1,7 +1,8 @@
 # cheats_menu.txt - v0.9.2 item 3 (maintainer, 2026-10-28: every cheat listed, any combination, the text says what
 # it does): OPTIONS -> RECOMP OPTIONS -> BUTTON CHEATS (the 8th line at 4:3). The list opens on page 1, cursor on the
-# first cheat (BIG HEADS). A: BIG HEADS ON; down, A: KID SIZED SKATER ON and BIG HEADS OFF (the game's own rule);
-# down, A: SPECIAL ALWAYS FULL ON next to it (a combination); right: page 2, right: 3, right: wraps to 1
+# first cheat (BIG HEADS; above it PAGE 1 OF 4, the Y hint and a blank line - maintainer 2026-10-30). A: BIG HEADS
+# ON; down, A: KID SIZED SKATER ON and BIG HEADS OFF (the game's own rule); down, A: SPECIAL ALWAYS FULL ON next to
+# it (a combination); right: page 2, right: 3, right: 4 (MOON JUMP last), right: wraps to 1
 # (the ON / OFF states kept); Y on SPECIAL ALWAYS FULL: that line OFF, KID SIZED SKATER stays ON; B: RECOMP OPTIONS
 # on BUTTON CHEATS.
 # With THPS_CHEAT_PROBE=1 opening the list enters every code once first and logs what each changed ([CHEAT]).
@@ -64,6 +65,8 @@
 79000:right:300
 80500:shot=c07_page3
 81500:right:300
+83000:shot=c08_page4
+84000:right:300
 85500:shot=c09_page1_again
 # Y on the cursor line (SPECIAL ALWAYS FULL): only that cheat OFF, KID SIZED SKATER stays ON
 86000:y:300

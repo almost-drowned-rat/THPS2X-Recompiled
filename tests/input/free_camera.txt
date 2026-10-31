@@ -1,0 +1,46 @@
+# free_camera.txt - FREE CAMERA (GitHub issue #6, maintainer 2026-10-31): Free Skate -> first skater -> first level;
+# right stick right turns the camera around the skater, up lowers it (looks up), down raises it; released it keeps
+# its place (no swing back); CAMERA RESET (here a key: THPS_CAMERA_RESET_KEYBOARD=sc21, the R key) puts it back.
+# Run with FREE CAMERA on for player 1 (and once with it off: the game's own camera, which swings back):
+#   set THPS_FREE_CAMERA_P1=on & set THPS_CAMERA_RESET_KEYBOARD=sc21
+#   THPS2X.exe --max-seconds 130 --save-dir <temp> --data-dir <temp> --input-script tests\input\free_camera.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: Free Skate is the third entry
+21000:down:300
+22000:down:300
+24000:a:300
+33000:a:300
+42000:a:300
+
+# loading, the FREE SKATE rules screen (A), then the level
+71000:a:300
+84000:shot=01_level
+# standing still: turn the camera, right stick right 1.5 s
+87000:shot=02_standing
+88000:rright:1500
+89800:shot=03_turned_right
+# released: the camera stays (FREE CAMERA on) or swings back (off)
+92000:shot=04_released
+# right stick down 1 s: the camera higher, looking down
+93000:rdown:1000
+94300:shot=05_higher
+96000:shot=06_higher_released
+# CAMERA RESET
+97000:key=21:300
+99000:shot=07_reset
+# the camera turned left, then the skater pushes off: steering stays the skater's
+100000:rleft:1200
+101500:shot=08_turned_left
+102000:lup:1000
+103500:shot=09_rolling_turned
+105000:shot=10_end

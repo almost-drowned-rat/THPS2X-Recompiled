@@ -1,0 +1,36 @@
+# classic_levels.txt - classic career:New Career with CAREER MODE classic
+# (THPS_CAREER_MODE=classic), first skater, then the career's level list with a shot per step. Expected: the
+# THPS 1 part (Warehouse) open, the TH2 slots (Hangar ...) shut. Separate test save dir only:
+#   THPS2X.exe --max-seconds 70 --save-dir <temp> --data-dir <temp> --input-script tests\input\classic_levels.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+
+# movies and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=01_main_menu
+
+# Career (first entry), first skater
+21000:a:300
+24000:shot=02_after_career
+25000:a:300
+28000:shot=03_after_skater
+30000:shot=04_level_list
+32000:right:300
+34000:shot=05_right_1
+35000:right:300
+37000:shot=06_right_2
+38000:left:300
+39500:left:300
+40500:left:300
+42500:shot=07_left_1
+43500:down:300
+45500:shot=08_down_1
+46500:down:300
+48500:shot=09_down_2
+49500:up:300
+50500:up:300
+51500:up:300
+53500:shot=10_up_1

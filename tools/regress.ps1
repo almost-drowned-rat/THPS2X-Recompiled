@@ -14,6 +14,8 @@
 # Every run: a fresh folder (tools\run_dir.ps1 New-RunDir, default private\evidence\regress\<stamp>; an existing
 # folder is refused), throw-away saves\ and data\ per part, RECOMP_NO_DIALOGS=1, THPS_DISPLAY_MODE=windowed, the
 # shared global lock (tools\lock.ps1) for the whole run - storage.ps1 runs under it. Exit code 0 = all three passed.
+# The first summary lines (not a part) log the display and whether a game stream is open (tools\stream_check.ps1):
+# screenshots compare only within one display setup.
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Console test report.')]
 param(
     [string]$Exe = "",                                                  # default: private\install\THPS 2X Recomp\THPS2X.exe; a -Variant build: its layout's exe
@@ -23,6 +25,7 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "paths.ps1")   # $Repo, $Private
 . (Join-Path $Repo "tools\run_dir.ps1")
 . (Join-Path $Repo "tools\lock.ps1")
+. (Join-Path $Repo "tools\stream_check.ps1")
 if (-not $Exe) { $Exe = Join-Path $Private "install\THPS 2X Recomp\THPS2X.exe" }
 if (-not $Out) { $Out = Join-Path $Private "evidence\regress\$(Get-RunStamp)" }
 $Out = New-RunDir $Out
@@ -63,6 +66,13 @@ function GameRun([string]$name, [string]$script, [int]$seconds, [string]$Shots) 
 Write-Host "regress: $Exe -> $Out"
 $lock = Enter-GlobalLock -Class shared -Heavy -Who "A (THPS 2X)" -What "full regression tools\regress.ps1 (untimed)"
 try {
+    # preflight inside the lock window (no profile switch inside it): display profile + stream state
+    $stream = Get-StreamState
+    foreach ($s in @("display    $(Get-DisplayProfile)", "stream     $(if ($stream) { $stream } else { 'none open' })")) {
+        Write-Host $s
+        $summary.Add($s)
+    }
+
     # 1. menu tour + compare
     $tour = New-RunDir (Join-Path $Out "menu_tour")
     $r = GameRun "menu_tour" "menu_tour.txt" 135 $tour

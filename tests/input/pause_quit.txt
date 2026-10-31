@@ -1,0 +1,46 @@
+# pause_quit.txt - QUIT GAME in the pause menu (issue #5, maintainer 2026-10-31): Free Skate -> first skater -> first
+# level, Start: CONTINUE, RETRY, SOUND OPTIONS, QUIT GAME, END RUN. A on QUIT GAME opens "DO YOU REALLY WANT TO
+# QUIT?" on NO: A there = back to the pause list; A on QUIT GAME again, up to YES, A = the process ends (log
+# "pause: QUIT GAME - YES, exiting", exit code 0, well before --max-seconds).
+#   THPS2X.exe --max-seconds 130 --save-dir <temp> --data-dir <temp> --input-script tests\input\pause_quit.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: Free Skate is the third entry
+21000:down:300
+22000:down:300
+23000:shot=01_cursor_free_skate
+24000:a:300
+32000:shot=02_select_player
+33000:a:300
+41000:shot=03_select_level
+42000:a:300
+
+# loading, the FREE SKATE rules screen (A), then the level; Start = the pause list on CONTINUE
+70000:shot=04_rules
+71000:a:300
+84000:shot=05_level
+86000:start:300
+88000:shot=06_pause
+# three downs (SKIP TO RESTART is hidden in Free Skate): QUIT GAME
+89000:down:300
+90000:down:300
+91000:down:300
+92000:shot=07_pause_quit_line
+93000:a:300
+95000:shot=08_quit_question_no
+# NO: back to the pause list, on QUIT GAME
+96000:a:300
+98000:shot=09_pause_back
+99000:a:300
+101000:up:300
+102000:shot=10_quit_question_yes
+103000:a:300

@@ -1,0 +1,33 @@
+# classic_option.txt - classic career:Options -> GENERAL OPTIONS, CAREER MODE under the Y hint
+# (ORIGINAL), right -> CLASSIC; saves\settings.ini then has career_mode=classic. Separate test save dir only:
+#   THPS2X.exe --max-seconds 75 --save-dir <temp> --data-dir <temp> --input-script tests\input\classic_option.txt
+# Navigation as opt_general_base.txt (pad 2 connected: the main menu has its multi-player entries then); 300 ms
+# presses (see menu_tour.txt).
+0:p2-connect
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+21000:down:300
+22500:down:300
+24000:down:300
+25500:down:300
+27000:down:300
+28500:down:300
+32000:a:300
+39000:down:300
+40500:down:300
+42000:down:300
+43500:down:300
+45000:down:300
+46500:down:300
+48000:down:300
+49500:down:300
+51000:down:300
+53000:a:300
+59000:shot=01_general
+# GENERAL OPTIONS opens on CAREER MODE, its first value line (2026-10-31; was the last line)
+68000:shot=02_career_mode
+69000:right:300
+71000:shot=03_classic

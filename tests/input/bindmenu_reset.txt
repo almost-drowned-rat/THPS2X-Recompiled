@@ -1,5 +1,6 @@
-# bindmenu_reset.txt - after bindmenu_record.txt: L confirms in the main menu (A on L kept), then BUTTON MAPPING ->
-# RESET TO DEFAULT (under DEVICE)
+# bindmenu_reset.txt - after bindmenu_record.txt: L confirms in the main menu (A on L kept), then CONTROLS ->
+# RECOMP CONTROL OPTIONS -> PLAYER 1 -> BUTTON MAPPING -> RESET TO DEFAULT (under DEVICE; also CAMERA RESET back
+# to its default)
 0:p2-connect
 3000:start:200
 6000:start:200
@@ -23,10 +24,11 @@
 54500:down:300
 56000:down:300
 57500:a:300
-62500:shot=r03_bm
-63500:down:300
-65000:down:300
-66500:shot=r04_on_reset
+62500:a:300
 67500:a:300
-71500:shot=r05_after_reset
-72500:a:300
+72500:shot=r03_bm
+73500:down:300
+75000:shot=r04_on_reset
+76000:a:300
+80000:shot=r05_after_reset
+81000:a:300

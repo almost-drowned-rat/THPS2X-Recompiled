@@ -1921,10 +1921,33 @@ static const Cheat s_cheats[] = {
     /* the official "unlock everything" (tests/input/snippets/unlock_all.txt) */
     { "SATURDAYBABY",  "UNLOCK EVERYTHING",         0, 0, 0 },
     { "BUCUBUX",       "5000 MORE CASH",            0, 0, 0 },         /* the career's cash + 5000 */
-    /* not listed until their effect is known (planned for v1.0): XTRALUSRULS
-     * (0x00306BC8), RADBLAST (0x00306BCC), XBLURRY (table entry 17 + motion
-     * blur), TBUARDS (entry 18 + 0x003061D4), SCABS (0x002761F0),
-     * TRYALLYARDS (0x003061BC), RADSCRTCARS, DULLBABY */
+    /* found 2026-10-30 (lifted checker sub_00147460 + test runs): */
+    /* LOW GRAVITY's path in the physics (sub_000A0C90 skips the gravity step
+     * for 0x002FFDF6 or this) plus its own halving in sub_000B5260: far longer
+     * air - a 360 HALFPIPE HANGTIME from a flat ollie */
+    { "XTRALUSRULS",   "EXTRA LOW GRAVITY",         0x00306BC8u, 4, CHEAT_NZ },
+    /* the unlock check sub_000768D0 answers "open" for every level: Select
+     * Level lists all 24, Crane Drop, Skate Heaven, Subway, Sky Lines too */
+    { "TRYALLYARDS",   "ALL LEVELS OPEN",           0x003061BCu, 4, CHEAT_NZ },
+    /* one way: clears the locked bits of every roster entry (0x00283B10,
+     * stride 0x154) - OFFICER DICK, TRIXIE and SPIDER-MAN in Select Player;
+     * the checker takes it in the front end only */
+    { "RADSCRTCARS",   "SECRET SKATERS",            0, 0, 0 },
+    /* 0x003061D4 (+ the nameless cheat entry 18): the skate shop gets one more
+     * deck sponsor whose decks are all open (the developers' decks) */
+    { "TBUARDS",       "SECRET DECKS IN SHOP",      0x003061D4u, 1, CHEAT_NZ },
+    /* one way: sub_00075E50 on the career record of the skater in use
+     * (0x0031526C): $900,000, every tape, goal and gold medal */
+    { "DULLBABY",      "CAREER COMPLETE",           0, 0, 0 },
+    /* 0x002761F0 is 1 by default; at 0 sub_00167780 (the particle code beside
+     * the blood particles) does nothing: a bail leaves no blood (test run) */
+    { "SCABS",         "NO BLOOD",                  0x002761F0u, 4, CHEAT_Z },
+    /* 0x00306BCC: levels the skater's orientation vector every frame in the
+     * spin reader sub_000AC9D0 / sub_000B48B0 and skips the BIG DROP check -
+     * the maintainer's play test 2026-10-30: a moon jump */
+    { "RADBLAST",      "MOON JUMP",                 0x00306BCCu, 4, CHEAT_NZ },
+    /* not listed: XBLURRY (only flips MOTION BLUR, which GENERAL OPTIONS
+     * already has) */
 };
 #define CHEAT_COUNT ((int)(sizeof s_cheats / sizeof s_cheats[0]))
 
@@ -2036,7 +2059,15 @@ typedef struct {
 
 enum { OPT_MAIN, OPT_CONTROLS, OPT_RECOMP, OPT_FPS, OPT_AA, OPT_BOOT, OPT_RESTART, OPT_SOUND,
        OPT_ALBUM, OPT_PLAYBACK, OPT_BINDKEYS, OPT_SHADERS, OPT_SHBROWSE, OPT_SHPARAMS, OPT_SHRESET,
-       OPT_GENERAL, OPT_CHEATS, OPT_LISTS };
+       OPT_GENERAL, OPT_CHEATS, OPT_QUIT, OPT_CTLREC, OPT_CTLPLAYER, OPT_LISTS };
+
+/* RECOMP CONTROL OPTIONS -> PLAYER n (GitHub issue #6, maintainer
+ * 2026-10-31): the player whose page is open, its title */
+static int s_ctl_player;
+static char s_ctlp_title[16] = "PLAYER 1";
+static void fc_reload(void);                      /* FREE CAMERA, below: settings changed */
+static uint16_t fc_reset_src(int port);           /* CAMERA RESET's source of a device (-1 keyboard) */
+static void fc_reset_store(int port, uint16_t src);
 
 /* SHADERS lists (see "SHADERS" below): titles and lines built when shown */
 static char s_sh_title[4][40];
@@ -2081,24 +2112,37 @@ extern void thps_st_set_mode(int m);
 static const OptList s_opt[OPT_LISTS] = {
     [OPT_MAIN] = { "OPTIONS",
         { "CHAT MESSAGES", "CONTROLS", "SOUND LEVELS", "SOUNDTRACKS", "MOVIES", "MEMORY UNIT", "CHEATS", "HIGH SCORES",
-          "GAP CHECKLIST", "GENERAL OPTIONS", "RECOMP OPTIONS" },
+          "GAP CHECKLIST", "GENERAL OPTIONS", "RECOMP OPTIONS", "QUIT GAME" },
         /* GENERAL OPTIONS: our list instead of the game's screen (state 0x2A), see
-         * OPT_GENERAL */
+         * OPT_GENERAL; QUIT GAME the last line (issue #5, maintainer 2026-10-31) */
         { 0x21, OPT_SUB(OPT_CONTROLS), 0x24, OPT_SUB(OPT_SOUND), 0x25, 0x26, 0x27, 0x28, 0x29, OPT_SUB(OPT_GENERAL),
-          OPT_SUB(OPT_RECOMP) },
+          OPT_SUB(OPT_RECOMP), OPT_SUB(OPT_QUIT) },
         -1, 0 },
     /* BUTTON MAPPING here, not in the game's PLAYER n CONTROLS screen: that
      * screen keeps per-line state for three lines only (see thps_ctl_panel) */
+    /* RECOMP CONTROL OPTIONS (GitHub issue #6, maintainer 2026-10-31; was
+     * BUTTON MAPPING): PLAYER 1-4, each page BUTTON MAPPING, FREE CAMERA,
+     * INVERT CAMERA (opt_build) */
     [OPT_CONTROLS] = { "CONTROLS",
-        { "PLAYER 1 CONTROLS", "PLAYER 2 CONTROLS", "PLAYER 3 CONTROLS", "PLAYER 4 CONTROLS", "BUTTON MAPPING" },
-        { 0x22, 0x23, 0x32, 0x33, OPT_SUB(OPT_BINDKEYS) },
+        { "PLAYER 1 CONTROLS", "PLAYER 2 CONTROLS", "PLAYER 3 CONTROLS", "PLAYER 4 CONTROLS",
+          "RECOMP CONTROL OPTIONS" },
+        { 0x22, 0x23, 0x32, 0x33, OPT_SUB(OPT_CTLREC) },
         OPT_MAIN, 1 },
+    [OPT_CTLREC] = { "RECOMP CONTROL OPTIONS",
+        { "PLAYER 1", "PLAYER 2", "PLAYER 3", "PLAYER 4" },
+        { OPT_SUB(OPT_CTLPLAYER), OPT_SUB(OPT_CTLPLAYER), OPT_SUB(OPT_CTLPLAYER), OPT_SUB(OPT_CTLPLAYER) },
+        OPT_CONTROLS, 4 },
+    [OPT_CTLPLAYER] = { s_ctlp_title,
+        { s_val_text[OPT_CTLPLAYER][0], s_val_text[OPT_CTLPLAYER][1], s_val_text[OPT_CTLPLAYER][2],
+          s_val_text[OPT_CTLPLAYER][3], s_val_text[OPT_CTLPLAYER][4], s_val_text[OPT_CTLPLAYER][5] },
+        { OPT_STAY },                             /* opt_next */
+        OPT_CTLREC, 0 },                          /* opt_parent_line: the player's line */
     [OPT_BINDKEYS] = { s_bkeys_title,
         { s_bkeys_text[0], s_bkeys_text[1], s_bkeys_text[2], s_bkeys_text[3], s_bkeys_text[4], s_bkeys_text[5],
           s_bkeys_text[6], s_bkeys_text[7], s_bkeys_text[8], s_bkeys_text[9], s_bkeys_text[10], s_bkeys_text[11] },
         { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY,
           OPT_STAY, OPT_STAY },
-        OPT_CONTROLS, 4 },
+        OPT_CTLPLAYER, 0 },
     /* one list (maintainer, 2026-10-26: few sub-menus): DISPLAY MODE and the
      * picture values (RENDER RESOLUTION, ASPECT RATIO, MENUS AT 16:9 only with
      * 16:9 saved, ANISOTROPIC FILTER), ANTIALIASING and FRAME RATE as
@@ -2134,6 +2178,13 @@ static const OptList s_opt[OPT_LISTS] = {
         { s_restart_text, "RESTART NOW", "LATER" },
         { OPT_STAY, OPT_STAY, OPT_STAY },
         OPT_MAIN, 10 },
+    /* QUIT GAME (issue #5, maintainer 2026-10-31: the last OPTIONS line, with
+     * a question first; a Deck in Desktop Mode has no key to close the
+     * window): opens on NO; YES = host_quit, NO / B = OPTIONS */
+    [OPT_QUIT] = { "QUIT GAME",
+        { "DO YOU REALLY WANT TO QUIT", "YES", "NO" },
+        { OPT_STAY, OPT_STAY, OPT_STAY },
+        OPT_MAIN, 11 },
     /* a sub-menu with every choice, not a value line (maintainer, 2026-10-26):
      * opens on the one in use, A picks it (saved, at once) and goes back;
      * default FXAA, the picture as before; line order = NV2A_VK_AA_* */
@@ -2170,7 +2221,7 @@ static const OptList s_opt[OPT_LISTS] = {
      * elements): the game's four options read and written where its screen
      * keeps them (see "GENERAL OPTIONS values"), then LAYOUT and the v0.9.2
      * gameplay values (default = the original game; a changed one says NOT
-     * ORIGINAL), the Y hint last; built by opt_build */
+     * ORIGINAL), CAREER MODE and the Y hint on top; built by opt_build */
     [OPT_GENERAL] = { "GENERAL OPTIONS",
         { s_val_text[OPT_GENERAL][0], s_val_text[OPT_GENERAL][1], s_val_text[OPT_GENERAL][2],
           s_val_text[OPT_GENERAL][3], s_val_text[OPT_GENERAL][4], s_val_text[OPT_GENERAL][5],
@@ -2179,9 +2230,11 @@ static const OptList s_opt[OPT_LISTS] = {
         { OPT_STAY },                             /* opt_next */
         OPT_MAIN, 9 },
     /* BUTTON CHEATS (v0.9.2 item 3; maintainer 2026-10-28: every cheat listed,
-     * any combination, the text says what it does): the hint, CHEAT_PAGE
-     * cheats with ON / OFF (A switches, through the game's checker, see
-     * "BUTTON CHEATS" above), NEXT PAGE; built by cheat_build */
+     * any combination, the text says what it does; 2026-10-30: the code's own
+     * name in brackets, and the head like GENERAL OPTIONS): PAGE x OF y, the Y
+     * hint, a blank line, CHEAT_PAGE cheats with ON / OFF (A switches, through
+     * the game's checker, see "BUTTON CHEATS" above), NEXT PAGE; built by
+     * cheat_build */
     [OPT_CHEATS] = { "BUTTON CHEATS",
         { s_val_text[OPT_CHEATS][0], s_val_text[OPT_CHEATS][1], s_val_text[OPT_CHEATS][2],
           s_val_text[OPT_CHEATS][3], s_val_text[OPT_CHEATS][4], s_val_text[OPT_CHEATS][5],
@@ -2192,7 +2245,8 @@ static const OptList s_opt[OPT_LISTS] = {
         OPT_RECOMP, 0 },
 };
 
-#define CHEAT_PAGE 10                             /* cheats a page: lines 1 .. 10, then NEXT PAGE */
+#define CHEAT_FIRST 3                             /* PAGE x OF y, the Y hint, a blank, then the cheats */
+#define CHEAT_PAGE 8                              /* cheats a page: lines 3 .. 10, then NEXT PAGE (line 11) */
 #define CHEAT_PAGES ((CHEAT_COUNT + CHEAT_PAGE - 1) / CHEAT_PAGE)
 static int s_cheat_page;
 static uint8_t s_cheat_done[CHEAT_COUNT];         /* an action taken in this run (DONE) */
@@ -2211,27 +2265,30 @@ static void cheat_build(void)
 {
     int line, n = cheat_on_page();
     memset(s_val_text[OPT_CHEATS], 0, sizeof s_val_text[OPT_CHEATS]);
-    snprintf(s_val_text[OPT_CHEATS][0], sizeof s_val_text[OPT_CHEATS][0], "PAGE %d OF %d  Y: LINE OFF",
+    snprintf(s_val_text[OPT_CHEATS][0], sizeof s_val_text[OPT_CHEATS][0], "PAGE %d OF %d",
              s_cheat_page + 1, CHEAT_PAGES);
-    for (line = 1; line <= n; line++) {
-        int i = s_cheat_page * CHEAT_PAGE + line - 1;
-        snprintf(s_val_text[OPT_CHEATS][line], sizeof s_val_text[OPT_CHEATS][line], "%s: %s", s_cheats[i].text,
-                 i == s_cheat_refused ? "NOT HERE" : !s_cheats[i].va ? (s_cheat_done[i] ? "DONE" : "DO IT")
-                 : cheat_on(i) ? "ON" : "OFF");
+    snprintf(s_val_text[OPT_CHEATS][1], sizeof s_val_text[OPT_CHEATS][1], "PRESS Y FOR DEFAULT SETTINGS");
+    snprintf(s_val_text[OPT_CHEATS][2], sizeof s_val_text[OPT_CHEATS][2], " ");   /* greyed (sub_0013D400) */
+    for (line = CHEAT_FIRST; line < CHEAT_FIRST + n; line++) {
+        int i = s_cheat_page * CHEAT_PAGE + line - CHEAT_FIRST;
+        snprintf(s_val_text[OPT_CHEATS][line], sizeof s_val_text[OPT_CHEATS][line], "%s (%s): %s", s_cheats[i].text,
+                 s_cheats[i].code, i == s_cheat_refused ? "NOT HERE"
+                 : !s_cheats[i].va ? (s_cheat_done[i] ? "DONE" : "DO IT") : cheat_on(i) ? "ON" : "OFF");
     }
     if (CHEAT_PAGES > 1)
-        snprintf(s_val_text[OPT_CHEATS][n + 1], sizeof s_val_text[OPT_CHEATS][n + 1], "NEXT PAGE");
+        snprintf(s_val_text[OPT_CHEATS][CHEAT_FIRST + n], sizeof s_val_text[OPT_CHEATS][CHEAT_FIRST + n],
+                 "NEXT PAGE");
 }
 
 /* A on BUTTON CHEATS' line: switch its cheat, or the next page; the line the cursor stays on */
 static uint32_t cheat_action(uint32_t line)
 {
-    int i = s_cheat_page * CHEAT_PAGE + (int)line - 1, n = cheat_on_page();
+    int i = s_cheat_page * CHEAT_PAGE + (int)line - CHEAT_FIRST, n = cheat_on_page();
     s_cheat_refused = -1;
-    if (CHEAT_PAGES > 1 && line == (uint32_t)n + 1) {
+    if (CHEAT_PAGES > 1 && line == (uint32_t)(CHEAT_FIRST + n)) {
         s_cheat_page = (s_cheat_page + 1) % CHEAT_PAGES;
-        line = 1;
-    } else if (line >= 1 && line <= (uint32_t)n) {
+        line = CHEAT_FIRST;
+    } else if (line >= CHEAT_FIRST && line < (uint32_t)(CHEAT_FIRST + n)) {
         int r = cheat_enter(i);
         if (r == 1 && !s_cheats[i].va)
             s_cheat_done[i] = 1;
@@ -2482,7 +2539,12 @@ static uint32_t s_bind_cursor;
  * ON / OFF in its sub-list (see "BOOT ANIMATION" above). */
 enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE, VAL_VSYNC, VAL_COUNTER,
        VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
-       VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_COUNT };
+       VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER,
+       VAL_FREECAM1, VAL_FREECAM2, VAL_FREECAM3, VAL_FREECAM4,   /* PLAYER n: FREE CAMERA, INVERT CAMERA */
+       VAL_INVCAM1, VAL_INVCAM2, VAL_INVCAM3, VAL_INVCAM4,
+       VAL_CAMSX1, VAL_CAMSX2, VAL_CAMSX3, VAL_CAMSX4,           /* PLAYER n: CAMERA SENSITIVITY X, Y */
+       VAL_CAMSY1, VAL_CAMSY2, VAL_CAMSY3, VAL_CAMSY4,
+       VAL_CAMRS1, VAL_CAMRS2, VAL_CAMRS3, VAL_CAMRS4, VAL_COUNT }; /* PLAYER n: CAMERA RESET SPEED */
 #define VAL_FIRST_GAME VAL_TIPS                   /* the game's own GENERAL OPTIONS values .. */
 #define VAL_LAST_GAME VAL_BLUR
 
@@ -2493,12 +2555,17 @@ enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE
  * (TRICK TIPS -> 0x002FFF20, SCORE DISPLAY -> 0x002FFF24, QUICK CHAT ->
  * 0x002FFF1C, MOTION BLUR -> 0x002FFF60; sub_00073A30 loads them back). Nonzero
  * = ON; the game starts with all four ON (sub_00073D20). Our list does the
- * same at each step: the global, then sub_00073810. */
-static const struct { uint32_t va, size; } s_game_opt[VAL_LAST_GAME - VAL_FIRST_GAME + 1] = {
-    { 0x002B18DCu, 4 },                           /* TRICK TIPS */
-    { 0x002B18E0u, 4 },                           /* SCORE DISPLAY */
-    { 0x002B18D8u, 4 },                           /* QUICK CHAT */
-    { 0x002B191Cu, 1 },                           /* MOTION BLUR */
+ * same at each step: the global, then sub_00073810.
+ * Kept across starts too (maintainer, 2026-10-30, GitHub issue #3): the
+ * original resets them to ON at every start, so each change also goes into
+ * the settings file (key below, on / off; THPS_<KEY> overrides) and is put
+ * back over the game's values after its start defaults (sub_00073D20) and
+ * after a save's options load (sub_00073A30). No key yet = the game's own. */
+static const struct { uint32_t va, size; const char *key; } s_game_opt[VAL_LAST_GAME - VAL_FIRST_GAME + 1] = {
+    { 0x002B18DCu, 4, "trick_tips" },             /* TRICK TIPS */
+    { 0x002B18E0u, 4, "score_display" },          /* SCORE DISPLAY */
+    { 0x002B18D8u, 4, "quick_chat" },             /* QUICK CHAT */
+    { 0x002B191Cu, 1, "motion_blur" },            /* MOTION BLUR */
 };
 extern void sub_00073810(void);
 
@@ -2522,12 +2589,45 @@ static int game_opt_set(int id, int on)
     g_esp -= 4;
     GUEST32(g_esp) = 0;                           /* return address, popped by its ret */
     sub_00073810();
+    settings_set(s_game_opt[id - VAL_FIRST_GAME].key, on ? "on" : "off");
     return 1;
+}
+
+/* the four from the settings file over the game's values (see above) */
+static void game_opts_from_settings(void)
+{
+    int id;
+    for (id = VAL_FIRST_GAME; id <= VAL_LAST_GAME; id++) {
+        const char *v = settings_get(s_game_opt[id - VAL_FIRST_GAME].key, NULL);
+        uint32_t va = s_game_opt[id - VAL_FIRST_GAME].va;
+        int on;
+        if (!v)
+            continue;
+        on = strcmp(v, "off") != 0;
+        if (s_game_opt[id - VAL_FIRST_GAME].size == 1)
+            *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + va) = (uint8_t)on;
+        else
+            GUEST32(va) = (uint32_t)on;
+    }
+}
+
+extern void sub_00073D20_gen(void);
+void sub_00073D20(void)                           /* the game's start defaults */
+{
+    sub_00073D20_gen();
+    game_opts_from_settings();
+}
+
+extern void sub_00073A30_gen(void);
+void sub_00073A30(void)                           /* a save's options into the game */
+{
+    sub_00073A30_gen();
+    game_opts_from_settings();
 }
 
 typedef struct {
     const char *label, *key, *def;
-    const char *val[5], *txt[5];                  /* stored values, shown texts */
+    const char *val[11], *txt[11];                /* stored values, shown texts */
     int nval;
 } OptVal;
 
@@ -2565,6 +2665,41 @@ static const OptVal s_val[VAL_COUNT] = {
     [VAL_SPINTAPS]  = { "180 SPIN TAPS", "spin_taps", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
     [VAL_BIGDROP]   = { "BIG DROP", "big_drop", "original", { "original", "no_bail", "off" },
                         { "ORIGINAL", "NO BAIL", "OFF" }, 3 },
+    /* tester wish 11 (maintainer, 2026-10-31): grind held into a wall at 60 degrees
+     * or more - no wallride and, with NO BAIL, no bail either (see WALL TRACE) */
+    [VAL_WALLBAIL]  = { "WALL BAIL", "wall_bail", "original", { "original", "no_bail" },
+                        { "ORIGINAL", "NO BAIL" }, 2 },
+    /* classic career (maintainer, 2026-10-30: the last GAMEPLAY line):
+     * the mode a career gets when it starts, kept in the career itself (classic_*) */
+    [VAL_CAREER]    = { "CAREER MODE", "career_mode", "original", { "original", "classic" },
+                        { "ORIGINAL", "CLASSIC" }, 2 },
+    /* FREE CAMERA per player (GitHub issue #6, maintainer 2026-10-31; see
+     * "FREE CAMERA" below): default OFF = the game's own camera; INVERT
+     * CAMERA turns the stick's axes round for the camera only (the font has
+     * no plus sign: X AND Y) */
+#define FREECAM_VAL(n) { "FREE CAMERA", "free_camera_p" #n, "off", { "off", "on" }, { "OFF", "ON" }, 2 }
+#define INVCAM_VAL(n)  { "INVERT CAMERA", "invert_camera_p" #n, "off", { "off", "x", "y", "xy" }, \
+                         { "OFF", "X", "Y", "X AND Y" }, 4 }
+    [VAL_FREECAM1] = FREECAM_VAL(1), [VAL_FREECAM2] = FREECAM_VAL(2),
+    [VAL_FREECAM3] = FREECAM_VAL(3), [VAL_FREECAM4] = FREECAM_VAL(4),
+    [VAL_INVCAM1]  = INVCAM_VAL(1),  [VAL_INVCAM2]  = INVCAM_VAL(2),
+    [VAL_INVCAM3]  = INVCAM_VAL(3),  [VAL_INVCAM4]  = INVCAM_VAL(4),
+    /* the stick speed per axis (maintainer, 2026-10-31): 0 = the camera does not move on
+     * that axis, 1 = the first speed (about 40 degrees a second turning), n = n times it */
+#define CAMSENS_VAL(A, a, n) { "CAMERA SENSITIVITY " #A, "camera_sensitivity_" #a "_p" #n, "1", \
+                            { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }, \
+                            { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }, 11 }
+    [VAL_CAMSX1] = CAMSENS_VAL(X, x, 1), [VAL_CAMSX2] = CAMSENS_VAL(X, x, 2),
+    [VAL_CAMSX3] = CAMSENS_VAL(X, x, 3), [VAL_CAMSX4] = CAMSENS_VAL(X, x, 4),
+    [VAL_CAMSY1] = CAMSENS_VAL(Y, y, 1), [VAL_CAMSY2] = CAMSENS_VAL(Y, y, 2),
+    [VAL_CAMSY3] = CAMSENS_VAL(Y, y, 3), [VAL_CAMSY4] = CAMSENS_VAL(Y, y, 4),
+    /* how fast CAMERA RESET turns the camera back (maintainer, 2026-10-31): 0 = slow
+     * (about 50 degrees a second) .. 9 = fast, 10 = it jumps behind the skater */
+#define CAMRS_VAL(n) { "CAMERA RESET SPEED", "camera_reset_speed_p" #n, "4", \
+                       { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }, \
+                       { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }, 11 }
+    [VAL_CAMRS1] = CAMRS_VAL(1), [VAL_CAMRS2] = CAMRS_VAL(2),
+    [VAL_CAMRS3] = CAMRS_VAL(3), [VAL_CAMRS4] = CAMRS_VAL(4),
 };
 
 /* line -> VAL_* + 1, 0 = not a value line (opt_build). Zero means none on
@@ -2591,7 +2726,7 @@ static uint32_t s_sub_line[OPT_LISTS];            /* a sub-list's line in RECOMP
 /* a line's next state: built lists keep theirs in s_line_next */
 static uint32_t opt_next(int list, uint32_t line)
 {
-    if (list == OPT_RECOMP || list == OPT_GENERAL)
+    if (list == OPT_RECOMP || list == OPT_GENERAL || list == OPT_CTLPLAYER)
         return line < 12 ? s_line_next[list][line] : OPT_STAY;
     return s_opt[list].next[line];
 }
@@ -2599,6 +2734,8 @@ static uint32_t opt_next(int list, uint32_t line)
 /* the line of the parent list a list was opened from */
 static uint32_t opt_parent_line(int list)
 {
+    if (list == OPT_CTLPLAYER)
+        return (uint32_t)s_ctl_player;            /* PLAYER n's line */
     return s_opt[list].parent == OPT_RECOMP ? s_sub_line[list] : (uint32_t)s_opt[list].parent_line;
 }
 
@@ -2888,7 +3025,7 @@ static int opt_restart_pending(void)
 #define OPT_E_SUB 100
 #define OPT_E_HINT 99
 #define OPT_E_BLANK 98                            /* " ": an empty text would end the list (opt_lines) */
-#define OPT_GENERAL_FIRST 2                       /* GENERAL OPTIONS: its first value line */
+#define OPT_GENERAL_FIRST 2                       /* GENERAL OPTIONS: its first value line (CAREER MODE) */
 static void opt_build(int list)
 {
     /* SHADERS before BOOT ANIMATION (maintainer, 2026-10-27); BUTTON CHEATS
@@ -2899,12 +3036,23 @@ static void opt_build(int list)
     static const short frame[] = { VAL_FRAMERATE, VAL_VSYNC, VAL_COUNTER };
     /* the game's four, then LAYOUT and the gameplay values (maintainer,
      * 2026-10-28); OPT_E_HINT: a text line without an action */
-    /* the Y hint on top, a blank line (greyed: the cursor skips it, see
-     * sub_0013D400), then the values (maintainer, 2026-10-28) */
-    static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
-                                     VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP };
+    /* the Y hint, a blank line (greyed: the cursor skips it, see
+     * sub_0013D400), then CAREER MODE and the other values (maintainer,
+     * 2026-10-28; CAREER MODE the first value without its own blank line
+     * 2026-10-31) */
+    static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_CAREER, VAL_TIPS, VAL_SCORE,
+                                     VAL_CHAT, VAL_BLUR, VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP,
+                                     VAL_WALLBAIL };
+    /* PLAYER n (issue #6): BUTTON MAPPING, then that player's camera values */
+    short player[6];
     const short *e = NULL;
     int n = 0, i, line = 0;
+    player[0] = OPT_E_SUB + OPT_BINDKEYS;
+    player[1] = (short)(VAL_FREECAM1 + s_ctl_player);
+    player[2] = (short)(VAL_INVCAM1 + s_ctl_player);
+    player[3] = (short)(VAL_CAMSX1 + s_ctl_player);
+    player[4] = (short)(VAL_CAMSY1 + s_ctl_player);
+    player[5] = (short)(VAL_CAMRS1 + s_ctl_player);
     if (list >= OPT_SHADERS && list <= OPT_SHRESET) {
         sh_build(list);
         return;
@@ -2915,6 +3063,8 @@ static void opt_build(int list)
         e = frame, n = (int)(sizeof frame / sizeof frame[0]);
     else if (list == OPT_GENERAL)
         e = general, n = (int)(sizeof general / sizeof general[0]);
+    else if (list == OPT_CTLPLAYER)
+        e = player, n = 6;
     if (!e)
         return;
     memset(s_val_map[list], 0, sizeof s_val_map[list]);
@@ -2946,6 +3096,8 @@ static void opt_build(int list)
                 else
                     snprintf(s_val_text[list][line], sizeof s_val_text[list][line], "%s", s_opt[to].title);
             }
+            else if (to == OPT_BINDKEYS)           /* its title carries the page ("1 OF 2") */
+                snprintf(s_val_text[list][line], sizeof s_val_text[list][line], "BUTTON MAPPING");
             else
                 snprintf(s_val_text[list][line], sizeof s_val_text[list][line], "%s", s_opt[to].title);
             s_line_next[list][line] = OPT_SUB(to);
@@ -2995,6 +3147,8 @@ static int opt_val_step(int id, int dir)
             opt_render_carry(was, to);             /* the other aspect's render size, same width */
         else if (id == VAL_DISPMODE)
             nv2a_vk_set_display_mode(opt_display_mode());
+        else if (id >= VAL_FREECAM1 && id <= VAL_CAMRS4)
+            fc_reload();                           /* the camera reads them again, at once */
     }
     return 1;
 }
@@ -3029,6 +3183,10 @@ void sub_0013D470(void)
         int to = (int)(n - 0x1000u);
         if ((to == OPT_BINDKEYS || to == OPT_CHEATS) && s_in_level)
             return;                                /* button mapping, cheats: front-end Options only */
+        if (to == OPT_CTLPLAYER) {                 /* PLAYER n's page (OPT_CTLREC line n) */
+            s_ctl_player = (int)(line < 4 ? line : 0);
+            snprintf(s_ctlp_title, sizeof s_ctlp_title, "PLAYER %d", s_ctl_player + 1);
+        }
         if (to == OPT_BINDKEYS)
             bind_open();
         s_opt_list = to;
@@ -3045,8 +3203,10 @@ void sub_0013D470(void)
             char bp[700];
             if (boot_state(bp, sizeof bp))
                 GUEST32(0x00306250u) = boot_on() ? 1u : 2u;
-        } else if (s_opt_list == OPT_GENERAL) {    /* on its first value, under the Y hint */
+        } else if (s_opt_list == OPT_GENERAL) {    /* on its first value, CAREER MODE */
             GUEST32(0x00306250u) = OPT_GENERAL_FIRST;
+        } else if (s_opt_list == OPT_QUIT) {       /* on NO */
+            GUEST32(0x00306250u) = 2;
         } else if (s_opt_list == OPT_CHEATS) {     /* on the first cheat of the first page */
             static int probed;
             const char *e = getenv("THPS_CHEAT_PROBE"), *on = getenv("THPS_CHEATS_ON");
@@ -3068,7 +3228,7 @@ void sub_0013D470(void)
             s_cheat_page = 0;
             s_cheat_refused = -1;
             cheat_build();
-            GUEST32(0x00306250u) = 1;
+            GUEST32(0x00306250u) = CHEAT_FIRST;
         }
         g_eax = OPT_STAY;
     } else if (s_opt_list == OPT_CHEATS) {         /* A: a cheat switched through the game's checker */
@@ -3083,6 +3243,15 @@ void sub_0013D470(void)
             host_restart();                        /* returns only if the new process failed */
         s_opt_list = OPT_MAIN;
         GUEST32(0x00306250u) = (uint32_t)s_opt[OPT_RESTART].parent_line;
+        g_eax = OPT_STAY;
+    } else if (s_opt_list == OPT_QUIT) {           /* YES: the process ends; NO: back to OPTIONS */
+        extern void host_quit(void);               /* platform/host.h */
+        if (line == 1) {
+            fprintf(stderr, "  options: QUIT GAME - YES, exiting\n");
+            host_quit();                           /* settings are saved at each change; never returns */
+        }
+        s_opt_list = OPT_MAIN;
+        GUEST32(0x00306250u) = (uint32_t)s_opt[OPT_QUIT].parent_line;
         g_eax = OPT_STAY;
     } else if (s_opt_list == OPT_AA) {             /* an antialiasing picked: saved, at once, back */
         s_aa_undo = opt_aa_index() + 1;            /* thps_options_tick: back to it if MSAA fails */
@@ -3180,8 +3349,8 @@ static void opt_lr(uint32_t screen, int dir, int pad)
         s_cheat_page = (s_cheat_page + dir + CHEAT_PAGES) % CHEAT_PAGES;
         s_cheat_refused = -1;
         cheat_build();
-        if (line > (uint32_t)cheat_on_page() + 1)
-            GUEST32(0x00306250u) = (uint32_t)cheat_on_page() + 1;   /* past a short page's end: NEXT PAGE */
+        if (line > (uint32_t)(CHEAT_FIRST + cheat_on_page()))   /* past a short page's end: NEXT PAGE */
+            GUEST32(0x00306250u) = (uint32_t)(CHEAT_FIRST + cheat_on_page());
         s_val_refresh = 1;
         PAD_LATCH(0x00305369u, pad) = 1;
         return;
@@ -3310,8 +3479,8 @@ void sub_001E66E0(void)
         changed = opt_val_default(id);
         opt_build(OPT_GENERAL);
     } else if (s_opt_shown == OPT_CHEATS) {
-        int i = s_cheat_page * CHEAT_PAGE + (int)line - 1;
-        if (line < 1 || line > (uint32_t)cheat_on_page())
+        int i = s_cheat_page * CHEAT_PAGE + (int)line - CHEAT_FIRST;
+        if (line < CHEAT_FIRST || line >= (uint32_t)(CHEAT_FIRST + cheat_on_page()))
             return;
         changed = cheat_on(i) && cheat_enter(i) == 1;
         s_cheat_refused = -1;
@@ -3369,8 +3538,10 @@ void sub_0013D400(void)
             v = s_boot_text[0] == 'B';                  /* ON / OFF: only with media\boot.mpg (boot_state) */
         else if (s_opt_shown == OPT_SHADERS && !sh_menu_usable())
             v = 0;                                      /* no librashader / no pack: the hint, the rest greyed */
-        else if (s_opt_shown == OPT_GENERAL && line < OPT_GENERAL_FIRST)
+        else if (s_opt_shown == OPT_GENERAL && !strcmp(s_val_text[OPT_GENERAL][line], " "))
             v = 0;                                      /* GENERAL OPTIONS: the blank under the Y hint */
+        else if (s_opt_shown == OPT_CHEATS && line == CHEAT_FIRST - 1)
+            v = 0;                                      /* BUTTON CHEATS: the blank under the Y hint */
         GUEST32(0x003054A4u + k * 0x18Cu) = v;
     }
     sub_0013D400_gen();
@@ -4064,11 +4235,13 @@ uint32_t thps_ctl_panel(uint32_t buf, uint32_t size_ptr)
 }
 
 /* ── Button mapping (rebinding; maintainer, 2026-10-25) ───────────────────────
- * Options -> CONTROLS -> BUTTON MAPPING, one screen (maintainer's layout):
- * PLAYER: n (left / right or A: 1-4), DEVICE: the keyboard (it plays on
+ * Options -> CONTROLS -> RECOMP CONTROL OPTIONS -> PLAYER n -> BUTTON
+ * MAPPING (maintainer, 2026-10-31; was CONTROLS -> BUTTON MAPPING with a
+ * PLAYER line), one screen: DEVICE: the keyboard (it plays on
  * xbox_InputKeyboardPort, player 1 by default) or the controller on that
  * player's port (left / right or A), RESET TO DEFAULT, then that device's
- * bindings, 8 per page, NEXT PAGE. Bindings stay per device (keyboard / pad GUID,
+ * bindings and CAMERA RESET (the FREE CAMERA's own action, issue #6), 9 per
+ * page, NEXT PAGE. Bindings stay per device (keyboard / pad GUID,
  * saves\settings.ini; xinput_bind.h, docs/input.md) -- the player only picks
  * which devices are offered. A on a binding records a press: every source
  * released, then the first one pressed on that device (5 s without one
@@ -4078,8 +4251,9 @@ uint32_t thps_ctl_panel(uint32_t buf, uint32_t size_ptr)
  * The panel font has capitals, digits, the dot, the colon and the space. */
 #include "xinput_bind.h"
 
-#define BIND_PAGE 8
+#define BIND_PAGE 9                               /* DEVICE, RESET, 9 bindings, NEXT PAGE: 12 lines */
 #define BIND_CAPTURE_FRAMES 300                   /* 5 s at 60 frames a second */
+#define CAP_CAMRESET 100                          /* s_cap_control: CAMERA RESET being recorded */
 
 static int s_bind_player, s_bind_dev, s_bind_port = -3, s_bind_page;   /* port: -1 keyboard, -3 none */
 static XboxBindMap s_bind_own, s_bind_def;
@@ -4088,6 +4262,7 @@ static uint32_t s_bind_line_ctl[12];              /* line -> control, or one of 
 #define BIND_RESET  0x101u
 #define BIND_PLAYER 0x102u
 #define BIND_DEVICE 0x103u
+#define BIND_CAMRESET 0x105u
 #define BIND_NONE   0x104u
 static int s_cap_control = -1, s_cap_phase, s_cap_frames;
 static uint32_t s_cap_line;
@@ -4200,8 +4375,8 @@ static void bind_keys_build(void)
     int n, pages, c, line = 0;
 
     memset(s_bkeys_text, 0, sizeof s_bkeys_text);
-    snprintf(s_bkeys_text[line], sizeof s_bkeys_text[line], "PLAYER: %d", s_bind_player + 1);
-    s_bind_line_ctl[line++] = BIND_PLAYER;
+    /* no PLAYER line: the page is the player's (RECOMP CONTROL OPTIONS ->
+     * PLAYER n, maintainer 2026-10-31) */
     if (s_bind_port == -3) {
         snprintf(s_bkeys_title, sizeof s_bkeys_title, "BUTTON MAPPING");
         snprintf(s_bkeys_text[line], sizeof s_bkeys_text[line], "DEVICE: NONE CONNECTED");
@@ -4222,14 +4397,22 @@ static void bind_keys_build(void)
 
     dup = xbox_bind_duplicates(kind, &s_bind_own);
     n = xbox_bind_controls(kind);
-    pages = (n + BIND_PAGE - 1) / BIND_PAGE;
+    pages = (n + 1 + BIND_PAGE - 1) / BIND_PAGE;   /* the controls, then CAMERA RESET */
     if (s_bind_page >= pages)
         s_bind_page = 0;
     snprintf(s_bkeys_title, sizeof s_bkeys_title, "BUTTON MAPPING  %d OF %d", s_bind_page + 1, pages);
-    for (c = s_bind_page * BIND_PAGE; c < n && c < (s_bind_page + 1) * BIND_PAGE; c++, line++) {
+    for (c = s_bind_page * BIND_PAGE; c <= n && c < (s_bind_page + 1) * BIND_PAGE; c++, line++) {
         char a[16], b[16], *t = s_bkeys_text[line];
         const char *la, *lb;
         size_t sz = sizeof s_bkeys_text[line];
+        if (c == n) {                              /* CAMERA RESET (issue #6): the port's own action, */
+            s_bind_line_ctl[line] = BIND_CAMRESET; /* never DOUBLE (its default R3 is the Xbox R3's too) */
+            if (s_cap_control == CAP_CAMRESET)
+                snprintf(t, sz, "CAMERA RESET: %s", s_bind_port >= 0 ? "PRESS A BUTTON" : "PRESS A KEY");
+            else
+                snprintf(t, sz, "CAMERA RESET: %s", bind_src_label(fc_reset_src(s_bind_port), a, sizeof a));
+            continue;
+        }
         s_bind_line_ctl[line] = (uint32_t)c;
         if (s_cap_control == c) {
             snprintf(t, sz, "%s: %s", s_bind_ctl_label[c], s_bind_port >= 0 ? "PRESS A BUTTON" : "PRESS A KEY");
@@ -4262,10 +4445,11 @@ static void bind_store(void)
         xbox_InputBindStorePad(s_bind_port, &s_bind_own);
 }
 
-/* CONTROLS -> BUTTON MAPPING: player 1, its first device, page 1 */
+/* RECOMP CONTROL OPTIONS -> PLAYER n -> BUTTON MAPPING: that player, its
+ * first device, page 1 */
 static void bind_open(void)
 {
-    s_bind_player = 0;
+    s_bind_player = s_ctl_player;
     s_bind_dev = 0;
     s_bind_page = 0;
     s_cap_control = -1;
@@ -4319,11 +4503,12 @@ static uint32_t bind_keys_action(uint32_t line)
     if (what == BIND_RESET) {
         s_bind_own = s_bind_def;
         bind_store();
+        fc_reset_store(s_bind_port, s_bind_port >= 0 ? XBOX_PAD_SRC_RSTICK : 0);   /* CAMERA RESET's default */
         fprintf(stderr, "[BIND] %s reset to default\n", s_bind_port >= 0 ? "pad" : "keyboard");
         bind_keys_build();
         return line;
     }
-    s_cap_control = (int)what;
+    s_cap_control = what == BIND_CAMRESET ? CAP_CAMRESET : (int)what;
     s_cap_line = line;
     s_cap_phase = 0;
     s_cap_frames = BIND_CAPTURE_FRAMES;
@@ -4355,6 +4540,12 @@ static void thps_bind_tick(void)
     if (s_cap_phase == 0) {                       /* the A that started it released first */
         if (!held)
             s_cap_phase = 1;
+    } else if (s_cap_phase == 1 && held && s_cap_control == CAP_CAMRESET) {
+        char a[16];
+        fc_reset_store(s_bind_port, held);
+        fprintf(stderr, "[BIND] %s camera reset = %s\n", s_bind_port >= 0 ? "pad" : "keyboard",
+                xbox_bind_source_name(s_bind_port >= 0 ? XBOX_BIND_PAD : XBOX_BIND_KEYBOARD, held, a, sizeof a));
+        s_cap_phase = 2;
     } else if (s_cap_phase == 1 && held) {
         char a[16];
         xbox_bind_set(&s_bind_own, s_cap_control, held);
@@ -4515,6 +4706,88 @@ void sub_000A85E0(void)
         ps2_swap_shoulders();
 }
 
+/* ── WALL TRACE (test): the wallride check, sub_00095D80 + sub_0017BE20 ───────
+ *
+ * Why: NO WALL BAIL (tester wish 11, M6) needs the wallride angle limit; the
+ * maintainer's play test 2026-10-31 showed every wall bail comes from
+ * 0x000AD6FB (sub_000AC9D0).
+ * Address: sub_000AC9D0 at 0x000AD36C, the skater in ebp: if more than 0x28
+ * frames passed since [skater+0x57FC] it takes the skater's velocity
+ * ([skater+0x4C], y zeroed) and the wall normal (words at esp+0xC8/CA/CC);
+ * normal y > 0xCCD -> bail; both normalized (sub_00095D80, first call returns
+ * to 0x000AD3B8), dot product (sub_0017BE20, returns to 0x000AD3F2, 4096 = 1)
+ * |dot| >= 0xDDB (cos 30 deg: the path within 30 deg of the normal, i.e. 60 deg
+ * or more to the wall) -> bail; [skater+0x59DC] >= -0x5DC -> bail; else on to
+ * the wallride. Every bail there calls sub_000A5970 from 0x000AD6FB.
+ * How: THPS_WALL_TRACE=1 logs one [WALL] line per check (velocity, normal y,
+ * the angle to the wall, +0x59DC, which test decides); the game runs unchanged.
+ * WALL BAIL (GENERAL OPTIONS; wall_bail original / no_bail, THPS_WALL_BAIL;
+ * tester wish 11, maintainer 2026-10-31: 60-90 deg no wallride and no bail):
+ * no_bail drops only the angle bail - sub_000A5970 from 0x000AD6FB after a
+ * failed angle test - and sets [skater+0x57FC] to the frame counter 0x002FD504,
+ * so the check pauses its 0x28 frames and the game's other wall path
+ * (0x000AD700, the one without grind held) handles the wall; the position
+ * reset before the bail ([skater+0xBC] -> +8) still runs.
+ * Verified: maintainer's play test 2026-10-31 with the trace (33 contacts:
+ * every angle >= 61.9 deg bailed, 20 of 21 under 60 deg rode; the 53 deg bail
+ * came from 0x000AD42B, another test). */
+extern THPS_TLS uint32_t g_esi;
+extern void sub_00095D80_gen(void);
+extern void sub_0017BE20_gen(void);
+
+static int s_wall_angle_bail;                     /* the last check failed on the angle */
+
+static int wall_no_bail(void)
+{
+    return !strcmp(settings_get("wall_bail", "original"), "no_bail");
+}
+
+static int wall_trace(void)
+{
+    static int tr = -1;
+    if (tr < 0) {
+        const char *e = getenv("THPS_WALL_TRACE");
+        tr = e && *e == '1';
+    }
+    return tr;
+}
+
+static double s_wall_speed;
+
+void sub_00095D80(void)
+{
+    if (GUEST32(g_esp) == 0x000AD3B8u)
+        s_wall_angle_bail = 0;
+    if (wall_trace() && GUEST32(g_esp) == 0x000AD3B8u) {
+        uint32_t cs = g_esp + 4;                  /* the caller's esp */
+        double vx = (int32_t)GUEST32(g_ecx), vz = (int32_t)GUEST32(g_ecx + 8);
+        int16_t ny = (int16_t)(GUEST32(cs + 0xC8) >> 16);   /* the word at esp+0xCA */
+        s_wall_speed = sqrt(vx * vx + vz * vz);
+        if (ny > 0xCCD)
+            fprintf(stderr, "[WALL] speed %.0f normal y %d -> bail (surface not steep)\n", s_wall_speed, ny);
+    }
+    sub_00095D80_gen();
+}
+
+void sub_0017BE20(void)
+{
+    uint32_t ret = GUEST32(g_esp);
+    sub_0017BE20_gen();
+    if (ret == 0x000AD3F2u) {
+        int32_t d = (int32_t)g_eax < 0 ? -(int32_t)g_eax : (int32_t)g_eax;
+        s_wall_angle_bail = d >= 0xDDB;
+    }
+    if (wall_trace() && ret == 0x000AD3F2u) {
+        int32_t d = (int32_t)g_eax < 0 ? -(int32_t)g_eax : (int32_t)g_eax;
+        uint32_t sk = GUEST32(0x002FD50Cu);
+        int32_t v = sk ? (int32_t)GUEST32(sk + 0x59DC) : 0;
+        double a = asin(d > 4096 ? 1.0 : d / 4096.0) * 57.29578;
+        fprintf(stderr, "[WALL] speed %.0f angle to wall %.1f deg (dot %d) skater %08X +59DC %d -> %s\n",
+                s_wall_speed, a, d, sk, v,
+                d >= 0xDDB ? "bail (angle >= 60)" : v >= -0x5DC ? "bail (+59DC)" : "passes (wallride path)");
+    }
+}
+
 /* ── BIG DROP original / no bail / off, sub_000A5970 + sub_000A4C30 ──────────
  *
  * Why: player request (v0.9.2 item 4; maintainer 2026-10-28: all three).
@@ -4555,6 +4828,14 @@ void sub_000A5970(void)
     if (tr)                                       /* THPS_BAIL_TRACE=1 (test): every bail, where from */
         fprintf(stderr, "[BAIL] from %08X args %08X %08X skater %08X\n", GUEST32(g_esp), GUEST32(g_esp + 4),
                 GUEST32(g_esp + 8), g_edi);
+    if (GUEST32(g_esp) == 0x000AD6FBu && s_wall_angle_bail && wall_no_bail()) {
+        s_wall_angle_bail = 0;                    /* WALL BAIL no_bail (see WALL TRACE) */
+        GUEST32(g_edi + 0x57FC) = GUEST32(0x002FD504u);
+        g_esp += 4 + 8;
+        if (tr || wall_trace())
+            fprintf(stderr, "[WALLBAIL] angle bail -> no bail\n");
+        return;
+    }
     if (GUEST32(g_esp) != 0x000A7003u || (mode = big_drop_mode()) == 0) {
         sub_000A5970_gen();
         return;
@@ -4581,4 +4862,845 @@ void sub_000A4C30(void)
         return;
     }
     sub_000A4C30_gen();
+}
+
+/* ── QUIT GAME in the pause menu (issue #5; maintainer, 2026-10-31) ──────────
+ *
+ * Why: the pause menu (Start in a level) gets QUIT GAME between SOUND OPTIONS
+ * and END RUN (maintainer's order, 2026-10-31), with a question first; YES
+ * ends the process like OPTIONS -> QUIT GAME.
+ * Address: the pause state 0x003068D4 in sub_00104210. State 0 builds the
+ * list (menu object at 0x00306918; entry i at menu + 0x18 + i * 0x18, text
+ * pointer first, count byte menu + 9, cursor byte menu + 6) and finishes it
+ * with sub_000FF600 (ecx = menu, return 0x0010471C) after END RUN / END GAME,
+ * the last line. State 1 maps an A press by the text under the cursor:
+ * sub_000FF880 (ecx = menu, push text, ret 4) per known line. The game still
+ * has a dead check for its own "QUIT" (string table 0x00289E34; FF880 returns
+ * to 0x00104D8B): when it matches, the game plays the A sound, puts the cursor
+ * of the shared YES / NO menu (0x003068F4) on NO and goes to state 3, its
+ * "REALLY QUIT?" question. In state 3 A on YES is FF880 returning to
+ * 0x00105014; NO and B go back to state 1 with the list kept. The question's
+ * text is the pointer 0x00289E60, drawn only by state 3 of sub_00101790.
+ * How: sub_000FF600 at 0x0010471C puts our line above the last one (that
+ * line's entry as the template, as soundtracks.c does for NEXT SONG); FF880 at
+ * 0x00104D8B answers "match" when the cursor is on our line, so the game's
+ * own state 3 runs; FF880 at 0x00105014 with YES calls host_quit. While our
+ * question is open, state 3 draws "DO YOU REALLY WANT TO QUIT?" (0x0022D704,
+ * the game's text of its end-of-run question) instead of "REALLY QUIT?". The
+ * game's own state 3 (END GAME in two-player games) is untouched: s_pq_open
+ * is set only by our line. The game's "QUIT" (to the main menu) is not used
+ * as the label: our line has its own text.
+ * Verified: input script tests/input/pause_quit.txt (docs/status.md). */
+uint32_t xbox_HeapAlloc(uint32_t size, uint32_t alignment);
+#define PQ_STATE 0x003068D4u
+#define PQ_LIST  0x00306918u
+static uint32_t s_pq_text;                        /* guest "QUIT GAME" */
+static int s_pq_open;                             /* our question is open (state 3) */
+
+void pause_quit_line(uint32_t menu)              /* soundtracks.c sub_000FF600 */
+{
+    uint32_t n, last;
+    if (GUEST32(g_esp) != 0x0010471Cu || !menu || menu != GUEST32(PQ_LIST))
+        return;
+    if (!s_pq_text) {
+        if (!(s_pq_text = xbox_HeapAlloc(16, 4)))
+            return;
+        memcpy((char *)(uintptr_t)g_xbox_mem_offset + s_pq_text, "QUIT GAME", 10);
+    }
+    n = GUEST8(menu + 9);
+    if (n < 2 || n >= 15)                         /* 15 entries at most (sub_000FF540) */
+        return;
+    last = menu + 0x18u + (n - 1) * 0x18u;        /* END RUN / END GAME */
+    memmove((char *)(uintptr_t)g_xbox_mem_offset + last + 0x18u,
+            (char *)(uintptr_t)g_xbox_mem_offset + last, 0x18);
+    GUEST32(last) = s_pq_text;                    /* the rest of its entry as the template */
+    GUEST8(menu + 9) = (uint8_t)(n + 1);
+    s_pq_open = 0;
+}
+
+extern void sub_000FF880_gen(void);
+void sub_000FF880(void)
+{
+    uint32_t ret = GUEST32(g_esp), menu = g_ecx;
+    if (ret == 0x00104D8Bu && s_pq_text && menu
+        && GUEST32(menu + 0x18u + GUEST8(menu + 6) * 0x18u) == s_pq_text) {
+        s_pq_open = 1;
+        g_eax = 1;
+        g_esp += 4 + 4;                           /* ret 4 */
+        fprintf(stderr, "  pause: QUIT GAME - question\n");
+        return;
+    }
+    sub_000FF880_gen();
+    if (ret == 0x00105014u && s_pq_open && g_eax) {
+        extern void host_quit(void);               /* platform/host.h */
+        fprintf(stderr, "  pause: QUIT GAME - YES, exiting\n");
+        host_quit();                               /* never returns */
+    }
+}
+
+extern void sub_00101790_gen(void);
+void sub_00101790(void)
+{
+    uint32_t text;
+    if (GUEST32(PQ_STATE) != 3u)
+        s_pq_open = 0;                            /* NO / B: back in the list */
+    if (!s_pq_open) {
+        sub_00101790_gen();
+        return;
+    }
+    text = GUEST32(0x00289E60u);
+    GUEST32(0x00289E60u) = 0x0022D704u;           /* "DO YOU REALLY WANT TO QUIT?" */
+    sub_00101790_gen();
+    GUEST32(0x00289E60u) = text;
+}
+
+/* ── FREE CAMERA on the right stick (GitHub issue #6; maintainer, 2026-10-31) ──
+ *
+ * Why: a free camera on the right stick, per player (CONTROLS -> RECOMP
+ * CONTROL OPTIONS -> PLAYER n: FREE CAMERA ON / OFF, INVERT CAMERA OFF / X /
+ * Y / X+Y); the camera keeps where it was turned, CAMERA RESET (BUTTON
+ * MAPPING, default R3) turns it back (maintainer, 2026-10-31).
+ * Address: the game has a yaw orbit of its own: sub_001AF860 (the level
+ * frame) turns cam + 0x5C0 (8192 = 360 degrees: its users take the low word,
+ * halve it and index a 4096-entry sine table, sub_0006FB20 / sub_000706B0;
+ * cam = [skater + 0x529C])
+ * by the right stick (pad + 0x16B = RX, pad + 0x16A = -RY, pad = [skater +
+ * 0x556C], 0x00305338 + port * 0x18C) only while the skater stands (state
+ * [skater + 0x5984] == 7) and halves it every frame otherwise; skipped when
+ * [0x00300844] == 1 or [0x003068DC] / [0x003068DD]. The camera update
+ * sub_0006F0D0 (thiscall, ecx = cam; target skater [cam + 0x3A4]) turns its
+ * target orientation by cam + 0x5C0 around the skater, tests the line from
+ * the skater to the new place against the level, and copies the pitch
+ * [0x0028BE04] (4096 = 360 degrees, the camera presets set it) to
+ * [0x0028BE50] for the frame.
+ * How: with FREE CAMERA on for the skater's port, sub_001AF860 keeps a yaw
+ * and a pitch offset per port from the stick (any skater state, scaled to 60
+ * steps a second), and sub_0006F0D0 puts the yaw into cam + 0x5C0 and adds
+ * the pitch to [0x0028BE04] around the game's update (kept in [-0x100,
+ * 0x380]), so the game's own collision test still applies. CAMERA RESET
+ * (its own source per device: camera_reset_keyboard / camera_reset_pad_<GUID>
+ * in settings.ini, pad default the right stick click) sets both to 0. Off:
+ * the game's own camera, unchanged. Not in replays or the attract mode.
+ * Verified: input script tests/input/free_camera.txt (docs/status.md). */
+#define FC_SKATERS   0x002FD50Cu                  /* the four skaters */
+#define FC_PITCH_MIN (-0x100)
+#define FC_PITCH_MAX 0x380
+static int s_fc_loaded, s_fc_on[4], s_fc_inv[4];  /* inv: bit 0 X, bit 1 Y */
+static int s_fc_sx[4], s_fc_sy[4];                /* CAMERA SENSITIVITY X / Y: 0-10 */
+static int s_fc_rs[4];                            /* CAMERA RESET SPEED: 0-9 turning, 10 = a jump */
+static int s_fc_resetting[4], s_fc_snap[4];       /* turning back / frames of a jump */
+#define FC_RESET_STEP 20                          /* yaw units a 60 Hz frame per RESET SPEED step */
+static int s_fc_yaw[4], s_fc_pitch[4], s_fc_reset_was[4], s_fc_moving[4];
+static char s_fc_rs_guid[4][33];                  /* CAMERA RESET: the device it was read for */
+static uint16_t s_fc_rs_src[4], s_fc_rs_kbd;
+static int s_fc_rs_kbd_loaded;
+static const char *const s_fc_inv_key[4] = { "off", "x", "y", "xy" };
+
+static void fc_load(void)
+{
+    int p, i;
+    char key[32];
+    if (s_fc_loaded)
+        return;
+    s_fc_loaded = 1;
+    for (p = 0; p < 4; p++) {
+        snprintf(key, sizeof key, "free_camera_p%d", p + 1);
+        s_fc_on[p] = !strcmp(settings_get(key, "off"), "on");
+        snprintf(key, sizeof key, "invert_camera_p%d", p + 1);
+        s_fc_inv[p] = 0;
+        for (i = 0; i < 4; i++)
+            if (!strcmp(settings_get(key, "off"), s_fc_inv_key[i]))
+                s_fc_inv[p] = i;
+        snprintf(key, sizeof key, "camera_sensitivity_x_p%d", p + 1);
+        s_fc_sx[p] = atoi(settings_get(key, "1"));
+        snprintf(key, sizeof key, "camera_sensitivity_y_p%d", p + 1);
+        s_fc_sy[p] = atoi(settings_get(key, "1"));
+        s_fc_sx[p] = s_fc_sx[p] < 0 ? 0 : s_fc_sx[p] > 10 ? 10 : s_fc_sx[p];
+        s_fc_sy[p] = s_fc_sy[p] < 0 ? 0 : s_fc_sy[p] > 10 ? 10 : s_fc_sy[p];
+        snprintf(key, sizeof key, "camera_reset_speed_p%d", p + 1);
+        s_fc_rs[p] = atoi(settings_get(key, "4"));
+        s_fc_rs[p] = s_fc_rs[p] < 0 ? 0 : s_fc_rs[p] > 10 ? 10 : s_fc_rs[p];
+    }
+}
+
+static int fc_port(uint32_t skater)
+{
+    uint32_t pad = skater ? GUEST32(skater + 0x556Cu) : 0, off;
+    if (pad < 0x00305338u)
+        return -1;
+    off = pad - 0x00305338u;
+    return off % 0x18Cu == 0 && off / 0x18Cu < 4 ? (int)(off / 0x18Cu) : -1;
+}
+
+/* A source name ("rstick", "sc40", "none") as a source number; 0 = none. */
+static uint16_t fc_src_parse(XboxBindKind kind, const char *name)
+{
+    char buf[16];
+    uint16_t s;
+    if (kind == XBOX_BIND_KEYBOARD)
+        return name[0] == 's' && name[1] == 'c' ? (uint16_t)atoi(name + 2) : 0;
+    for (s = 1; s < XBOX_PAD_SRC_COUNT; s++)
+        if (!strcmp(xbox_bind_source_name(kind, s, buf, sizeof buf), name))
+            return s;
+    return 0;
+}
+
+static void fc_reload(void)
+{
+    s_fc_loaded = 0;
+    s_fc_rs_kbd_loaded = 0;
+    memset(s_fc_rs_guid, 0, sizeof s_fc_rs_guid);
+}
+
+/* CAMERA RESET's source of a device: port -1 the keyboard, else the pad on
+ * that port (0 = none; also when no pad is there) */
+static uint16_t fc_reset_src(int port)
+{
+    XboxBindMap own, def;
+    char guid[33], key[64];
+    if (port < 0) {
+        if (!s_fc_rs_kbd_loaded) {
+            s_fc_rs_kbd = fc_src_parse(XBOX_BIND_KEYBOARD, settings_get("camera_reset_keyboard", "none"));
+            s_fc_rs_kbd_loaded = 1;
+        }
+        return s_fc_rs_kbd;
+    }
+    if (port >= 4 || !xbox_InputBindPad(port, guid, &own, &def))
+        return 0;
+    if (strcmp(guid, s_fc_rs_guid[port])) {        /* read again for another pad model */
+        memcpy(s_fc_rs_guid[port], guid, 33);
+        snprintf(key, sizeof key, "camera_reset_pad_%s", guid);
+        s_fc_rs_src[port] = fc_src_parse(XBOX_BIND_PAD, settings_get(key, "rstick"));
+    }
+    return s_fc_rs_src[port];
+}
+
+/* BUTTON MAPPING: a new CAMERA RESET source for a device (as above) */
+static void fc_reset_store(int port, uint16_t src)
+{
+    XboxBindMap own, def;
+    char guid[33], key[64], name[16];
+    const char *v = "none";
+    if (src)
+        v = xbox_bind_source_name(port < 0 ? XBOX_BIND_KEYBOARD : XBOX_BIND_PAD, src, name, sizeof name);
+    if (port < 0) {
+        settings_set("camera_reset_keyboard", v);
+    } else if (port < 4 && xbox_InputBindPad(port, guid, &own, &def)) {
+        snprintf(key, sizeof key, "camera_reset_pad_%s", guid);
+        settings_set(key, v);
+    }
+    fc_reload();
+}
+
+static int fc_reset_down(int port)
+{
+    if (port == xbox_InputKeyboardPort() && xbox_InputSourceDown(XBOX_BIND_KEYBOARD, port, fc_reset_src(-1)))
+        return 1;
+    return xbox_InputSourceDown(XBOX_BIND_PAD, port, fc_reset_src(port));
+}
+
+static int fc_active(void)
+{
+    return GUEST32(0x00300844u) != 1u && !GUEST8(0x003068DCu) && !GUEST8(0x003068DDu) && !thps_replay_playing();
+}
+
+extern void sub_001AF860_gen(void);
+void sub_001AF860(void)
+{
+    int i, p, rx, ry, down, moving;
+    double step;
+    sub_001AF860_gen();
+    if (!fc_active())
+        return;
+    fc_load();
+    step = 60.0 / (double)thps_fps();
+    for (i = 0; i < 4; i++) {
+        uint32_t sk = GUEST32(FC_SKATERS + (uint32_t)i * 4u), pad;
+        if ((p = fc_port(sk)) < 0 || !s_fc_on[p])
+            continue;
+        pad = GUEST32(sk + 0x556Cu);
+        down = fc_reset_down(p);
+        if (down && !s_fc_reset_was[p]) {             /* CAMERA RESET SPEED 10: a jump */
+            if (s_fc_rs[p] == 10) {
+                s_fc_yaw[p] = s_fc_pitch[p] = 0;
+                s_fc_snap[p] = 2;
+            } else {
+                s_fc_resetting[p] = 1;
+            }
+            fprintf(stderr, "[FREECAM] player %d: camera reset\n", p + 1);
+        }
+        s_fc_reset_was[p] = down;
+        rx = (int8_t)GUEST8(pad + 0x16Bu);
+        ry = -(int8_t)GUEST8(pad + 0x16Au);           /* up = positive */
+        if (s_fc_resetting[p]) {                      /* turn back, the short way, at its speed */
+            int r = (int)((s_fc_rs[p] + 1) * FC_RESET_STEP * step);
+            if (rx > 20 || rx < -20 || ry > 20 || ry < -20)
+                s_fc_resetting[p] = 0;                /* the stick takes over */
+            else {
+                s_fc_yaw[p] = s_fc_yaw[p] > r ? s_fc_yaw[p] - r : s_fc_yaw[p] < -r ? s_fc_yaw[p] + r : 0;
+                s_fc_pitch[p] = s_fc_pitch[p] > r / 2 ? s_fc_pitch[p] - r / 2
+                              : s_fc_pitch[p] < -r / 2 ? s_fc_pitch[p] + r / 2 : 0;
+                if (!s_fc_yaw[p] && !s_fc_pitch[p])
+                    s_fc_resetting[p] = 0;
+            }
+        }
+        moving = 0;
+        if ((rx > 20 || rx < -20) && s_fc_sx[p]) {    /* the game's own dead band */
+            s_fc_yaw[p] -= (int)((rx >> 3) * step * s_fc_sx[p]) * (s_fc_inv[p] & 1 ? -1 : 1);
+            moving = 1;
+        }
+        if ((ry > 20 || ry < -20) && s_fc_sy[p]) {    /* up: the camera lower, looking up */
+            s_fc_pitch[p] -= (int)((ry >> 3) * step * s_fc_sy[p]) * (s_fc_inv[p] & 2 ? -1 : 1);
+            moving = 1;
+        }
+        s_fc_yaw[p] = ((s_fc_yaw[p] + 4096) & 0x1FFF) - 4096;   /* one turn = 8192 */
+        if (!moving && s_fc_moving[p])                /* the stick let go: where it stays */
+            fprintf(stderr, "[FREECAM] player %d: yaw %d (8192 = 360 degrees) pitch %d\n", p + 1,
+                    s_fc_yaw[p], s_fc_pitch[p]);
+        s_fc_moving[p] = moving;
+    }
+}
+
+extern void sub_0006F0D0_gen(void);
+void sub_0006F0D0(void)
+{
+    uint32_t cam = g_ecx, base, ours;
+    int p, v;
+    fc_load();
+    p = cam ? fc_port(GUEST32(cam + 0x3A4u)) : -1;
+    if (p < 0 || !s_fc_on[p] || !fc_active()) {
+        sub_0006F0D0_gen();
+        return;
+    }
+    base = GUEST32(0x0028BE04u);
+    v = (int)base + s_fc_pitch[p];
+    if (v < FC_PITCH_MIN) {                           /* the offset stops at the limits */
+        s_fc_pitch[p] += FC_PITCH_MIN - v;
+        v = FC_PITCH_MIN;
+    } else if (v > FC_PITCH_MAX) {
+        s_fc_pitch[p] -= v - FC_PITCH_MAX;
+        v = FC_PITCH_MAX;
+    }
+    ours = (uint32_t)v;
+    GUEST32(cam + 0x5C0u) = (uint32_t)s_fc_yaw[p];
+    GUEST32(0x0028BE04u) = ours;
+    sub_0006F0D0_gen();
+    if (GUEST32(0x0028BE04u) == ours)                 /* a preset set during the update stays */
+        GUEST32(0x0028BE04u) = base;
+}
+
+/* The camera's orientation follows its target (cam + 0x458, built with our yaw)
+ * by a slerp sub_0006DF10(cam, t) does (sub_000BA870, t / 4096 of the way a
+ * frame; sub_0006F0D0 passes 0x97, 0x137 or 0x2C7), and the position hangs on
+ * the orientation; the wall probes (sub_0006CFE0) run before it. Turned faster
+ * than about 80 degrees a second the camera fell 50 degrees and more behind,
+ * its arm swung into the level and the probes pushed it back again and again
+ * (maintainer's play test 2026-10-31, CAMERA SENSITIVITY 3 and up; with a
+ * fixed 0x700 from 6 up). While a free-camera player turns or the camera turns
+ * back after CAMERA RESET - and half a second after - the slerp takes at least
+ * FC_FOLLOW_T a frame, more the faster it turns (FC_FOLLOW_STEP per
+ * SENSITIVITY / RESET SPEED step, up to 0x1000 = at once), so the camera stays
+ * close behind; a RESET SPEED 10 jump takes 0x1000 for two frames. The probes
+ * still run. cdecl: [esp + 4] = cam, [esp + 8] = t. */
+#define FC_FOLLOW_T 0x700
+#define FC_FOLLOW_STEP 0x180
+static int s_fc_follow[4], s_fc_follow_t[4];      /* frames left of the faster follow, its t */
+extern void sub_0006DF10_gen(void);
+void sub_0006DF10(void)
+{
+    uint32_t cam = GUEST32(g_esp + 4u);
+    int p = cam && s_fc_loaded ? fc_port(GUEST32(cam + 0x3A4u)) : -1;
+    if (p >= 0 && s_fc_on[p] && fc_active()) {
+        int t = 0;
+        if (s_fc_moving[p])
+            t = FC_FOLLOW_STEP * (s_fc_sx[p] > s_fc_sy[p] ? s_fc_sx[p] : s_fc_sy[p]);
+        if (s_fc_resetting[p])
+            t = FC_FOLLOW_STEP * (s_fc_rs[p] + 1);
+        if (s_fc_moving[p] || s_fc_resetting[p]) {
+            s_fc_follow[p] = 30;
+            s_fc_follow_t[p] = t < FC_FOLLOW_T ? FC_FOLLOW_T : t > 0x1000 ? 0x1000 : t;
+        }
+        if (s_fc_snap[p] > 0) {
+            s_fc_snap[p]--;
+            GUEST32(g_esp + 8u) = 0x1000;
+        } else if (s_fc_follow[p] > 0) {
+            s_fc_follow[p]--;
+            if ((int32_t)GUEST32(g_esp + 8u) < s_fc_follow_t[p])
+                GUEST32(g_esp + 8u) = (uint32_t)s_fc_follow_t[p];
+        }
+    }
+    sub_0006DF10_gen();
+}
+
+/* ── CAREER MODE classic: THPS 1 -> THPS 2 -> 2X (option B) ──
+ *
+ * Why: maintainer 2026-10-30 (option B, the last GAMEPLAY line). The parts open
+ * in release order, each with its own rules, and the THPS 1 part takes the
+ * reward role TH2 has in the original.
+ * Address: the career flags [0x0030068C] (saved with the career; the game
+ * tests only bits 0-15 of it, every reader is a byte / HI8 / single-bit test),
+ * two new bits: CC_CLASSIC (the career is classic) and CC_TH2 (the THPS 2 part
+ * is open). Records 0x002FD604 + skater * 0x18C (+0 2X tapes, +1 THPS 1 tapes,
+ * +8 cash earned - the level gate reads it, +0xC cash on hand - the shop
+ * spends it, +0x10 + L*2 goal word of level L: goal bits, 0x8000 competition
+ * finished, 0x400 / 0x800 / 0x1000 gold / silver / bronze). Level table
+ * 0x003125B0 + L * 0x1A8 (+0x10 = competition). The skater in use:
+ * [(([0x0031536C] << 4) + 0x0031526C)].
+ * How:
+ * - sub_000768D0 (level gate; eax = level, ecx = record): a career that has
+ *   not started takes the line's mode (classic = CC_CLASSIC + the THPS 1 part
+ *   0x400 open); in a classic career the TH2 slots 0-7 stay shut until CC_TH2.
+ * - sub_00108FA0 (the after-run unlock check, ret 4): the original runs; a
+ *   Subway from its THPS 1 rule (its last check) is undone; when it finds nothing,
+ *   a Roswell medal opens THPS 2 (CC_TH2; cash earned reset to 0 for every
+ *   skater - the TH2 thresholds count from $0, the cash on hand stays for the
+ *   shop) and Subway follows the mirrored rule (TH2 golds + 43 of 50 TH2 goals).
+ *   Tampa no longer opens a part (0x400 is set from the start); Bullring still
+ *   opens 2X.
+ * - sub_00075D70 (skater "complete" -> the reward): every THPS 1 level at 6 of 6
+ *   goals + gold in its 3 competitions; sub_00074F10 (Trixie): the THPS 1 gaps;
+ *   sub_00075B00 from the Chopper Drop loop (0x001090D2 / 0x001090FD): THPS 1
+ *   golds.
+ * Verified: see docs/status.md (classic career rows). */
+#define GUEST16(va) (*(volatile uint16_t *)((uintptr_t)g_xbox_mem_offset + (uint32_t)(va)))
+#define CC_FLAGS   0x0030068Cu
+#define CC_CLASSIC 0x40000000u
+#define CC_TH2     0x20000000u
+#define CC_REC(s)  (0x002FD604u + (uint32_t)(s) * 0x18Cu)
+#define CC_COMP(l) (GUEST8(0x003125C0u + (uint32_t)(l) * 0x1A8u) != 0)
+#define CC_GOALS(r, l) GUEST16((r) + 0x10u + (uint32_t)(l) * 2u)
+extern void sub_000768D0_gen(void);
+extern void sub_00108FA0_gen(void);
+extern void sub_00075D70_gen(void);
+extern void sub_00074F10_gen(void);
+extern void sub_00075B00_gen(void);
+extern void sub_00142F30_gen(void);
+extern void sub_001449B0_gen(void);
+void sub_00074EB0(void);
+void sub_00074E10(void);
+
+static int cc_classic(void)
+{
+    return (GUEST32(CC_FLAGS) & CC_CLASSIC) != 0;
+}
+
+static uint32_t cc_rec_now(void)
+{
+    return CC_REC(GUEST32((GUEST32(0x0031536Cu) << 4) + 0x0031526Cu));
+}
+
+static int cc_bits(uint32_t v)
+{
+    int n = 0;
+    for (; v; v &= v - 1)
+        n++;
+    return n;
+}
+
+/* no tape, no cash, no goal and no unlock yet: the career has not started */
+static int cc_fresh(void)
+{
+    int s, l;
+    if (GUEST32(CC_FLAGS) & ~(CC_CLASSIC | CC_TH2 | 0x400u))
+        return 0;
+    for (s = 0; s < 20; s++) {
+        uint32_t r = CC_REC(s);
+        if (GUEST8(r) || GUEST8(r + 1) || GUEST32(r + 8))
+            return 0;
+        for (l = 0; l < 26; l++)
+            if (CC_GOALS(r, l))
+                return 0;
+    }
+    return 1;
+}
+
+/* until the career starts, it follows the CAREER MODE line */
+static void cc_mark(void)
+{
+    int want = !strcmp(settings_get("career_mode", "original"), "classic"), is = cc_classic();
+    if (want == is || !cc_fresh())
+        return;
+    if (want)
+        GUEST32(CC_FLAGS) |= CC_CLASSIC | 0x400u;
+    else
+        GUEST32(CC_FLAGS) &= ~(CC_CLASSIC | CC_TH2 | 0x400u);
+    fprintf(stderr, "[CAREER] new career: %s\n", want ? "classic" : "original");
+}
+
+/* sub_00076A10 (eax = mode / part, esi = slot; returns eax, plain ret) answers
+ * some slots itself before the level gate: Free Skate / Single Session count the
+ * first level of each part open in every career (The Hangar, Club London). In
+ * a classic career the parts open in order (maintainer, 2026-10-31): the THPS 2
+ * slots 0-9 stay shut until CC_TH2 (the Roswell medal), the 2X slots 19-23
+ * until the 2X part flag 0x800 (the Bullring medal); the unlock cheat
+ * [0x003061BC] and Empty Park (24) as before. */
+extern void sub_00076A10_gen(void);
+void sub_00076A10(void)
+{
+    int slot = (int32_t)g_esi;
+    if (cc_classic() && !GUEST32(0x003061BCu) &&
+        ((slot >= 0 && slot < 10 && !(GUEST32(CC_FLAGS) & CC_TH2)) ||
+         (slot >= 19 && slot < 24 && !(GUEST32(CC_FLAGS) & 0x800u)))) {
+        g_eax = 0;
+        g_esp += 4;                               /* its ret */
+        return;
+    }
+    sub_00076A10_gen();
+}
+
+void sub_000768D0(void)
+{
+    cc_mark();
+    if (cc_classic() && !GUEST32(0x003061BCu) && (int32_t)g_eax < 8 && !(GUEST32(CC_FLAGS) & CC_TH2)) {
+        g_eax = 0;                                /* TH2 slot, THPS 2 not open yet */
+        g_esp += 4;
+        return;
+    }
+    sub_000768D0_gen();
+}
+
+/* Select Player builds its lines (thiscall, ecx = the menu): the part line's
+ * text follows [0x2F9AA4] (1 TH2, 11 THPS 1, 12 2X; 0x0014387C). The mode is
+ * set here, before the player sees the line; a classic career without the
+ * THPS 2 part starts on THPS 1. */
+/* test only (tests/input/classic_*.txt): RECOMP_CC_PRESET gives a new classic
+ * career the progress a gate needs, once, so one 2-minute run reaches the
+ * after-run check - "roswell" = a Roswell gold (THPS 2 opens), "subway" = THPS 2
+ * and 2X open, gold in Marseille, Skatestreet, Bullring and 43 of the 50 TH2 goals,
+ * "complete" = every THPS 1 goal and gold (the skater's reward) */
+static void cc_preset(void)
+{
+    static int done;
+    const char *p = getenv("RECOMP_CC_PRESET");
+    int s;
+    if (done || !p || !*p || !cc_classic() || !cc_fresh())
+        return;
+    done = 1;
+    for (s = 0; s < 20; s++) {
+        uint32_t r = CC_REC(s);
+        if (!strcmp(p, "roswell")) {
+            CC_GOALS(r, 18) = 0x8400u;
+        } else if (!strcmp(p, "subway")) {
+            CC_GOALS(r, 2) = CC_GOALS(r, 5) = CC_GOALS(r, 7) = 0x8400u;
+            CC_GOALS(r, 0) = CC_GOALS(r, 1) = CC_GOALS(r, 3) = CC_GOALS(r, 4) = 0x3FFu;
+            CC_GOALS(r, 6) = 0x007u;
+        } else if (!strcmp(p, "complete")) {
+            int l;                                /* every THPS 1 goal + the 3 golds: the reward */
+            for (l = 10; l < 19; l++)
+                CC_GOALS(r, l) = CC_COMP(l) ? 0x8400u : 0x3Fu;
+        }
+    }
+    if (!strcmp(p, "subway"))
+        GUEST32(CC_FLAGS) |= CC_TH2 | 0x800u;     /* 2X open too: its Bullring rule would come first */
+    fprintf(stderr, "[CAREER] test preset: %s\n", p);
+}
+
+void sub_00142F30(void)
+{
+    cc_mark();
+    cc_preset();
+    if (cc_classic() && !(GUEST32(CC_FLAGS) & CC_TH2) && GUEST32(0x002F9AA4u) == 1)
+        GUEST32(0x002F9AA4u) = 11;
+    fprintf(stderr, "[CAREER] select player: part %u, flags 0x%08X\n", GUEST32(0x002F9AA4u), GUEST32(CC_FLAGS));
+    sub_00142F30_gen();
+}
+
+/* Select Player's line handler (thiscall, ecx = the menu, [ecx+0x228] = the
+ * line; 1 = the part line). Its cycle (0x00144DC2): TH2 -> 2X (0x800) or
+ * THPS 1 (0x400), 2X -> THPS 1, THPS 1 -> TH2. A classic career without the
+ * THPS 2 part enters it from THPS 1 as if from TH2: THPS 1 -> 2X (when open)
+ * -> THPS 1, TH2 never offered (with the all-levels cheat [0x003061BC] the
+ * game's own cycle, as its level gate opens everything then). */
+void sub_001449B0(void)
+{
+    if (cc_classic() && !(GUEST32(CC_FLAGS) & CC_TH2) && !GUEST32(0x003061BCu) &&
+        GUEST32(g_ecx + 0x228u) == 1 && GUEST32(0x002F9AA4u) == 11)
+        GUEST32(0x002F9AA4u) = 1;
+    sub_001449B0_gen();
+}
+
+/* The THPS 1 part's screen (state 0x39) names the part's first level, slot 10
+ * fixed in sub_00104210 (0x00106474: "%s, %s" from the level table +0 / +4).
+ * For the classic THPS 2 screen slot 10 shows slot 0's name and place while
+ * the screen is up (on = 1); the career state machine puts them back as soon
+ * as the state leaves 0x39 (classic_frame, called from sub_00104210 in
+ * soundtracks.c). */
+static uint32_t s_cc_name[3];
+
+static void cc_screen_level(int on)
+{
+    uint32_t t10 = 0x003125B0u + 10u * 0x1A8u, t0 = 0x003125B0u;
+    if (on && !s_cc_name[0]) {
+        s_cc_name[0] = GUEST32(t10);
+        s_cc_name[1] = GUEST32(t10 + 4u);
+        s_cc_name[2] = GUEST32(0x00306D28u);
+        GUEST32(t10) = GUEST32(t0);
+        GUEST32(t10 + 4u) = GUEST32(t0 + 4u);
+    } else if (!on && s_cc_name[0]) {
+        GUEST32(t10) = s_cc_name[0];
+        GUEST32(t10 + 4u) = s_cc_name[1];
+        s_cc_name[0] = 0;
+    }
+}
+
+/* GO THERE NOW? YES on that screen (0x001067F3) takes slot 10 into the level
+ * ([0x002F9AC8], [0x003068B8]) with part 11, sets [0x00306D28] and the state 8
+ * (load); the load runs at the next tick, so here it becomes The Hangar (slot
+ * 0) in the TH2 part, [0x00306D28] as before. */
+void classic_frame(void)
+{
+    if (!s_cc_name[0] || GUEST32(0x003068D4u) == 0x39)
+        return;
+    if (GUEST32(0x003068D4u) == 8 && GUEST32(0x002F9AC8u) == 10 && GUEST32(0x002F9AA4u) == 11) {
+        GUEST32(0x002F9AC8u) = GUEST32(0x003068B8u) = 0;
+        GUEST32(0x002F9AA4u) = 1;
+        GUEST32(0x00306D28u) = s_cc_name[2];
+        fprintf(stderr, "[CAREER] classic: go to The Hangar\n");
+    }
+    cc_screen_level(0);
+}
+
+void sub_00108FA0(void)
+{
+    uint32_t r, f, st, ann;
+    int s, l, n;
+    /* the part screens' second line: a table of string pointers at 0x0028985C,
+     * [2] = "TONY HAWK 1 CAREER" at 0x0023800C (state 0x39) - its digit at +10 */
+    GUEST8(0x0023800Cu + 10u) = cc_classic() ? '2' : '1';
+    if (!cc_classic()) {
+        sub_00108FA0_gen();
+        return;
+    }
+    f = GUEST32(CC_FLAGS);
+    st = GUEST32(0x003068D4u);
+    ann = GUEST32(0x002F9748u);
+    sub_00108FA0_gen();
+    if (!(f & 0x1000u) && (GUEST32(CC_FLAGS) & 0x1000u)) {
+        /* its last check, the original Subway rule (THPS 1 golds + 30 tapes):
+         * not in a classic career - undone, as if it had found nothing */
+        GUEST32(CC_FLAGS) &= ~0x1000u;
+        GUEST32(0x003068D4u) = st;
+        GUEST32(0x002F9748u) = ann;
+        g_eax &= ~0xFFu;
+    }
+    if ((g_eax & 0xFFu) || !GUEST32(0x002F9AA4u))
+        return;
+    r = cc_rec_now();
+    f = GUEST32(CC_FLAGS);
+    if (!(f & CC_TH2) && (CC_GOALS(r, 18) & 0x1C00u)) {
+        /* Roswell medal: THPS 2 opens, its cash thresholds count from $0 */
+        uint32_t now = GUEST32(r + 8);
+        for (s = 0; s < 20; s++)
+            GUEST32(CC_REC(s) + 8) = 0;
+        GUEST32(0x002B19E0u) -= now;              /* the run's start value, read against +8 */
+        GUEST32(CC_FLAGS) = f | CC_TH2;
+        /* announced on the THPS 1 part's screen (state 0x39, never reached in a
+         * classic career: 0x400 is set from the start), its text made "TONY
+         * HAWK 2 CAREER" above (the same length, in place) */
+        GUEST32(0x002F9748u) = 1;
+        GUEST32(0x003068D4u) = 0x39;
+        cc_screen_level(1);
+        g_eax = (g_eax & ~0xFFu) | 1u;
+        fprintf(stderr, "[CAREER] classic: THPS 2 part open\n");
+        return;
+    }
+    if (!(f & 0x1000u) && (CC_GOALS(r, 2) & 0x400u) && (CC_GOALS(r, 5) & 0x400u) && (CC_GOALS(r, 7) & 0x400u)) {
+        for (l = 0, n = 0; l < 8; l++)
+            if (!CC_COMP(l))
+                n += cc_bits(CC_GOALS(r, l) & 0x3FFu);
+        if (n >= 43) {                            /* mirrored Subway: TH2 golds + 43 of 50 TH2 goals */
+            GUEST32(CC_FLAGS) = f | 0x1000u;
+            GUEST32(0x002F9748u) = 1;
+            GUEST32(0x003068D4u) = 0x3A;
+            g_eax = (g_eax & ~0xFFu) | 1u;
+            fprintf(stderr, "[CAREER] classic: Subway open\n");
+        }
+    }
+}
+
+/* eax = skater; al = 1 when the reward part is complete */
+void sub_00075D70(void)
+{
+    uint32_t r;
+    int l, gold = 0;
+    if (!cc_classic()) {
+        sub_00075D70_gen();
+        return;
+    }
+    r = CC_REC(g_eax);
+    g_eax &= ~0xFFu;
+    g_esp += 4;
+    for (l = 10; l < 19; l++) {
+        uint16_t w = CC_GOALS(r, l);
+        if (!CC_COMP(l)) {
+            if ((w & 0x3Fu) != 0x3Fu)
+                return;
+        } else if ((w & 0x8000u) && (w & 0x400u))
+            gold++;
+    }
+    if (gold == 3)
+        g_eax |= 1u;
+}
+
+/* al = 1 when every gap of the reward part is found */
+void sub_00074F10(void)
+{
+    uint32_t part, total;
+    if (!cc_classic()) {
+        sub_00074F10_gen();
+        return;
+    }
+    part = GUEST32(0x002F9AA4u);
+    GUEST32(0x002F9AA4u) = 11;                    /* the THPS 1 part instead of TH2 */
+    g_esp -= 4; GUEST32(g_esp) = 0;
+    sub_00074EB0();
+    total = g_eax;
+    g_esp -= 4; GUEST32(g_esp) = 0;
+    sub_00074E10();
+    GUEST32(0x002F9AA4u) = part;
+    /* no totals known yet (levels not played): not all found */
+    g_eax = (g_eax & ~0xFFu) | ((int32_t)total > 0 && (int32_t)g_eax >= (int32_t)total);
+    g_esp += 4;
+}
+
+/* ecx = part, [esp+4] = record: golds in the part's competitions (ret 4) */
+void sub_00075B00(void)
+{
+    uint32_t ret = GUEST32(g_esp);
+    if (cc_classic() && g_ecx == 1 && (ret == 0x001090D2u || ret == 0x001090FDu))
+        g_ecx = 11;                               /* Chopper Drop counts THPS 1 golds */
+    sub_00075B00_gen();
+}
+
+/* Select Level (Free Skate / Single Session) in a classic career: THPS 1 first.
+ * Why: maintainer 2026-10-31 - the list starts with the THPS 2 levels a classic
+ * career has not opened yet, so they had to be skipped every time.
+ * Address: sub_001188B0(menu, step) (cdecl, 2 args; its only callers are this
+ * screen: the constructor sub_001177E0 with 0, left / right in sub_00118210
+ * with -1 / +1) steps the slot [0x003068B8] through the level table (0..25,
+ * wrapping), skipping Chopper Drop / Skate Heaven (8, 9) while
+ * sub_00076A10(eax = [0x002F9AC4], esi = slot) says shut, then fills the
+ * picture, globe and goal panels for that slot; A loads [0x003068B8] as it is.
+ * How: in a classic career the step goes through cc_order (THPS 1, THPS 2, 2X,
+ * Empty Park, the unused slot) with the same 8 / 9 skip; [0x003068B8] is set
+ * one step before the target and the original runs with step +-1, so it lands
+ * there and slides the picture the same way. Step 0 (the screen opens) on a
+ * shut slot, or on a THPS 2 slot before the THPS 2 part is open, starts on
+ * Warehouse (Free Skate's own check opens The Hangar in every career, so the
+ * screen opened on it; maintainer's play test). Only the stepping changes; everything per
+ * level stays keyed by its slot. The career's level list (sub_0011B310) and the
+ * high-score browser keep their own order.
+ * Verified: static read; play test 2026-10-31 (the list Free Skate uses is the
+ * next one below). */
+extern void sub_001188B0_gen(void);
+void sub_00076A10(void);
+static const int cc_order[26] = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                                  19, 20, 21, 22, 23, 24, 25 };
+
+static int cc_slot_open(int slot)                 /* sub_00076A10 as the screen asks it */
+{
+    uint32_t a = g_eax, c = g_ecx, d = g_edx, si = g_esi, di = g_edi, open;
+    g_eax = GUEST32(0x002F9AC4u);
+    g_esi = (uint32_t)slot;
+    g_esp -= 4;
+    GUEST32(g_esp) = 0x001188B0u;                 /* popped by its ret */
+    sub_00076A10();
+    open = g_eax;
+    g_eax = a, g_ecx = c, g_edx = d, g_esi = si, g_edi = di;
+    return open != 0;
+}
+
+void sub_001188B0(void)
+{
+    int step = (int32_t)GUEST32(g_esp + 8u), cur, pos, s, i, slot;
+    fprintf(stderr, "[CAREER] select level: step %d slot %u flags %08X mode %u part %u\n", step,
+            GUEST32(0x003068B8u), GUEST32(CC_FLAGS), GUEST32(0x002F9AC4u), GUEST32(0x002F9AA4u));
+    if (!cc_classic()) {
+        sub_001188B0_gen();
+        return;
+    }
+    cur = (int32_t)GUEST32(0x003068B8u);
+    for (pos = 0; pos < 26 && cc_order[pos] != cur; pos++)
+        ;
+    if (pos == 26)
+        pos = 0;
+    s = step < 0 ? -1 : 1;
+    if (step == 0 && (!cc_slot_open(cur) || (cur < 10 && !(GUEST32(CC_FLAGS) & CC_TH2))))
+        slot = 10;                                /* opens on a shut or a THPS 2 level: Warehouse */
+    else {
+        if (step != 0)
+            pos = (pos + s + 26) % 26;
+        for (i = 0; i < 26; i++, pos = (pos + s + 26) % 26) {
+            slot = cc_order[pos];
+            if ((slot != 8 && slot != 9) || cc_slot_open(slot))
+                break;
+        }
+    }
+    GUEST32(0x003068B8u) = (uint32_t)(slot - s);  /* the original adds s (and wraps -1 / 26) */
+    GUEST32(g_esp + 8u) = (uint32_t)s;
+    sub_001188B0_gen();
+}
+
+/* The Select Level screen Free Skate really uses (maintainer's play test: the
+ * one above never ran there): set-up sub_00119F20, previous sub_0011B090, next
+ * sub_0011B310 (thiscall, ecx = the screen). Next / previous step [0x003068B8]
+ * by one through 0..24 (wrapping) and skip the secret slots 8, 9, 22, 23 while
+ * sub_00076A10(eax = [0x002F9AA4], esi = slot) says shut. In a classic career
+ * the step goes through cc_order instead with the same skip, and [0x003068B8]
+ * is set one before the target so the original lands on it; the set-up opens on
+ * Warehouse while the THPS 2 part is shut (the screen's own check counts The
+ * Hangar open in every career). */
+extern void sub_00119F20_gen(void);
+extern void sub_0011B090_gen(void);
+extern void sub_0011B310_gen(void);
+
+static int cc_b_open(int slot)                    /* the screen's skip test */
+{
+    uint32_t keep = GUEST32(0x002F9AC4u), open;
+    if (slot != 8 && slot != 9 && slot != 22 && slot != 23)
+        return 1;
+    GUEST32(0x002F9AC4u) = GUEST32(0x002F9AA4u);  /* cc_slot_open asks with [0x002F9AC4] */
+    open = (uint32_t)cc_slot_open(slot);
+    GUEST32(0x002F9AC4u) = keep;
+    return open != 0;
+}
+
+static void cc_b_step(int s)                      /* set [0x003068B8] one before the classic target */
+{
+    int cur = (int32_t)GUEST32(0x003068B8u), pos, i, slot = cur;
+    for (pos = 0; pos < 25 && cc_order[pos] != cur; pos++)
+        ;
+    if (pos == 25)
+        pos = 0;
+    for (i = 0; i < 25; i++) {
+        pos = (pos + s + 25) % 25;                /* cc_order[0..24]: the screen lists 0..24 */
+        slot = cc_order[pos];
+        if (cc_b_open(slot))
+            break;
+    }
+    fprintf(stderr, "[CAREER] level list %s: %d -> %d\n", s > 0 ? "next" : "previous", cur, slot);
+    GUEST32(0x003068B8u) = (uint32_t)(slot - s);
+}
+
+void sub_00119F20(void)
+{
+    if (cc_classic() && !(GUEST32(CC_FLAGS) & CC_TH2) && GUEST32(0x003068B8u) < 10u && !GUEST32(0x003061BCu)) {
+        fprintf(stderr, "[CAREER] level list opens on Warehouse (was %u)\n", GUEST32(0x003068B8u));
+        GUEST32(0x003068B8u) = 10;
+    }
+    sub_00119F20_gen();
+}
+
+void sub_0011B310(void)
+{
+    if (cc_classic())
+        cc_b_step(+1);
+    sub_0011B310_gen();
+}
+
+void sub_0011B090(void)
+{
+    if (cc_classic())
+        cc_b_step(-1);
+    sub_0011B090_gen();
 }

@@ -1,0 +1,36 @@
+# free_camera_split.txt - FREE CAMERA for player 2 in split screen (issue #6): Multiplayer -> 2 PLAYER -> Trick
+# Attack -> skaters -> HANDICAP (both A) -> level, then player 2's right stick right 1.5 s; player 1's camera must not
+# move. Run with THPS_FREE_CAMERA_P2=on (player 1 off):
+#   THPS2X.exe --max-seconds 130 --save-dir <temp> --data-dir <temp> --input-script tests\input\free_camera_split.txt
+# Navigation up to HANDICAP as split_handicap.txt; shots along the way (s_*) show where it is.
+0:p2-connect
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+21000:down:300
+22500:down:300
+24000:down:300
+27000:a:300
+32000:a:300
+37000:a:300
+42000:a:300
+45000:p2-a:300
+50000:shot=s01_handicap
+51000:a:400
+51000:p2-a:400
+55000:shot=s02_after_handicap
+56000:a:400
+60000:shot=s03_next
+61000:a:400
+61000:p2-a:400
+66000:shot=s04_next
+67000:a:400
+85000:shot=s05_level
+86000:p2-rright:1500
+87800:shot=s06_p2_turned
+90000:shot=s07_p2_released
+91000:rright:1500
+92800:shot=s08_p1_stick
+95000:shot=s09_end

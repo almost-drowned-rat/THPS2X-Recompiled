@@ -1,7 +1,7 @@
 # general_menu.txt - GENERAL OPTIONS as our list (maintainer, 2026-10-28; replaces the game's screen and
-# gameplay_menu.txt): OPTIONS -> GENERAL OPTIONS (the 10th line). Lines: PRESS Y FOR DEFAULT SETTINGS, a blank
-# (greyed), TRICK TIPS, SCORE DISPLAY, QUICK CHAT, MOTION BLUR (the game's four, ON by default), PLAYSTYLE, 180 SPIN
-# TAPS, BIG DROP; it opens on TRICK TIPS.
+# gameplay_menu.txt): OPTIONS -> GENERAL OPTIONS (the 10th line). Lines (2026-10-31): PRESS Y FOR DEFAULT
+# SETTINGS, a blank (greyed), CAREER MODE, TRICK TIPS, SCORE DISPLAY, QUICK CHAT, MOTION BLUR (the game's four, ON by
+# default), PLAYSTYLE, 180 SPIN TAPS, BIG DROP; it opens on CAREER MODE.
 # MOTION BLUR A = OFF; PLAYSTYLE right = PS2; 180 SPIN TAPS right = OFF; BIG DROP right = NO BAIL, right = OFF;
 # Y on BIG DROP: only BIG DROP back to ORIGINAL; up, up: PLAYSTYLE, Y: only it back to XBOX; B, then GENERAL
 # OPTIONS again: the values kept (MOTION BLUR OFF in the game's memory, the rest in saves\settings.ini).
@@ -39,10 +39,11 @@
 42000:shot=g01_options_general_line
 43000:a:300
 47000:shot=g02_general_defaults
-# MOTION BLUR (4th line): A = OFF
-48000:down:300
-49000:down:300
-50000:down:300
+# MOTION BLUR (4 downs from CAREER MODE): A = OFF
+47400:down:300
+48100:down:300
+48800:down:300
+49500:down:300
 51000:a:300
 52500:shot=g03_motion_blur_off
 # PLAYSTYLE: right = PS2; 180 SPIN TAPS: right = OFF; BIG DROP: right = NO BAIL, right = OFF

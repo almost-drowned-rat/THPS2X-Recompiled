@@ -66,15 +66,29 @@ Layout table: `src/input.c`. The keyboard is merged on top of host pad 0, so a r
   `THPS_BIND_RESET=1` ignores the stored bindings for that run. The pad GUID is logged when a pad is opened
   (`INPUT: pad "..." on port n, GUID ...`).
 - **Duplicates** (one source on two controls) are detected (`xbox_bind_duplicates`) and shown in the menu (`DOUBLE`); not refused.
-- **Menu (maintainer's layout, 2026-10-25):** Options -> CONTROLS -> BUTTON MAPPING (the fifth line under PLAYER 1-4
-  CONTROLS, which stay the game's own Autokick/Vibration screens). One screen: `PLAYER: n` (left/right or A: 1-4),
-  `DEVICE:` the keyboard (it plays on port 0 = player 1, `RECOMP_KEYBOARD_PORT` moves it) or the controller on that
-  player's port (left/right or A), `RESET TO DEFAULT`, then that device's bindings, 8 per page, `NEXT PAGE`. A on a
-  binding records a press: release everything, then press the new key/button (5 s without a press cancels; the game
-  sees no input meanwhile). Saved at once. Not in the game's PLAYER n CONTROLS screen: it keeps per-line state for
-  three lines only (a fourth selectable line crashed; `THPS_CTL_PANEL_LINE=1` shows the old, inert line).
+- **Menu (maintainer's layout, 2026-10-25; per player since 2026-10-31, GitHub issue #6):** Options -> CONTROLS ->
+  RECOMP CONTROL OPTIONS (the fifth line under PLAYER 1-4 CONTROLS, which stay the game's own Autokick/Vibration
+  screens) -> PLAYER 1-4 -> BUTTON MAPPING / FREE CAMERA (OFF, ON) / INVERT CAMERA (OFF, X, Y, X AND Y) / CAMERA
+  SENSITIVITY X / CAMERA SENSITIVITY Y (0-10) / CAMERA RESET SPEED (0-10). BUTTON
+  MAPPING is one screen for that player: `DEVICE:` the keyboard (it plays on port 0 = player 1,
+  `RECOMP_KEYBOARD_PORT` moves it) or the controller on that player's port (left/right or A), `RESET TO DEFAULT`,
+  then that device's bindings and `CAMERA RESET`, 9 per page, `NEXT PAGE`. A on a binding records a press: release
+  everything, then press the new key/button (5 s without a press cancels; the game sees no input meanwhile). Saved
+  at once. Not in the game's PLAYER n CONTROLS screen: it keeps per-line state for three lines only (a fourth
+  selectable line crashed; `THPS_CTL_PANEL_LINE=1` shows the old, inert line).
+- **FREE CAMERA (issue #6):** per player in `saves\settings.ini`: `free_camera_p<n>=on|off` (default off = the game's
+  own camera), `invert_camera_p<n>=off|x|y|xy`. On: the right stick turns the camera around the skater (left/right)
+  and up/down in every skater state, it stays where it was turned; CAMERA RESET puts it back. CAMERA RESET is the
+  port's own action, not an Xbox control: `camera_reset_keyboard=sc<HID>|none` (default none),
+  `camera_reset_pad_<GUID>=<pad source>|none` (default `rstick`, the right stick click - the Xbox R3 still reaches the
+  game too, which does not use it; never marked DOUBLE). RESET TO DEFAULT puts it back as well.
+  `camera_sensitivity_x_p<n>` / `camera_sensitivity_y_p<n>=0..10` (default 1 = about 40 degrees a second turning;
+  n = n times it; 0 = that axis does not move), `camera_reset_speed_p<n>=0..10` (default 4; 0 slow .. 9 fast turning
+  back, 10 = a jump; the stick takes over during the turn). While the camera turns it follows the stick more
+  directly than the game's own camera (its slerp step raised with the speed), so it keeps up at every value. Details
+  in `recomp_manual.c` ("FREE CAMERA").
 - **Front end only:** BUTTON MAPPING is reachable from the front-end Options only - the in-level pause menu has no
-  Options entry (CONTINUE, RETRY, SOUND OPTIONS, END RUN), and the menu code refuses the list while a level runs
+  Options entry (CONTINUE, RETRY, SOUND OPTIONS, QUIT GAME, END RUN), and the menu code refuses the list while a level runs
   (`s_in_level`). The pause menu has no lock-out protection (maintainer, 2026-10-25: the front end is protected).
 - **Emergency exit:** start once with `THPS_BIND_RESET=1` (stored bindings ignored for that run), then RESET TO
   DEFAULT in BUTTON MAPPING; or delete the `bind.` lines from `saves\settings.ini`. Also in the README.

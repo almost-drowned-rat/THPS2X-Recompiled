@@ -1,0 +1,35 @@
+# classic_select.txt - classic career:New Career, Select Player's part line and the
+# level list. Run with THPS_CAREER_MODE=classic (expected: the part line on THPS 1, Modify keeps it there while 2X
+# is shut, CONTINUE shows the THPS 1 levels) and with original (CAREER TH2, the TH2 levels). Separate test save
+# dir only:
+#   THPS2X.exe --max-seconds 70 --save-dir <temp> --data-dir <temp> --input-script tests\input\classic_select.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+
+# movies and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+20000:shot=01_main_menu
+
+# Career (first entry) -> CHOOSE CAREER -> NEW CAREER (highlighted) -> Select Player
+21000:a:300
+24000:shot=02_choose_career
+25000:a:300
+29000:shot=03_select_player
+# the part line: Modify twice
+30000:down:300
+31500:shot=04_part_line
+32500:a:300
+34000:shot=05_modify_1
+35000:a:300
+36500:shot=06_modify_2
+# CONTINUE -> the level list
+37500:up:300
+39000:a:300
+44000:shot=07_level_list
+45000:right:300
+47000:shot=08_right_1
+48000:right:300
+50000:shot=09_right_2

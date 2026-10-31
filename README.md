@@ -26,10 +26,11 @@ Everything is set inside the game's own **Options** menu – no external tool, n
 
 | Entry | What it does |
 |---|---|
-| **CONTROLS** | Per player: pick the input device, then remap its buttons (**BUTTON MAPPING**). Unconnected pads are greyed out. |
+| **CONTROLS → RECOMP CONTROL OPTIONS** | Per player (PLAYER 1-4): **BUTTON MAPPING** (pick the input device, then remap its buttons) and the free camera settings (see *Free camera*). |
 | **SOUNDTRACKS** | Pick the music source and one of 8 playback modes (see *Custom soundtracks*). |
-| **GENERAL OPTIONS** | The game's own four options plus the gameplay options (see below). |
+| **GENERAL OPTIONS** | Career mode, the game's own four options and the gameplay options (see below). |
 | **RECOMP OPTIONS** | All port settings (see below). |
+| **QUIT GAME** | Closes the game after a question (it opens on NO). The pause menu in a level has QUIT GAME too. |
 
 ### GENERAL OPTIONS
 One list, changed with left / right or A and saved at once. **Y puts the selected line back to its default** -
@@ -37,10 +38,29 @@ only that line.
 
 | Setting | Values |
 |---|---|
+| **Career mode** | ORIGINAL or CLASSIC, for new careers (see *Classic career*). A career keeps the mode it started with. |
 | **Trick tips, Score display, Quick chat, Motion blur** | The game's own options, ON (default) or OFF. Motion blur is the game's own effect while skating fast. |
 | **Playstyle** | XBOX (original) or PS2: spins on Black / White (on a modern pad the shoulder buttons LB / RB), nollie and switch stay on the triggers. Works on top of your button mapping - if Black / White are not mapped to anything, PS2 has no spins. |
 | **180 spin taps** | ON (original) or OFF: tapping a trigger in the air no longer turns 180°; holding it still spins. |
 | **Big drop** | ORIGINAL: a drop from a moderate height scores BIG DROP, from a very great height you bail. NO BAIL: no bail, the drop counts as BIG DROP. OFF: neither - every drop lands like a normal one. |
+| **Wall bail** | ORIGINAL or NO BAIL: holding grind into a wall at an angle too steep for a wallride (60° or more) no longer bails - the skater meets the wall as without grind. Wallrides themselves work as before. |
+
+### Classic career
+A new career with **CAREER MODE: CLASSIC** plays the parts in release order, each with its own rules:
+- **THPS 1 levels first**, opened by tapes as in THPS 1. This part pays no cash on purpose: its goals are easier than
+  the THPS 2X career's, so as a small challenge the skater cannot be pushed with stat points until the THPS 2 part.
+- **A Roswell medal opens the THPS 2 levels**; their cash thresholds count from $0, and cash and the shop work as usual.
+- **A Bullring medal opens the 2X levels.** Secret levels and rewards follow the original rules, with the THPS 1 part
+  in the role THPS 2 has in the original.
+- **Free Skate and Single Session** list the levels in the same order and open a part's levels only when the career
+  has opened that part. Cheat codes work as usual.
+
+### Free camera
+Per player in **CONTROLS → RECOMP CONTROL OPTIONS → PLAYER n**: **FREE CAMERA** ON lets the right stick turn the
+camera around the skater and up / down in every situation; it stays where you turned it. **INVERT CAMERA** (OFF, X,
+Y, X AND Y), **CAMERA SENSITIVITY X / Y** (0-10, 0 locks that axis) and **CAMERA RESET SPEED** (0 slow to 9 fast,
+10 jumps back at once). **CAMERA RESET** (the right stick click by default, remappable in BUTTON MAPPING) brings the
+camera back behind the skater.
 
 ### RECOMP OPTIONS
 Changes are saved immediately. Settings that need a restart are marked, and leaving the menu asks **RESTART NEEDED**.
@@ -55,7 +75,7 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 | **Antialiasing** | Off, FXAA (default), SMAA, MSAA 2x, MSAA 4x |
 | **Frame rate** | Original (60 fps) or 120 fps (needs a display with 120 Hz or more), V-Sync, FPS counter (FPS, frame time or both) |
 | **Shaders** | RetroArch slang shaders with preset browser, live parameters and your own presets |
-| **Button cheats** | The game's button cheats as a list - no typing codes with LT held. Each line says what the cheat does and shows ON / OFF; A switches it, any combination works, Y switches the selected one off. One-time ones (unlock everything, 5000 cash, all gaps) say DO IT / DONE and cannot be undone. Only in the main menu's Options. |
+| **Button cheats** | The game's button cheats as a list of 30 - no typing codes with LT held. Each line says what the cheat does and its code, and shows ON / OFF; A switches it, any combination works, Y switches the selected one off. One-time ones (unlock everything, 5000 cash, all gaps) say DO IT / DONE and cannot be undone. Only in the main menu's Options. |
 | **Boot animation** | Plays your own intro video before the game for example a video of original xbox boot animation ;) |
 
 ### Widescreen (16:9)
@@ -218,7 +238,7 @@ Gamepads work out of the box via SDL3 (incl. rumble). Keyboard default (physical
 | U / O | Black / White |
 | Z / P | left / right trigger |
 
-Remap in **Options → CONTROLS → PLAYER n CONTROLS → BUTTON MAPPING**.
+Remap in **Options → CONTROLS → RECOMP CONTROL OPTIONS → PLAYER n → BUTTON MAPPING**.
 **Emergency exit:** if a mapping leaves you stuck, start once with the environment variable `THPS_BIND_RESET=1`, or
 delete the `bind.` lines from `saves\settings.ini`.
 
@@ -287,7 +307,7 @@ names what took the time (shader compiles, textures, file reads, sleeps). Please
 
 ## Roadmap
 
-- **First release:** the game with all extras listed above.
+- **v1.0.0:** the game with all extras listed above, including the classic career and the free camera.
 - **maybe Later:** Linux and Android.
 
 ### Non-goals

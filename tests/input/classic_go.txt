@@ -1,0 +1,29 @@
+# classic_go.txt - classic career:as classic_run.txt, but the THPS 2 screen answered
+# GO THERE NOW? YES. Run with RECOMP_CC_PRESET=roswell; expected: "[CAREER] classic: go to The Hangar" in the log
+# and The Hangar's checklist, then the level. Separate test save dir only:
+#   THPS2X.exe --max-seconds 200 --save-dir <temp> --data-dir <temp> --input-script tests\input\classic_go.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# Career -> NEW CAREER -> Select Player CONTINUE -> Warehouse -> the goals screen
+21000:a:300
+25000:a:300
+33000:a:300
+41000:a:300
+49000:a:300
+@include snippets/skate_loop.txt 55000
+@include snippets/skate_loop.txt 75000
+@include snippets/skate_loop.txt 95000
+@include snippets/skate_loop.txt 115000
+@include snippets/skate_loop.txt 135000
+# the THPS 2 screen: YES (up), A
+172000:shot=01_unlock
+173000:up:300
+174000:shot=02_yes
+175000:a:300
+180000:shot=03_loading
+188000:shot=04_checklist
+196000:shot=05_checklist_late
