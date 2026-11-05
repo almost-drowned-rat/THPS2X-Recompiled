@@ -4,7 +4,8 @@
 #   RENDER RESOLUTION 4 x right = 2.00X 1280X960; ASPECT RATIO right = 16:9 AFTER RESTART (the MENUS AT 16:9 line
 #   appears below it); MENUS AT 16:9 right = STRETCHED; ANISOTROPIC FILTER 2 x left = 4X
 #   ANTIALIASING: A opens its list (placeholders), B back on its line
-#   FRAME RATE: A; FRAME RATE right = 120 NEEDS 120 HZ (60 Hz panel); VSYNC right = OFF AFTER RESTART; FPS COUNTER
+#   FRAME RATE: A; FRAME RATE right = 120 NEEDS 120 HZ (60 Hz panel); FRAME PACING right = 60 HZ TIMER AFTER
+#   RESTART (2026-11-05); VSYNC right = OFF AFTER RESTART; FPS COUNTER
 #   2 x right = FPS AND FRAME TIME; B back on its line
 #   BOOT ANIMATION: NO BOOT FILE (no media\boot file in this layout), right changes nothing
 # Each step saves at once (saves\settings.ini). The next run with the same saves\: opt_recomp_check.txt.
@@ -82,12 +83,16 @@
 101000:shot=40_frame_rate
 102000:right:300
 104500:shot=41_fps_120
+# FRAME PACING (2026-11-05): right = 60 HZ TIMER AFTER RESTART
 105500:down:300
-106500:right:300
-109000:shot=42_vsync_off
-110000:down:300
-111000:right:300
-112500:right:300
+106300:right:300
+107800:shot=41b_pacing_timer
+108300:down:300
+109100:right:300
+110800:shot=42_vsync_off
+111300:down:300
+112100:right:300
+112900:right:300
 114500:shot=43_counter_both
 115500:b:300
 120500:shot=44_back_on_frame_rate

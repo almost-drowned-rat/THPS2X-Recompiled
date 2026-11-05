@@ -67,3 +67,108 @@ after = true
 at = 0x0013D323
 call = "thps_opt_line_count"
 after = true
+
+# PHYSICS ORIGINAL THPS 2 (maintainer, 2026-11-05; recomp_manual.c "PHYSICS"):
+# after each instruction that makes the gravity G (12000, 12500 in Construction
+# Site) the hook sets the PS1's 13000; after the flat-ollie numerators the PS1's.
+# The flags of every add / imul below are dead (the next flag user is a cdq,
+# imul, cmp or a later test that sets them again).
+[[hook]]
+at = 0x000B266A
+call = "thps_grav_air_imul"
+after = true
+
+[[hook]]
+at = 0x000B26AB
+call = "thps_grav_edx"
+after = true
+
+[[hook]]
+at = 0x000AB20E
+call = "thps_grav_eax"
+after = true
+
+[[hook]]
+at = 0x000AC154
+call = "thps_grav_eax"
+after = true
+
+[[hook]]
+at = 0x000B374E
+call = "thps_grav_eax"
+after = true
+
+[[hook]]
+at = 0x000B45FF
+call = "thps_grav_eax"
+after = true
+
+[[hook]]
+at = 0x000A9319
+call = "thps_grav_edx"
+after = true
+
+[[hook]]
+at = 0x000B5305
+call = "thps_grav_edx"
+after = true
+
+[[hook]]
+at = 0x000AE00E
+call = "thps_grav_eax"
+after = true
+
+[[hook]]
+at = 0x000A5684
+call = "thps_grav_edx"
+after = true
+
+[[hook]]
+at = 0x000ABDFA
+call = "thps_grav_ecx"
+after = true
+
+[[hook]]
+at = 0x000AC5B7
+call = "thps_grav_ecx"
+after = true
+
+[[hook]]
+at = 0x000B42B0
+call = "thps_grav_ecx"
+after = true
+
+[[hook]]
+at = 0x000B0451
+call = "thps_grav_eax"
+after = true
+
+[[hook]]
+at = 0x000AF5BD
+call = "thps_ollie_max"
+after = true
+
+[[hook]]
+at = 0x000AF5E7
+call = "thps_ollie_min"
+after = true
+
+[[hook]]
+at = 0x000AF633
+call = "thps_ollie_max"
+after = true
+
+[[hook]]
+at = 0x000ADE18
+call = "thps_ollie_max"
+after = true
+
+[[hook]]
+at = 0x000ADE42
+call = "thps_ollie_min"
+after = true
+
+[[hook]]
+at = 0x000ADE8E
+call = "thps_ollie_max"
+after = true

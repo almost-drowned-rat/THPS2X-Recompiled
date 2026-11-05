@@ -250,6 +250,12 @@ int main(int argc, char **argv)
         host_setenv_default("THPS_WIDESCREEN", "1");
     if (!strcmp(settings_get("vsync", "on"), "off"))
         host_setenv_default("RECOMP_VSYNC", "0");
+    /* FRAME PACING (maintainer, 2026-11-05): DISPLAY (default) = on a 120 / 180
+     * / 240 Hz display the guest vblank follows the display's own vblank, each
+     * frame exactly 2 / 3 / 4 refreshes; 60 HZ TIMER = the old clock. Read by
+     * the toolkit once at start. */
+    if (!strcmp(settings_get("frame_pacing", "display"), "timer"))
+        host_setenv_default("RECOMP_FRAME_PACING", "timer");
     /* Widescreen (M5 item 3): THPS_WIDESCREEN=1 is the one switch -- the
      * toolkit's square-pixel 16:9 rendering plus THPS's wider projection and
      * the per-frame 16:9 / 4:3 choice (recomp_manual.c). 4:3 is the default. */

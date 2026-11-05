@@ -4,7 +4,25 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
-## v1.0.1 - 2026-11-05
+## v1.1.0 - 2026-11-05
+
+Play it like the originals: THPS 1 scoring, THPS 2 PS1 physics, and smooth frame pacing on 120 / 180 / 240 Hz.
+
+### Added
+- **SCORE CALCULATION THPS 2 / THPS 1** in OPTIONS -> GENERAL OPTIONS -> GAMEPLAY: with THPS 1, tricks score their
+  THPS 1 values, the multiplier counts the combo's tricks plus the last air's spin as in THPS 1, there is no switch
+  bonus and no perfect / sloppy landing factor, and repeated tricks lose 100 / 75 / 50 / 25 / 10 %. Tricks THPS 1
+  did not have get a value scaled from similar tricks (in doubt the lower one); a tapped grab counts half.
+- **The classic career's THPS 1 levels always score as in THPS 1** and have no manuals, as in THPS 1 - whatever the
+  two switches say. The THPS 2 and 2X parts follow the switches.
+- **PHYSICS 2X / ORIGINAL THPS 2 PS1** in GAMEPLAY: the gravity and flat-ground ollie of THPS 2 on the PlayStation
+  (2X has about 8 % less gravity and a 12 % stronger ollie). A flat ollie is about 20 % shorter in the air with
+  ORIGINAL THPS 2 PS1. Applies at once.
+- **FRAME PACING DISPLAY / 60 HZ TIMER** in RECOMP OPTIONS -> FRAME RATE: on a 120 / 180 / 240 Hz display the game's
+  60 Hz clock now follows the display's own refresh (DISPLAY, the default), so each frame stays on screen equally
+  long - no more judder from a timer that drifts against the display. 60 / 144 / 165 Hz and VRR displays keep the
+  timer. Applies after a restart.
+
 
 A new setup window, a reworked soundtrack menu and a MANUALS switch.
 

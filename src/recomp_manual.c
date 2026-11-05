@@ -2543,9 +2543,9 @@ static uint32_t s_bind_cursor;
  * start, main.c turns them into its env defaults: ASPECT RATIO, VSYNC (OFF =
  * the unblocked present modes, RECOMP_VSYNC=0). BOOT ANIMATION: media\boot.mpg,
  * ON / OFF in its sub-list (see "BOOT ANIMATION" above). */
-enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE, VAL_VSYNC, VAL_COUNTER,
+enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE, VAL_PACING, VAL_VSYNC, VAL_COUNTER,
        VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
-       VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER, VAL_MANUALS,
+       VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER, VAL_MANUALS, VAL_PHYSICS, VAL_SCORECALC,
        VAL_FREECAM1, VAL_FREECAM2, VAL_FREECAM3, VAL_FREECAM4,   /* PLAYER n: FREE CAMERA, INVERT CAMERA */
        VAL_INVCAM1, VAL_INVCAM2, VAL_INVCAM3, VAL_INVCAM4,
        VAL_CAMSX1, VAL_CAMSX2, VAL_CAMSX3, VAL_CAMSX4,           /* PLAYER n: CAMERA SENSITIVITY X, Y */
@@ -2653,6 +2653,9 @@ static const OptVal s_val[VAL_COUNT] = {
     [VAL_ANISO]     = { "ANISOTROPIC FILTER", "anisotropic_filter", "16", { "off", "2", "4", "8", "16" },
                         { "OFF", "2X", "4X", "8X", "16X" }, 5 },
     [VAL_FRAMERATE] = { "FRAME RATE", "frame_rate", "original", { "original", "120" }, { "ORIGINAL 60", "120" }, 2 },
+    /* FRAME PACING (maintainer, 2026-11-05; main.c -> RECOMP_FRAME_PACING, after a restart) */
+    [VAL_PACING]    = { "FRAME PACING", "frame_pacing", "display", { "display", "timer" },
+                        { "DISPLAY", "60 HZ TIMER" }, 2 },
     [VAL_VSYNC]     = { "VSYNC", "vsync", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
     /* the counter's two numbers: frames per second, and the longest frame of
      * the last half second in ms (maintainer, 2026-10-26: either or both) */
@@ -2675,6 +2678,12 @@ static const OptVal s_val[VAL_COUNT] = {
      * or more - no wallride and, with NO BAIL, no bail either (see WALL TRACE) */
     /* maintainer 2026-11-05: manuals can be switched off (THPS 1 had none); see "MANUALS" below */
     [VAL_MANUALS]   = { "MANUALS", "manuals", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
+    /* maintainer 2026-11-05: THPS 2 (PS1) gravity + flat ollie, see "PHYSICS" below; the label names the PS1 as
+     * the model ("Original THPS2 (PS1)" - the panel font has no parentheses, so "ORIGINAL THPS 2 PS1") */
+    [VAL_PHYSICS]   = { "PHYSICS", "physics", "2x", { "2x", "thps2" }, { "2X", "ORIGINAL THPS 2 PS1" }, 2 },
+    /* maintainer 2026-11-05: THPS 1 scoring for players outside the campaign;
+     * the classic career's THPS 1 levels always score THPS 1 (see "SCORE CALCULATION") */
+    [VAL_SCORECALC] = { "SCORE CALCULATION", "score_calc", "thps2", { "thps2", "thps1" }, { "THPS 2", "THPS 1" }, 2 },
     [VAL_WALLBAIL]  = { "WALL BAIL", "wall_bail", "original", { "original", "no_bail" },
                         { "ORIGINAL", "NO BAIL" }, 2 },
     /* classic career (maintainer, 2026-10-30: the last GAMEPLAY line):
@@ -2723,6 +2732,7 @@ static int opt_val_at(int list, uint32_t line)    /* VAL_* or -1 */
 }
 
 static int s_vsync_start = -1;                    /* VSYNC as it runs (1 off), thps_options_apply */
+static int s_pacing_start = -1;                   /* FRAME PACING as it runs (1 timer), thps_options_apply */
 static int s_boot_start = -1;                     /* BOOT ANIMATION as at this start (it plays only then) */
 /* the render step before the last one (+1, 0 none), its aspect and how many
  * frames thps_options_tick still watches whether the new one allocated */
@@ -2926,6 +2936,7 @@ void thps_options_apply(void)
         opt_render_text(s, thps_widescreen(), rt, sizeof rt);
     }
     s_vsync_start = opt_val_index(VAL_VSYNC);
+    s_pacing_start = opt_val_index(VAL_PACING);
     s_boot_start = boot_on();
     nv2a_vk_set_display_mode(opt_display_mode());
     nv2a_vk_set_antialiasing(opt_aa_index());
@@ -3016,6 +3027,8 @@ static void opt_val_text(int id, char *out, size_t n)
         hint = " AFTER RESTART";
     else if (id == VAL_VSYNC && s_vsync_start >= 0 && opt_val_index(id) != s_vsync_start)
         hint = " AFTER RESTART";
+    else if (id == VAL_PACING && s_pacing_start >= 0 && opt_val_index(id) != s_pacing_start)
+        hint = " AFTER RESTART";
     else if (id == VAL_FRAMERATE && opt_val_index(id) == 1) {
         float hz = nv2a_vk_display_hz();
         if (hz > 0.0f && hz < 0.99f * 120.0f)
@@ -3030,12 +3043,14 @@ static void opt_val_text(int id, char *out, size_t n)
  * plays only at a start). The panel font has no comma: "A AND B", "A B AND C". */
 static int opt_restart_pending(void)
 {
-    const char *what[3];
+    const char *what[4];
     int n = 0;
     if (opt_val_index(VAL_ASPECT) != thps_widescreen())
         what[n++] = "ASPECT RATIO";
     if (s_vsync_start >= 0 && opt_val_index(VAL_VSYNC) != s_vsync_start)
         what[n++] = "VSYNC";
+    if (s_pacing_start >= 0 && opt_val_index(VAL_PACING) != s_pacing_start)
+        what[n++] = "FRAME PACING";
     if (s_boot_start >= 0 && boot_on() != s_boot_start)
         what[n++] = "BOOT ANIMATION";
     if (n == 1)
@@ -3044,6 +3059,8 @@ static int opt_restart_pending(void)
         snprintf(s_restart_text, sizeof s_restart_text, "%s AND %s CHANGED", what[0], what[1]);
     else if (n == 3)
         snprintf(s_restart_text, sizeof s_restart_text, "%s %s AND %s", what[0], what[1], what[2]);
+    else if (n == 4)
+        snprintf(s_restart_text, sizeof s_restart_text, "SEVERAL OPTIONS CHANGED");
     return n > 0;
 }
 
@@ -3060,7 +3077,7 @@ static void opt_build(int list)
     static const short recomp[] = { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO,
                                     OPT_E_SUB + OPT_AA, OPT_E_SUB + OPT_FPS, OPT_E_SUB + OPT_SHADERS,
                                     OPT_E_SUB + OPT_CHEATS, OPT_E_SUB + OPT_BOOT };
-    static const short frame[] = { VAL_FRAMERATE, VAL_VSYNC, VAL_COUNTER };
+    static const short frame[] = { VAL_FRAMERATE, VAL_PACING, VAL_VSYNC, VAL_COUNTER };
     /* the game's four, then LAYOUT and the gameplay values (maintainer,
      * 2026-10-28); OPT_E_HINT: a text line without an action */
     /* the Y hint, a blank line (greyed: the cursor skips it, see
@@ -3071,8 +3088,9 @@ static void opt_build(int list)
     static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_CAREER, OPT_E_SUB + OPT_SOUND, VAL_TIPS, VAL_SCORE,
                                      VAL_CHAT, VAL_BLUR, VAL_LAYOUT, OPT_E_SUB + OPT_GAMEPLAY };
     /* GAMEPLAY (maintainer, 2026-11-05): the gameplay values from GENERAL OPTIONS plus MANUALS */
+    /* PHYSICS and SCORE CALCULATION at the end (maintainer, 2026-11-05) */
     static const short gameplay[] = { OPT_E_HINT, OPT_E_BLANK, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL,
-                                      VAL_MANUALS };
+                                      VAL_MANUALS, VAL_PHYSICS, VAL_SCORECALC };
     /* PLAYER n (issue #6): BUTTON MAPPING, then that player's camera values */
     short player[6];
     const short *e = NULL;
@@ -4825,13 +4843,14 @@ extern void sub_0017BE20_gen(void);
  * 0x000B2B24; its answer there starts MANUAL (1) / NOSE MANUAL (2) - see the override below. (A first guess,
  * the two-press check sub_000A7200, is not called at all during a manual: test run.) With manuals = off
  * (THPS_MANUALS=off) that answer is 0. THPS_MANUAL_TRACE=1 logs the answers, =2 every pad-history reader. */
+static int score_th1_level(void);
 static int manuals_off(void)
 {
     static int off = -1;
     static unsigned calls;
     if (off < 0 || ++calls % 600u == 0)
         off = !strcmp(settings_get("manuals", "on"), "off");
-    return off;
+    return off || score_th1_level();              /* the classic career's THPS 1 levels: none (THPS 1 had none) */
 }
 
 /* THPS_MANUAL_TRACE=2 (research, 2026-11-05): the pad-history readers (every function that reads the ring at
@@ -5079,6 +5098,9 @@ extern THPS_TLS uint32_t g_edi;
 extern void sub_000A5970_gen(void);
 extern void sub_000A4C30_gen(void);
 void sub_000A4C30(void);
+static int score_th1(void);                       /* SCORE CALCULATION (below) */
+static int score_th1_trick(void);
+void score_th1_call(void);
 
 static int big_drop_mode(void)                    /* 0 original, 1 no bail, 2 off */
 {
@@ -5131,8 +5153,57 @@ void sub_000A4C30(void)
         fprintf(stderr, "[BIGDROP] award -> nothing\n");
         return;
     }
+    if (score_th1()) {                            /* SCORE CALCULATION THPS 1 (see there) */
+        if (score_th1_trick())
+            score_th1_call();
+        return;
+    }
     sub_000A4C30_gen();
 }
+
+/* ── PHYSICS: 2X / ORIGINAL THPS 2 (maintainer, 2026-11-05) ──────────────────
+ * Why: 2X jumps ~22 % further and ~36 % higher than THPS 2 (PS1) on flat ground
+ * - not new physics code but two value changes by Treyarch (read from both
+ * executables): every gravity
+ * -7.7 % (one level factor G = 12000, 12500 in Construction Site, where the PS1
+ * has 13000 everywhere) and the flat-ground (Ollie stat) jump impulse x1.122.
+ * The maintainer chose turning these knobs over porting the PS1 code.
+ * Address: config/hooks.toml - after every "add r, 0x2EE0" that makes G (air
+ * sub_000B2630 0x000B26AB, ground 0x000AB20E / 0x000AC154 / 0x000B374E /
+ * 0x000B45FF (G/2 there), rail 0x000A9319 / 0x000B5305, wallride 0x000AE00E (G
+ * x 9/13), projected gravity 0x000A5684 / 0x000ABDFA / 0x000AC5B7 / 0x000B42B0,
+ * 0x000B0451), after "imul ecx, ecx, 0x2EE0" (TrickGravity x 12000, sub_000B2630
+ * 0x000B266A), and after the four flat-ollie numerators in both jump handlers
+ * (sub_000AEA90 0x000AF5BD / 0x000AF5E7 / 0x000AF633, sub_000ADD20 0x000ADE18 /
+ * 0x000ADE42 / 0x000ADE8E: MAX 5700 s + 3030000, MIN 3700 s + 1650000, stat s
+ * still in eax). Every other 0x2EE0 in the image was checked: array strides
+ * (sub_00097070) and a clamp (sub_000C4850), not gravity.
+ * How: physics = thps2 (GAMEPLAY -> PHYSICS ORIGINAL THPS 2; THPS_PHYSICS):
+ * G = 13000 everywhere, the numerators the PS1's (MAX 5000 s + 2700000 = 270 +
+ * 0.5 s, MIN 3300 s + 1470000 = 147 + 0.33 s, same divisor after them). Vert
+ * (Air stat) impulse, stats, hang time, speed are the same in both games and
+ * stay. 2x = straight through. Cheats that scale gravity scale it as before.
+ * Verified: docs/status.md (PHYSICS run, takeoff vel.y and air frames). */
+static int physics_thps2(void)
+{
+    static int v = -1;
+    static unsigned calls;
+    if (v < 0 || ++calls % 600u == 0)
+        v = !strcmp(settings_get("physics", "2x"), "thps2");
+    return v;
+}
+
+void thps_grav_eax(void) { if (physics_thps2()) g_eax = 13000u; }
+void thps_grav_ecx(void) { if (physics_thps2()) g_ecx = 13000u; }
+void thps_grav_edx(void) { if (physics_thps2()) g_edx = 13000u; }
+/* ecx = TrickGravity x 12000 -> x 13000 */
+void thps_grav_air_imul(void)
+{
+    if (physics_thps2())
+        g_ecx = (uint32_t)((int32_t)g_ecx / 12000 * 13000);
+}
+void thps_ollie_max(void) { if (physics_thps2()) g_ecx = (uint32_t)((int32_t)g_eax * 5000 + 2700000); }
+void thps_ollie_min(void) { if (physics_thps2()) g_ecx = (uint32_t)((int32_t)g_eax * 3300 + 1470000); }
 
 /* ── QUIT GAME in the pause menu (issue #5; maintainer, 2026-10-31) ──────────
  *
@@ -5552,6 +5623,306 @@ void sub_00074E10(void);
 static int cc_classic(void)
 {
     return (GUEST32(CC_FLAGS) & CC_CLASSIC) != 0;
+}
+
+/* ── SCORE CALCULATION: THPS 2 / THPS 1 (maintainer, 2026-11-05) ─────────────
+ * Why: THPS 1 scoring is the classic career's natural harder difficulty: in its
+ * THPS 1 levels (career mode, level slot 10..18) it always applies, elsewhere
+ * when the player picks SCORE CALCULATION THPS 1 (GAMEPLAY; THPS_SCORE_CALC).
+ * Manuals are off in those levels too (THPS 1 had none; manuals_off).
+ * The rules (my research notes, from the MIT decomp TonyWasAProSkater and the
+ * 2X code):
+ *  1. base values: a trick both games have gets THPS 1's value; a nollie /
+ *     fakie flip (2X's UPPERCASE script variant) the base value; a tapped grab
+ *     (2X's lower script value) half of it; tricks THPS 1 lacked are lowered by
+ *     the maintainer's table ("in doubt the harder one": flips over 300 x0.85,
+ *     big grabs x0.65, slides x0.5, lips x0.5; specials, Overcrook / Feeble and
+ *     everything else as 2X) - s_th1 below. Scores < 0 (gaps, plants) stay.
+ *  2. no switch bonus (2X +20 %): skater+0x5A18 is 0 during the scoring call.
+ *  3. a lone spin is its own "180 OLLIE" .. "1080 OLLIE" / "MEGA OLLIE", 50 per
+ *     half turn, never depreciated (2X: "OLLIE" +50 s, depreciated); 8+ half
+ *     turns score nothing.
+ *  4. the combo sum: base + holds, depreciated 100/75/50/25/10 %, no spin factor
+ *     and no perfect / sloppy factor (sub_000A1650 replaced).
+ *  5. the multiplier: THPS 1's n + s/2 (s < 3) else n + s - 1, s = the half
+ *     turns of the final air - the doubled table 0x002890DC is set to 2n + s'
+ *     for the calls that use it (land, bail, current combo, end of run, HUD) and
+ *     put back after.
+ *  6. hold points: THPS 1's held grab / flip base/20 per 30 Hz PS1 frame = base/40
+ *     per 60 Hz 2X tick; grinds base/5 per 30 units (the same distance step in
+ *     both games). Tricks without a THPS 1 value keep 2X's hold rate.
+ * Address: sub_000A4C30 (score a trick: eax = skater, stack name, score, flag,
+ * -1; ret 16), its return 0x000A5050 = the lone spin; sub_000A1650 (sum, eax =
+ * panel = skater + 0x288; records panel + 0x2F7C + i * 0x28: +0 name, +4 score,
+ * +0xC half turns, +0x10 1 = ground trick closing an air, +0x14 depreciable,
+ * +0x18 repeat count; count panel + 0x4EBC; replay cache [0x002F7D2C] while
+ * [0x00310DB8] == 2); sub_000A3E40 / sub_000A3FE0 (esi = panel) / sub_000A17D0
+ * (eax = panel) / sub_000A5200 / sub_000A0D60 (multiplier users); sub_000A4DD0
+ * (hold gate, eax = skater, stack points, ret 4) from 0x000C8C7B / 0x000C8CB7
+ * (script holds) and 0x000A9139 (grind step).
+ * Verified: docs/status.md (SCORE CALCULATION run). */
+static int manuals_off(void);
+static int score_th1_level(void)                  /* classic career, a THPS 1 level */
+{
+    uint32_t l = GUEST32(0x00276198u);
+    return cc_classic() && GUEST32(0x00276194u) == 1u && l >= 10u && l <= 18u;
+}
+
+static int score_th1(void)
+{
+    static int v = -1;
+    static unsigned calls;
+    if (v < 0 || ++calls % 600u == 0)
+        v = !strcmp(settings_get("score_calc", "thps2"), "thps1");
+    return v || score_th1_level();
+}
+
+/* name (case-insensitive: the UPPERCASE nollie variants), THPS 1 value, 2X's held
+ * value (grabs: a lower score is the tap = half), grind (hold = value / 5) */
+typedef struct { const char *name; int th1, held2x, grind; } Th1Trick;
+static const Th1Trick s_th1[] = {
+    /* flips both games have */
+    { "kickflip", 100, 0, 0 }, { "heelflip", 100, 0, 0 }, { "impossible", 250, 0, 0 },
+    { "360 shove it", 250, 0, 0 }, { "hardflip", 300, 0, 0 }, { "360 flip", 300, 0, 0 },
+    { "varial", 800, 0, 0 }, { "front foot impossible", 600, 0, 0 }, { "kickflip to indy", 500, 0, 0 },
+    /* 2X-only flips over 300: x0.85 (proposal table) */
+    { "body varial", 425, 0, 0 }, { "sal flip", 750, 0, 0 }, { "heelflip varial lien", 700, 0, 0 },
+    { "ollie north", 425, 0, 0 }, { "inward heelflip", 350, 0, 0 },
+    /* grabs both games have (held) */
+    { "japan air", 350, 350, 0 }, { "tailgrab", 300, 300, 0 }, { "method", 300, 500, 0 },
+    { "madonna", 500, 500, 0 }, { "stalefish", 300, 350, 0 }, { "indy nosebone", 300, 300, 0 },
+    { "nosebone", 300, 300, 0 }, { "rocket air", 350, 500, 0 }, { "benihana", 400, 400, 0 },
+    /* 2X-only grabs: up to 350 as 2X, 500+ x0.65 */
+    { "indy", 300, 300, 0 }, { "crossbone", 350, 350, 0 }, { "melon", 300, 300, 0 }, { "mute", 350, 350, 0 },
+    { "roastbeef", 300, 300, 0 }, { "nosegrab", 300, 300, 0 }, { "judo", 400, 600, 0 },
+    { "airwalk", 325, 500, 0 }, { "indy stiffy", 325, 500, 0 }, { "stiffy", 325, 500, 0 },
+    /* specials both games have */
+    { "{the 900}", 8000, 0, 0 }, { "{kickflip mctwist}", 4000, 0, 0 }, { "360 flip to mute", 1500, 0, 0 },
+    { "{fingerflip airwalk}", 2000, 0, 0 }, { "{backflip}", 4000, 0, 0 }, { "{one foot smith}", 750, 0, 0 },
+    { "{fs one foot smith}", 750, 0, 0 }, { "{christ air}", 2000, 0, 0 }, { "{front-back kickflip}", 1500, 0, 0 },
+    { "{shove it rewind}", 1500, 0, 0 }, { "{double hardflip}", 1500, 0, 0 }, { "{darkslide}", 750, 0, 0 },
+    { "{triple kickflip}", 1500, 0, 0 }, { "{540 flip}", 1500, 0, 0 }, { "{judo madonna}", 1500, 0, 0 },
+    { "{assume the position}", 1500, 0, 0 }, { "{ho ho handplant}", 2000, 0, 0 },
+    /* grinds both games have (THPS 1 GrindScore) */
+    { "fs 50-50", 100, 0, 1 }, { "bs 50-50", 100, 0, 1 }, { "fs 5-0", 125, 0, 1 }, { "bs 5-0", 125, 0, 1 },
+    { "5-0", 125, 0, 1 }, { "fakie 5-0", 125, 0, 1 }, { "fs nosegrind", 125, 0, 1 }, { "bs nosegrind", 125, 0, 1 },
+    { "nosegrind", 125, 0, 1 }, { "fakie nosegrind", 125, 0, 1 }, { "fs smith", 150, 0, 1 }, { "bs smith", 150, 0, 1 },
+    { "fs crooked", 150, 0, 1 }, { "bs crooked", 150, 0, 1 }, { "fs boardslide", 100, 0, 1 },
+    { "bs boardslide", 100, 0, 1 },
+    /* 2X-only slides x0.5 */
+    { "fs noseslide", 75, 0, 1 }, { "bs noseslide", 75, 0, 1 }, { "fs tailslide", 75, 0, 1 },
+    { "bs tailslide", 75, 0, 1 }, { "fs lipslide", 100, 0, 1 }, { "bs lipslide", 100, 0, 1 },
+    { "fs bluntslide", 125, 0, 1 }, { "bs bluntslide", 125, 0, 1 }, { "fs nosebluntslide", 125, 0, 1 },
+    { "bs nosebluntslide", 125, 0, 1 },
+    /* 2X-only lips x0.5 (THPS 1 had only the Handplant) */
+    { "one foot invert", 750, 0, 0 }, { "gymnast plant", 750, 0, 0 }, { "fs nosepick", 450, 0, 0 },
+    { "eggplant", 450, 0, 0 }, { "bs disaster", 400, 0, 0 }, { "nosestall", 375, 0, 0 },
+    { "mute invert", 500, 0, 0 }, { "rock n roll", 250, 0, 0 }, { "bs axle stall", 250, 0, 0 },
+    { "180 bs rock n roll", 375, 0, 0 },
+};
+
+static const Th1Trick *th1_find(uint32_t name_va)
+{
+    char nm[48];
+    size_t i, n;
+    if (!name_va)
+        return NULL;
+    for (n = 0; n < sizeof nm - 1; n++) {
+        char c = (char)GUEST8(name_va + n);
+        if (!c)
+            break;
+        nm[n] = (char)(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+    }
+    nm[n] = 0;
+    for (i = 0; i < sizeof s_th1 / sizeof s_th1[0]; i++)
+        if (!strcmp(nm, s_th1[i].name))
+            return &s_th1[i];
+    return NULL;
+}
+
+static int score_trace(void)
+{
+    static int t = -1;
+    if (t < 0) {
+        const char *e = getenv("THPS_SCORE_TRACE");
+        t = e && *e == '1';
+    }
+    return t;
+}
+
+/* guest strings "OLLIE" / "MEGA OLLIE" of our own (records keep the pointer for
+ * the whole combo: allocated once; our pointer tells a lone spin's record apart).
+ * The HUD puts the half turns in front itself ("180 OLLIE"); a first build named
+ * them "180 OLLIE" and the HUD showed "180 180 OLLIE" (run night1105 score_th1). */
+static uint32_t s_spin_name[8];
+
+static uint32_t spin_name(int s)
+{
+    if (!s_spin_name[s]) {
+        char t[16];
+        uint32_t va;
+        size_t i;
+        snprintf(t, sizeof t, s == 7 ? "MEGA OLLIE" : "OLLIE");
+        if (!(va = xbox_HeapAlloc(16, 4)))
+            return 0;
+        for (i = 0; i <= strlen(t); i++)
+            GUEST8(va + i) = (uint8_t)t[i];
+        s_spin_name[s] = va;
+    }
+    return s_spin_name[s];
+}
+
+static int is_spin_name(uint32_t va)
+{
+    int s;
+    for (s = 1; s < 8; s++)
+        if (va && va == s_spin_name[s])
+            return 1;
+    return 0;
+}
+
+/* sub_000A4C30 with THPS 1 scoring on (the BIG DROP override calls it): 0 = the
+ * call was taken (skipped), 1 = go on with sub_000A4C30_gen */
+static int score_th1_trick(void)
+{
+    uint32_t sk = g_eax, ret = GUEST32(g_esp), name = GUEST32(g_esp + 4);
+    int32_t score = (int32_t)GUEST32(g_esp + 8);
+    if (ret == 0x000A5050u) {                     /* the lone spin: "OLLIE", +50 x half turns */
+        int s = score / 50;
+        uint32_t nm;
+        if (s >= 8 || s <= 0 || !(nm = spin_name(s))) {
+            g_esp += 4 + 16;                      /* nothing (THPS 1: 8+ half turns score 0) */
+            return 0;
+        }
+        GUEST32(g_esp + 4) = nm;
+        GUEST32(g_esp + 8) = (uint32_t)(-50 * s); /* never depreciated */
+        if (score_trace())
+            fprintf(stderr, "[SCORE1] spin %d -> %s -50x%d\n", s * 180, s == 7 ? "MEGA OLLIE" : "OLLIE", s);
+    } else if (score > 0) {
+        const Th1Trick *t = th1_find(name);
+        if (t) {
+            int v = t->held2x && score < t->held2x ? t->th1 / 2 : t->th1;
+            if (score_trace())
+                fprintf(stderr, "[SCORE1] %s %d -> %d\n", t->name, score, v);
+            GUEST32(g_esp + 8) = (uint32_t)v;
+        }
+    }
+    (void)sk;
+    return 1;
+}
+
+/* the THPS 1 switch bonus rule: no +20 % (skater+0x5A18 cleared around the call) */
+void score_th1_call(void)
+{
+    uint32_t sk = g_eax, sw = GUEST32(sk + 0x5A18u);
+    GUEST32(sk + 0x5A18u) = 0;
+    sub_000A4C30_gen();
+    GUEST32(sk + 0x5A18u) = sw;
+}
+
+#define SC_REC(p, i) ((p) + 0x2F7Cu + (uint32_t)(i) * 0x28u)
+#define SC_COUNT(p)  GUEST32((p) + 0x4EBCu)
+
+/* 4: the sum, THPS 1 style (eax = panel; plain ret) */
+extern void sub_000A1650_gen(void);
+void sub_000A1650(void)
+{
+    static const int pct[5] = { 100, 75, 50, 25, 10 };
+    uint32_t p = g_eax, n, i;
+    int32_t sum = 0;
+    if (!score_th1()) {
+        sub_000A1650_gen();
+        return;
+    }
+    if (GUEST32(0x00310DB8u) == 2u && GUEST8(0x002F97E8u) == 0) {
+        g_eax = GUEST32(0x002F7D2Cu);             /* replay playback: the cached sum */
+        g_esp += 4;
+        return;
+    }
+    n = SC_COUNT(p);
+    if (n > 200u)
+        n = 200u;
+    for (i = 0; i < n; i++) {
+        uint32_t r = SC_REC(p, i);
+        int32_t rep = GUEST32(r + 0x14u) ? (int32_t)GUEST32(r + 0x18u) : 1;
+        if (rep < 1) rep = 1;
+        if (rep > 5) rep = 5;
+        sum += (int32_t)((int64_t)(int32_t)GUEST32(r + 4u) * pct[rep - 1] / 100);
+    }
+    if (GUEST32(0x00310DB8u) == 2u)
+        GUEST32(0x002F7D2Cu) = (uint32_t)sum;
+    g_eax = (uint32_t)sum;
+    g_esp += 4;
+}
+
+/* 5: THPS 1's multiplier into the doubled table for one call */
+static uint32_t s_mult_save[15];
+static int s_mult_on;
+
+static void mult_th1_begin(uint32_t p)
+{
+    uint32_t n, i, s = 0, sp;
+    if (!score_th1() || s_mult_on)
+        return;
+    n = SC_COUNT(p);
+    if (n > 200u)
+        n = 200u;
+    /* the half turns of the final air: the records after the last ground trick
+     * (+0x10 == 1); none when the last record is the lone spin */
+    if (n && !is_spin_name(GUEST32(SC_REC(p, n - 1)))) {
+        for (i = n; i > 0; i--) {
+            uint32_t r = SC_REC(p, i - 1);
+            if (GUEST32(r + 0x10u) == 1u)
+                break;
+            s += GUEST32(r + 0x0Cu);
+        }
+    }
+    sp = s < 3u ? s : 2u * s - 2u;
+    for (i = 0; i < 15; i++) {
+        s_mult_save[i] = GUEST32(0x002890DCu + i * 4u);
+        GUEST32(0x002890DCu + i * 4u) = 2u * i + sp;
+    }
+    s_mult_on = 1;
+}
+
+static void mult_th1_end(void)
+{
+    uint32_t i;
+    if (!s_mult_on)
+        return;
+    for (i = 0; i < 15; i++)
+        GUEST32(0x002890DCu + i * 4u) = s_mult_save[i];
+    s_mult_on = 0;
+}
+
+extern THPS_TLS uint32_t g_esi;
+extern void sub_000A3E40_gen(void);
+extern void sub_000A3FE0_gen(void);
+extern void sub_000A17D0_gen(void);
+void sub_000A3E40(void) { mult_th1_begin(g_esi); sub_000A3E40_gen(); mult_th1_end(); }
+void sub_000A3FE0(void) { mult_th1_begin(g_esi); sub_000A3FE0_gen(); mult_th1_end(); }
+void sub_000A17D0(void) { mult_th1_begin(g_eax); sub_000A17D0_gen(); mult_th1_end(); }
+/* the HUD (ecx = skater): the shown multiplier from the same table */
+extern void sub_000A0D60_gen(void);
+void sub_000A0D60(void) { mult_th1_begin(g_ecx + 0x288u); sub_000A0D60_gen(); mult_th1_end(); }
+
+/* 6: hold points (eax = skater, stack points; ret 4) */
+extern void sub_000A4DD0_gen(void);
+void sub_000A4DD0(void)
+{
+    uint32_t ret = GUEST32(g_esp), sk = g_eax, p, n;
+    if (score_th1() && (ret == 0x000C8C7Bu || ret == 0x000C8CB7u || ret == 0x000A9139u)) {
+        p = sk + 0x288u;
+        n = SC_COUNT(p);
+        if (n && n <= 200u) {
+            const Th1Trick *t = th1_find(GUEST32(SC_REC(p, n - 1)));
+            if (t && ret == 0x000A9139u && t->grind)
+                GUEST32(g_esp + 4) = (uint32_t)(t->th1 / 5);           /* per 30 units, as THPS 1 */
+            else if (t && ret != 0x000A9139u && !t->grind)
+                GUEST32(g_esp + 4) = (uint32_t)(t->th1 / 40);          /* base/20 per 30 Hz frame */
+        }
+    }
+    sub_000A4DD0_gen();
 }
 
 static uint32_t cc_rec_now(void)

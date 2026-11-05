@@ -1,6 +1,7 @@
 # build.ps1 - the only way to build THPS 2X (CLAUDE.md, Resources).
 #
-#   powershell -ExecutionPolicy Bypass -File tools\build.ps1 [-Clean] [-Jobs 2] [-Lle]
+#   powershell -ExecutionPolicy Bypass -File tools\build.ps1 [-Clean] [-Jobs 4] [-Lle]
+#   (maintainer, 2026-11-05: heavy jobs with 4 compiler processes, was 2; -Jobs 2 while measurements run)
 #
 # -Lle: the test build with the LLE fallbacks (MCPX APU, USB/OHCI; THPS_LLE=ON) as
 #   THPS2X_lle.exe in the same layout, from its own build directory (<name>-lle).
@@ -22,7 +23,7 @@
 [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingWriteHost', '', Justification = 'Interactive script; console status output only.')]
 param(
     [switch]$Clean,
-    [int]$Jobs = 2,
+    [int]$Jobs = 4,
     [string]$Layout,
     [switch]$Lle,
     [switch]$Census,         # THPS_D3D_CENSUS: count D3D8 calls (src/d3d_census.c)
@@ -46,7 +47,7 @@ if ($Variant -and -not (Test-Path $GenDir)) {
     $GenDir = Join-Path $Private "thps2x\gen"
     Write-Host "variant $Variant has no generated C of its own - using $GenDir"
 }
-if ($Jobs -gt 2) { $Jobs = 2 }
+if ($Jobs -gt 4) { $Jobs = 4 }
 
 $clang = (Get-Command clang -ErrorAction SilentlyContinue).Source
 if (-not $clang) { throw "clang (llvm-mingw) not on PATH - run tools\setup.ps1" }

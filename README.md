@@ -14,6 +14,19 @@ remapping and a full settings menu inside the game.
 
 ---
 
+## Highlights: play it like the originals
+
+- **Classic career** – THPS 1 levels first, then THPS 2, then 2X, each part with its own rules (see *Classic
+  career*).
+- **SCORE CALCULATION: THPS 1** – trick values, combo multiplier and repeat penalty as in THPS 1. Always on in the
+  classic career's THPS 1 levels, and a switch for everywhere else (new in v1.1.0).
+- **PHYSICS: ORIGINAL THPS 2 PS1** – the gravity and ollie of THPS 2 on the PlayStation: shorter, snappier jumps
+  instead of 2X's floatier ones (new in v1.1.0).
+
+All three are in **Options → GENERAL OPTIONS** (CAREER MODE, and GAMEPLAY for the two switches).
+
+---
+
 ## Features
 
 ### Native port, no emulator
@@ -51,11 +64,15 @@ only that line.
 | **Big drop** | ORIGINAL: a drop from a moderate height scores BIG DROP, from a very great height you bail. NO BAIL: no bail, the drop counts as BIG DROP. OFF: neither - every drop lands like a normal one. |
 | **Wall bail** | ORIGINAL or NO BAIL: holding grind into a wall at an angle too steep for a wallride (60° or more) no longer bails - the skater meets the wall as without grind. Wallrides themselves work as before. |
 | **Manuals** | ON (original) or OFF: no manuals or nose manuals, as in THPS 1. |
+| **Physics** | 2X (original) or ORIGINAL THPS 2 PS1: the gravity and flat-ground ollie of THPS 2 on the PlayStation. 2X lowered the gravity by about 8 % and made the ollie about 12 % stronger; with ORIGINAL THPS 2 PS1 a flat ollie is about 20 % shorter in the air, as on the PS1. Applies at once. |
+| **Score calculation** | THPS 2 (original) or THPS 1: tricks score their THPS 1 values, the multiplier counts the tricks of the combo plus the last air's spin (as in THPS 1), no switch bonus, no perfect / sloppy landing factor, the repeat penalty 100 / 75 / 50 / 25 / 10 %. Tricks THPS 1 did not have get a value scaled from similar tricks - in doubt the lower one. A grab tapped instead of held counts half. **Always THPS 1 in the classic career's THPS 1 levels.** |
 
 ### Classic career
 A new career with **CAREER MODE: CLASSIC** plays the parts in release order, each with its own rules:
 - **THPS 1 levels first**, opened by tapes as in THPS 1. This part pays no cash on purpose: its goals are easier than
   the THPS 2X career's, so as a small challenge the skater cannot be pushed with stat points until the THPS 2 part.
+  **These levels always score as in THPS 1 and have no manuals** (THPS 1 had none), whatever SCORE CALCULATION and
+  MANUALS say.
 - **A Roswell medal opens the THPS 2 levels**; their cash thresholds count from $0, and cash and the shop work as usual.
 - **A Bullring medal opens the 2X levels.** Secret levels and rewards follow the original rules, with the THPS 1 part
   in the role THPS 2 has in the original.
@@ -80,7 +97,8 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 | **Menus at 16:9** | Pillarboxed (default) or stretched – only shown with 16:9; movies always stay 4:3 |
 | **Anisotropic filter** | Off up to 16x |
 | **Antialiasing** | Off, FXAA (default), SMAA, MSAA 2x, MSAA 4x |
-| **Frame rate** | Original (60 fps) or 120 fps (needs a display with 120 Hz or more), V-Sync, FPS counter (FPS, frame time or both) |
+| **Frame rate** | Original (60 fps) or 120 fps (needs a display with 120 Hz or more), Frame pacing, V-Sync, FPS counter (FPS, frame time or both) |
+| **Frame pacing** | DISPLAY (default) or 60 HZ TIMER: on a 120 / 180 / 240 Hz display the game's 60 Hz clock follows the display's own refresh, so every frame stays on screen equally long (no judder). Other displays (60, 144, 165 Hz, VRR) keep the timer either way. Applies after a restart. |
 | **Shaders** | RetroArch slang shaders with preset browser, live parameters and your own presets |
 | **Button cheats** | The game's button cheats as a list of 30 - no typing codes with LT held. Each line says what the cheat does and its code, and shows ON / OFF; A switches it, any combination works, Y switches the selected one off. One-time ones (unlock everything, 5000 cash, all gaps) say DO IT / DONE and cannot be undone. Only in the main menu's Options. |
 | **Boot animation** | Plays your own intro video before the game for example a video of original xbox boot animation ;) |
@@ -318,6 +336,7 @@ names what took the time (shader compiles, textures, file reads, sleeps). Please
 ## Roadmap
 
 - **v1.0.0:** the game with all extras listed above, including the classic career and the free camera.
+- **v1.1.0:** SCORE CALCULATION THPS 1, PHYSICS ORIGINAL THPS 2 PS1, frame pacing on 120 / 180 / 240 Hz displays.
 - **maybe Later:** Linux and Android.
 
 ### Non-goals
@@ -378,7 +397,9 @@ all related names and trademarks belong to their respective owners.
 Logo/banner artwork: [@GectorNathan](https://github.com/GectorNathan).
 
 Design references (no code taken): Cxbx-Reloaded, XboxXBE-Recomp, SCDA-XBERecomp, doa3-recomp, doaxvb-re,
-ARMSX2 (shader menu logic), black-pc, CoD3Recomp, pinyon-shift, xboxdevwiki.
+ARMSX2 (shader menu logic), black-pc, CoD3Recomp, pinyon-shift, xboxdevwiki,
+[LANCommander/TonyWasAProSkater](https://github.com/LANCommander/TonyWasAProSkater) (THPS 1 decomp: trick values and
+scoring rules for SCORE CALCULATION THPS 1).
 
 Full licence texts and attributions: the toolkit's `NOTICE` and `LICENSES/`, and in the release `tools\licenses\`.
 

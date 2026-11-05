@@ -1,0 +1,46 @@
+# grab_tricks.txt - SCORE CALCULATION THPS 1, the grab path and the lone spin's label (maintainer, 2026-11-05):
+# Free Skate -> first skater -> first level (Hangar), push off, then on the flat three fully charged ollies (A held
+# 0.6 s, so the air is long enough): a held grab (up + B held 0.4 s), a tapped grab (up + B 0.1 s), a spin only
+# (left held in the air). jump_tricks.txt's grab came after a tapped ollie and was held too long - the skater bailed.
+# Run with THPS_SCORE_TRACE=1 and THPS_SCORE_CALC=thps1: "[SCORE1]" lines; the shots show the combo text
+# (the spin as "180 OLLIE", not "180 180 OLLIE").
+#   THPS2X.exe --max-seconds 115 --save-dir <temp> --data-dir <temp> --input-script tests\input\grab_tricks.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# Free Skate is the third entry
+21000:down:300
+23000:down:300
+26000:a:300
+35000:a:300
+44000:a:300
+
+# loading, the FREE SKATE rules screen (A), then the level
+70000:shot=01_rules
+71000:a:300
+84000:shot=02_level
+# push off, fully charged ollie, held grab (up + B 0.25 s right after the take-off; 0.4 s still bailed)
+86000:lup:2500
+88000:a:600
+88650:up:300
+88670:b:250
+89300:shot=03_grab_held
+90500:shot=04_grab_held_landed
+# fully charged ollie, tapped grab (up + B 0.1 s)
+92000:lup:1500
+93500:a:600
+94200:up:150
+94220:b:100
+94600:shot=05_grab_tap
+96000:shot=06_grab_tap_landed
+# tapped ollie, spin only (left held in the air) - no push, so the skater stays on the flat
+99000:a:100
+99150:left:600
+100200:shot=07_spin
+101500:shot=08_spin_landed

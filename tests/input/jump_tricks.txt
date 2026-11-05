@@ -1,0 +1,54 @@
+# jump_tricks.txt - PHYSICS and SCORE CALCULATION (maintainer, 2026-11-05; GENERAL OPTIONS -> GAMEPLAY): Free Skate
+# -> first skater -> first level (Hangar), push off, then on the flat: a tapped ollie, a fully charged ollie, an ollie
+# with a kickflip (left + X), an ollie with a held grab (up + B), an ollie with a spin only (left held in the air).
+# PHYSICS: run with THPS_CLOCK_LOG=4 - the [VEL] lines give the take-off vel.y and the air frames of each ollie,
+# THPS_PHYSICS=thps2 vs 2x (expected: flat ollie impulse /1.12, air acc 13000 vs 12000 scaled).
+# SCORE CALCULATION: run with THPS_SCORE_TRACE=1 and THPS_SCORE_CALC=thps1 - "[SCORE1] <trick> <2X> -> <THPS 1>"
+# lines, the spin as "[SCORE1] spin 180 -> OLLIE -50x1"; the shots show the combo text.
+#   THPS2X.exe --max-seconds 125 --save-dir <temp> --data-dir <temp> --input-script tests\input\jump_tricks.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# Free Skate is the third entry
+21000:down:300
+23000:down:300
+26000:a:300
+35000:a:300
+44000:a:300
+
+# loading, the FREE SKATE rules screen (A), then the level
+70000:shot=01_rules
+71000:a:300
+84000:shot=02_level
+# push off, then a tapped ollie
+86000:lup:2500
+88600:a:100
+89600:shot=03_ollie_tap
+# a fully charged ollie (A held 0.6 s)
+91000:lup:1500
+92600:a:600
+94200:shot=04_ollie_full
+# ollie + kickflip (left + X)
+96000:lup:1500
+97600:a:150
+97900:left:250
+97950:x:200
+99000:shot=05_kickflip
+# ollie + held grab (up + B, held 0.8 s)
+101000:lup:1500
+102600:a:150
+102900:up:900
+102950:b:850
+104500:shot=06_grab_held
+# ollie + spin only (left held in the air)
+106000:lup:1500
+107600:a:150
+107800:left:900
+109200:shot=07_spin
+111000:shot=08_after
