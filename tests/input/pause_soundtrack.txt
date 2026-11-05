@@ -1,0 +1,55 @@
+# pause_soundtrack.txt - the pause menu's SOUND OPTIONS (maintainer, 2026-11-05): SOUNDTRACK steps through the full
+# source list (GAME MUSIC, ALL CUSTOM SOUNDTRACKS, COMBINED, each album) and a PLAYBACK MODE line (IN ORDER /
+# SHUFFLE) under it; each change is saved and the music goes on in it at once. Free Skate -> first level,
+# Start -> SOUND OPTIONS: SOUNDTRACK right, right (from GAME MUSIC: ALL CUSTOM, COMBINED), PLAYBACK MODE A (SHUFFLE),
+# then down to NEXT TRACK and BACK.
+#   (max-seconds 125)
+# Expected log: "[MUSIC] pause SOUNDTRACK -> choice 1", "... choice 2", "[MUSIC] pause PLAYBACK MODE -> shuffle", a
+# "[MUSIC] playing" line after each; saves\settings.ini soundtrack_album=combined, soundtrack_mode=shuffle.
+# Start with THPS_SOUNDTRACK_ALBUM=game THPS_SOUNDTRACK_MODE=order and media\ albums in the layout.
+#   THPS2X.exe --max-seconds 120 --save-dir <temp> --data-dir <temp> --input-script tests\input\pause_soundtrack.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# Free Skate is the third entry
+21000:down:300
+23000:down:300
+26000:a:300
+35000:a:300
+44000:a:300
+
+# loading, the FREE SKATE rules screen (A), then the level
+71000:a:300
+84000:shot=01_level
+# Start: the pause list (CONTINUE, RETRY, SOUND OPTIONS, QUIT GAME, END RUN); two downs: SOUND OPTIONS
+86000:start:300
+88000:down:300
+89000:down:300
+90000:a:300
+92000:shot=02_sound_options
+# (maintainer's order 2026-11-05) SOUNDTRACK, PLAYBACK MODE, SFX LEVEL, MUSIC LEVEL, SELECT TRACK, NEXT TRACK,
+# BACK - the cursor opens on SOUNDTRACK: right, right
+96000:shot=03_soundtrack_line
+97000:right:300
+99000:shot=04_all_custom
+100000:right:300
+102000:shot=05_combined
+# PLAYBACK MODE: one down, A
+103000:down:300
+105000:shot=06_playback_line
+106000:a:300
+108000:shot=07_shuffle
+# down x4: SFX LEVEL, MUSIC LEVEL, SELECT TRACK, NEXT TRACK; down: BACK
+109000:down:300
+110000:down:300
+111000:down:300
+112000:down:300
+113000:shot=08_next_track
+114000:down:300
+115000:shot=09_back

@@ -27,8 +27,7 @@ Everything is set inside the game's own **Options** menu – no external tool, n
 | Entry | What it does |
 |---|---|
 | **CONTROLS → RECOMP CONTROL OPTIONS** | Per player (PLAYER 1-4): **BUTTON MAPPING** (pick the input device, then remap its buttons) and the free camera settings (see *Free camera*). |
-| **SOUNDTRACKS** | Pick the music source and one of 8 playback modes (see *Custom soundtracks*). |
-| **GENERAL OPTIONS** | Career mode, the game's own four options and the gameplay options (see below). |
+| **GENERAL OPTIONS** | Career mode, soundtracks, the game's own four options and the gameplay options (see below). |
 | **RECOMP OPTIONS** | All port settings (see below). |
 | **QUIT GAME** | Closes the game after a question (it opens on NO). The pause menu in a level has QUIT GAME too. |
 
@@ -39,11 +38,19 @@ only that line.
 | Setting | Values |
 |---|---|
 | **Career mode** | ORIGINAL or CLASSIC, for new careers (see *Classic career*). A career keeps the mode it started with. |
+| **Soundtracks ▸** | The music source and the playback mode (see *Custom soundtracks*). |
 | **Trick tips, Score display, Quick chat, Motion blur** | The game's own options, ON (default) or OFF. Motion blur is the game's own effect while skating fast. |
 | **Playstyle** | XBOX (original) or PS2: spins on Black / White (on a modern pad the shoulder buttons LB / RB), nollie and switch stay on the triggers. Works on top of your button mapping - if Black / White are not mapped to anything, PS2 has no spins. |
+| **Gameplay ▸** | The gameplay options below, in their own list (Y works there too). |
+
+**GAMEPLAY:**
+
+| Setting | Values |
+|---|---|
 | **180 spin taps** | ON (original) or OFF: tapping a trigger in the air no longer turns 180°; holding it still spins. |
 | **Big drop** | ORIGINAL: a drop from a moderate height scores BIG DROP, from a very great height you bail. NO BAIL: no bail, the drop counts as BIG DROP. OFF: neither - every drop lands like a normal one. |
 | **Wall bail** | ORIGINAL or NO BAIL: holding grind into a wall at an angle too steep for a wallride (60° or more) no longer bails - the skater meets the wall as without grind. Wallrides themselves work as before. |
+| **Manuals** | ON (original) or OFF: no manuals or nose manuals, as in THPS 1. |
 
 ### Classic career
 A new career with **CAREER MODE: CLASSIC** plays the parts in release order, each with its own rules:
@@ -88,11 +95,11 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 - Gravity, speed, the session timer and replays behave exactly like at 60 fps.
 
 ### Custom soundtracks
-Put your own music into the `media` folder and choose it in **Options → SOUNDTRACKS**:
-- **SOUNDTRACK:** game music, **COMBINED** (game music + your albums) or a single album of yours.
-- **PLAYBACK MODE:** play songs in order (the game's music, original behaviour) · play album in order · shuffle game
-  music · shuffle album · shuffle all custom albums · shuffle all · play all in order · play all custom albums in
-  order.
+Put your own music into the `media` folder and choose it in **Options → GENERAL OPTIONS → SOUNDTRACKS**:
+- **SOUNDTRACK** (left / right): game music, **ALL CUSTOM SOUNDTRACKS** (all your albums), **COMBINED** (game music +
+  your albums) or a single album of yours.
+- **PLAYBACK MODE:** **PLAY IN ORDER** - one song after the other; a new level or a retry goes on with the next song
+  instead of starting over - or **SHUFFLE**.
 - Your choice is remembered (the original game forgets it at every start). The in-game picker in the pause menu
   keeps working.
 
@@ -113,10 +120,11 @@ Put your own music into the `media` folder and choose it in **Options → SOUNDT
 - **Nothing is written outside it:** no registry, no AppData, no shortcuts, no temp files left behind.
 
 ### Installer built in
-- Put your disc image into `game\` (or pick it with **Choose disc image...**) and start the game: it checks,
-  extracts and verifies the image itself. An image in `game\` is deleted afterwards; an image picked elsewhere stays
-  where it is.
+- A small setup window asks for your disc image and the folder to install into, then **Go**: it checks, extracts
+  and verifies the image, builds the game on your PC and shows the progress until **Play**. Your disc image is only
+  read, never changed or deleted.
 - A wrong game or an unsupported version is refused with a clear message, and the image is kept.
+- No Vulkan 1.3 graphics card: the setup and the game say so in a message instead of crashing.
 
 ---
 
@@ -124,12 +132,11 @@ Put your own music into the `media` folder and choose it in **Options → SOUNDT
 
 ### Requirements
 - Windows 10/11, 64-bit, or Linux with Proton / Wine (best effort, see *Linux via Proton / Wine*)
-- A GPU whose driver offers **Vulkan 1.3** with the extension `VK_KHR_push_descriptor` (NVIDIA GTX 900 and newer,
-  AMD RX 400 and newer, Intel HD 500 / UHD 600 and newer, Intel Arc, Steam Deck). If something is missing, the game
-  says so at the start and names your GPU, its Vulkan version and what it lacks.
-- `VK_EXT_vertex_input_dynamic_state` is used when the driver has it, but no longer required. **AMD Polaris (RX 400 /
-  RX 500 series, e.g. RX 580) on Windows** lacks it and runs on a fallback since v0.9.3 - I tested it with the
-  fallback forced, not yet on a real RX 580; feedback welcome.
+- **A graphics card with at least Vulkan 1.3 is required** (its driver must offer Vulkan 1.3 with dynamic rendering
+  and `VK_KHR_push_descriptor`: NVIDIA GTX 900 and newer, AMD RX 400 and newer, Intel HD 500 / UHD 600 and newer,
+  Intel Arc, Steam Deck). I am sorry, but older devices with only Vulkan 1.1 / 1.2 are not supported. On a PC
+  without such a device, `THPS 2X Recomp.exe` and `THPS2X.exe` show a message saying so and naming the graphics
+  devices found - a driver update often adds Vulkan 1.3.
 - Your own copy of *Tony Hawk's Pro Skater 2X* (USA)
 - About **2 GB** of free disk space (no internet needed: the compiler ships inside the release zip)
 
@@ -144,23 +151,27 @@ a supported version."*
 
 ### First start
 1. Download `THPS2X-Recompiled-v<version>-win64.zip` (about 210 MB, the compiler included) from the release page
-   and unpack it into an empty folder of your choice (keep the `tools\` folder next to the exe).
-2. Start `THPS 2X Recomp.exe`. It creates the folders below (each with a short `README.txt`) and asks for the game:
-   put your disc image (`.iso`, XISO or full redump image) **or** the extracted disc files into `game\`, or click
-   **Choose disc image...**.
-3. The first start then sets everything up, with a progress window:
-   - the image is checked, extracted and verified,
+   and unpack it (keep the `tools\` folder next to the exe).
+2. Start `THPS 2X Recomp.exe`. The setup window asks for two things: your disc image (`.iso`, XISO or full redump
+   image) and the folder to install into (a new folder next to the exe is suggested; spaces in the path are fine).
+   Press **Go**.
+3. The setup copies itself and the compiler into that folder and sets everything up there, with the progress in the
+   same window:
+   - the image is checked, extracted and verified (the image itself is only read),
    - the compiler ([llvm-mingw](https://github.com/mstorsjo/llvm-mingw), a fixed release, in the zip's
      `tools\download\`) is checked by its SHA-256 and unpacked – only if that file is missing is it downloaded
      (about 190 MB); if the download fails you get the real reason (name lookup, connection, secure connection or
      the server's answer) with **Retry**, and the link to download it by hand,
    - the game's code is translated and compiled on your PC (a few minutes, only once).
-4. The game starts. Later starts go straight into the game.
+4. Press **Play**. Later, start `THPS 2X Recomp.exe` in the install folder – it goes straight into the game.
 5. Optional: add your music, shader pack and boot video (see next section).
 
+Putting the disc image or the extracted disc files into `game\` by hand and starting `THPS 2X Recomp.exe` there
+still works as before (an image in `game\` is deleted after a verified install).
+
 ### Updating from an earlier version
-Unpack the new zip over the old folder. The game is built once more at the next start (a few minutes); your
-`saves\` and `media\` stay.
+Unpack the new zip over the old install folder (the one with `THPS 2X Recomp.exe`, `game\` and `saves\`). The game
+is built once more at the next start (a few minutes); your `saves\` and `media\` stay.
 
 > **Windows warning:** the exe is not signed. **SmartScreen** shows "Windows protected your PC" – click
 > **More info → Run anyway**. **Smart App Control** (Windows 11) blocks unsigned apps completely; the port can only
@@ -213,12 +224,11 @@ THPS 2X Recomp/
 ### Boot animation → `media\boot.mpg`
 - Your own intro video, played before the game starts. It cannot be skipped – keep it short. It can be switched
   off in RECOMP OPTIONS (the change applies at the next start).
-- Format: MPEG-1 video with MP2 audio. Convert any video once with the free [ffmpeg](https://ffmpeg.org) –
-  720p at 30 fps is recommended (light to decode, small file):
+- Format: MPEG-1 video with MP2 audio, in full quality - **1920x1080 at 60 fps** (keep the source's size and frame
+  rate). Convert any video once with the free [ffmpeg](https://ffmpeg.org):
   ```
-  ffmpeg -i boot.mp4 -vf scale=-2:720 -r 30 -c:v mpeg1video -q:v 2 -c:a mp2 -b:a 192k boot.mpg
+  ffmpeg -i boot.mp4 -c:v mpeg1video -q:v 1 -qmin 1 -bf 2 -g 30 -pix_fmt yuv420p -c:a mp2 -b:a 256k boot.mpg
   ```
-  Full resolution also works (leave out `-vf scale=-2:720 -r 30`), but costs more CPU while it plays.
 - A `boot.mp4` or `boot.mkv` alone is not played; BOOT ANIMATION then says "CONVERT BOOT VIDEO TO BOOT.MPG  SEE
   README". The port never converts or changes your files.
 - Never shipped with the port – you supply your own video.

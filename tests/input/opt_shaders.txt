@@ -26,7 +26,7 @@
 25000:down:300
 26000:down:300
 28000:a:300
-# OPTIONS: RECOMP OPTIONS is the last of 11 lines
+# OPTIONS: RECOMP OPTIONS is the 10th line (SOUNDTRACKS moved into GENERAL OPTIONS, 2026-11-05)
 35000:down:300
 36000:down:300
 37000:down:300
@@ -36,7 +36,6 @@
 41000:down:300
 42000:down:300
 43000:down:300
-44000:down:300
 46000:a:300
 51000:shot=05_recomp_options
 

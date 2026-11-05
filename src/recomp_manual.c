@@ -2057,9 +2057,8 @@ typedef struct {
     int parent, parent_line;
 } OptList;
 
-enum { OPT_MAIN, OPT_CONTROLS, OPT_RECOMP, OPT_FPS, OPT_AA, OPT_BOOT, OPT_RESTART, OPT_SOUND,
-       OPT_ALBUM, OPT_PLAYBACK, OPT_BINDKEYS, OPT_SHADERS, OPT_SHBROWSE, OPT_SHPARAMS, OPT_SHRESET,
-       OPT_GENERAL, OPT_CHEATS, OPT_QUIT, OPT_CTLREC, OPT_CTLPLAYER, OPT_LISTS };
+enum { OPT_MAIN, OPT_CONTROLS, OPT_RECOMP, OPT_FPS, OPT_AA, OPT_BOOT, OPT_RESTART, OPT_SOUND, OPT_BINDKEYS, OPT_SHADERS, OPT_SHBROWSE, OPT_SHPARAMS, OPT_SHRESET,
+       OPT_GENERAL, OPT_CHEATS, OPT_QUIT, OPT_CTLREC, OPT_CTLPLAYER, OPT_GAMEPLAY, OPT_LISTS };
 
 /* RECOMP CONTROL OPTIONS -> PLAYER n (GitHub issue #6, maintainer
  * 2026-10-31): the player whose page is open, its title */
@@ -2090,11 +2089,16 @@ static char s_bkeys_text[12][40];
 static char s_val_text[OPT_LISTS][12][48];
 static char s_restart_text[48];                   /* RESTART NEEDED: what changed (opt_restart_pending) */
 
-/* SOUNDTRACK's value line: GAME MUSIC, COMBINED, then every album of the
- * media folder (src/soundtracks.c), picked with left / right like RENDER
- * RESOLUTION; a step saves the choice at once. */
-#define OPT_ALBUM_VALUE_LINE 1
-static char s_album_text[28] = "GAME MUSIC";
+/* SOUNDTRACKS (GENERAL OPTIONS, the line after CAREER MODE; maintainer
+ * 2026-11-05): SOUNDTRACK value line (GAME MUSIC, ALL CUSTOM SOUNDTRACKS,
+ * COMBINED, then every album of the media folder, src/soundtracks.c; left /
+ * right or A, saved at once), a blank line, the PLAYBACK MODE heading (not
+ * greyed, the cursor skips it: opt_updown), then
+ * PLAY IN ORDER / SHUFFLE (A picks; ON marks the one in use). Built by
+ * st_build. */
+#define ST_LINE_SOURCE  0
+#define ST_LINE_HEADING 2                         /* PLAYBACK MODE: normal text, the cursor skips it (opt_updown) */
+#define ST_LINE_ORDER   3                         /* PLAY IN ORDER; SHUFFLE is the line after it */
 static char s_boot_text[48] = "NEEDS BOOT MPG IN THE MEDIA FOLDER";   /* BOOT ANIMATION's status line (boot_state) */
 extern int  thps_st_choices(void);
 extern int  thps_st_choice(void);
@@ -2111,11 +2115,12 @@ extern void thps_st_set_mode(int m);
  * dot -- "2.25X"; an earlier note here said it had none.) */
 static const OptList s_opt[OPT_LISTS] = {
     [OPT_MAIN] = { "OPTIONS",
-        { "CHAT MESSAGES", "CONTROLS", "SOUND LEVELS", "SOUNDTRACKS", "MOVIES", "MEMORY UNIT", "CHEATS", "HIGH SCORES",
+        { "CHAT MESSAGES", "CONTROLS", "SOUND LEVELS", "MOVIES", "MEMORY UNIT", "CHEATS", "HIGH SCORES",
           "GAP CHECKLIST", "GENERAL OPTIONS", "RECOMP OPTIONS", "QUIT GAME" },
         /* GENERAL OPTIONS: our list instead of the game's screen (state 0x2A), see
-         * OPT_GENERAL; QUIT GAME the last line (issue #5, maintainer 2026-10-31) */
-        { 0x21, OPT_SUB(OPT_CONTROLS), 0x24, OPT_SUB(OPT_SOUND), 0x25, 0x26, 0x27, 0x28, 0x29, OPT_SUB(OPT_GENERAL),
+         * OPT_GENERAL; QUIT GAME the last line (issue #5, maintainer 2026-10-31);
+         * SOUNDTRACKS moved into GENERAL OPTIONS (maintainer, 2026-11-05) */
+        { 0x21, OPT_SUB(OPT_CONTROLS), 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, OPT_SUB(OPT_GENERAL),
           OPT_SUB(OPT_RECOMP), OPT_SUB(OPT_QUIT) },
         -1, 0 },
     /* BUTTON MAPPING here, not in the game's PLAYER n CONTROLS screen: that
@@ -2156,7 +2161,7 @@ static const OptList s_opt[OPT_LISTS] = {
           s_val_text[OPT_RECOMP][6], s_val_text[OPT_RECOMP][7], s_val_text[OPT_RECOMP][8],
           s_val_text[OPT_RECOMP][9], s_val_text[OPT_RECOMP][10], s_val_text[OPT_RECOMP][11] },
         { OPT_STAY },                             /* opt_next */
-        OPT_MAIN, 10 },
+        OPT_MAIN, 9 },
     /* FRAME RATE, VSYNC, FPS COUNTER -- VSYNC and the counter belong with the
      * frame rate (maintainer, 2026-10-26) */
     [OPT_FPS] = { "FRAME RATE",
@@ -2177,14 +2182,14 @@ static const OptList s_opt[OPT_LISTS] = {
     [OPT_RESTART] = { "RESTART NEEDED",
         { s_restart_text, "RESTART NOW", "LATER" },
         { OPT_STAY, OPT_STAY, OPT_STAY },
-        OPT_MAIN, 10 },
+        OPT_MAIN, 9 },
     /* QUIT GAME (issue #5, maintainer 2026-10-31: the last OPTIONS line, with
      * a question first; a Deck in Desktop Mode has no key to close the
      * window): opens on NO; YES = host_quit, NO / B = OPTIONS */
     [OPT_QUIT] = { "QUIT GAME",
         { "DO YOU REALLY WANT TO QUIT", "YES", "NO" },
         { OPT_STAY, OPT_STAY, OPT_STAY },
-        OPT_MAIN, 11 },
+        OPT_MAIN, 10 },
     /* a sub-menu with every choice, not a value line (maintainer, 2026-10-26):
      * opens on the one in use, A picks it (saved, at once) and goes back;
      * default FXAA, the picture as before; line order = NV2A_VK_AA_* */
@@ -2192,24 +2197,15 @@ static const OptList s_opt[OPT_LISTS] = {
         { "OFF", "FXAA", "SMAA", "MSAA 2X", "MSAA 4X" },
         { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY },
         OPT_RECOMP, 0 },
-    /* SOUNDTRACKS, right under SOUND LEVELS (maintainer, 2026-10-18: the Sound
-     * Levels screen itself stays stock): the soundtrack (GAME MUSIC, COMBINED =
-     * game music plus the custom albums, then each album of media/) on a value
-     * line, and the 8 playback modes -- A picks one (CLAUDE.md, Custom
-     * soundtracks); both kept in saves\settings.ini (src/soundtracks.c) */
+    /* SOUNDTRACKS: one sub-menu with everything (maintainer, 2026-11-05; was
+     * an OPTIONS line with two sub-menus and 8 modes): see ST_LINE_* above;
+     * kept in saves\settings.ini (src/soundtracks.c). Its line in GENERAL
+     * OPTIONS: opt_parent_line (s_sub_line). */
     [OPT_SOUND] = { "SOUNDTRACKS",
-        { "SOUNDTRACK", "PLAYBACK MODE" },
-        { OPT_SUB(OPT_ALBUM), OPT_SUB(OPT_PLAYBACK) },
-        OPT_MAIN, 3 },
-    [OPT_ALBUM] = { "SOUNDTRACK",
-        { "LEFT OR RIGHT CHANGES IT", s_album_text },
-        { OPT_STAY, OPT_STAY },
-        OPT_SOUND, 0 },
-    [OPT_PLAYBACK] = { "PLAYBACK MODE",
-        { "PLAY SONGS IN ORDER", "PLAY ALBUM IN ORDER", "SHUFFLE GAME MUSIC", "SHUFFLE ALBUM",
-          "SHUFFLE ALL CUSTOM ALBUMS", "SHUFFLE ALL", "PLAY ALL IN ORDER", "PLAY ALL CUSTOM IN ORDER" },
-        { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY },
-        OPT_SOUND, 1 },
+        { s_val_text[OPT_SOUND][0], s_val_text[OPT_SOUND][1], s_val_text[OPT_SOUND][2],
+          s_val_text[OPT_SOUND][3], s_val_text[OPT_SOUND][4] },
+        { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY },
+        OPT_GENERAL, 3 },
     /* SHADERS (shader module phase 4): the last line of RECOMP OPTIONS; its
      * lists are built when shown (sh_build) */
     [OPT_SHADERS]  = { s_sh_title[0], SH_LINES(0), SH_STAY, OPT_RECOMP, 0 },
@@ -2228,7 +2224,17 @@ static const OptList s_opt[OPT_LISTS] = {
           s_val_text[OPT_GENERAL][6], s_val_text[OPT_GENERAL][7], s_val_text[OPT_GENERAL][8],
           s_val_text[OPT_GENERAL][9], s_val_text[OPT_GENERAL][10], s_val_text[OPT_GENERAL][11] },
         { OPT_STAY },                             /* opt_next */
-        OPT_MAIN, 9 },
+        OPT_MAIN, 8 },
+    /* GAMEPLAY (maintainer, 2026-11-05: GENERAL OPTIONS was full with
+     * SOUNDTRACKS and MANUALS came in): the Y hint, a blank, then the
+     * gameplay values (default = the original game); built by opt_build */
+    [OPT_GAMEPLAY] = { "GAMEPLAY",
+        { s_val_text[OPT_GAMEPLAY][0], s_val_text[OPT_GAMEPLAY][1], s_val_text[OPT_GAMEPLAY][2],
+          s_val_text[OPT_GAMEPLAY][3], s_val_text[OPT_GAMEPLAY][4], s_val_text[OPT_GAMEPLAY][5],
+          s_val_text[OPT_GAMEPLAY][6], s_val_text[OPT_GAMEPLAY][7], s_val_text[OPT_GAMEPLAY][8],
+          s_val_text[OPT_GAMEPLAY][9], s_val_text[OPT_GAMEPLAY][10], s_val_text[OPT_GAMEPLAY][11] },
+        { OPT_STAY },                             /* opt_next */
+        OPT_GENERAL, 0 },                         /* opt_parent_line: s_sub_line */
     /* BUTTON CHEATS (v0.9.2 item 3; maintainer 2026-10-28: every cheat listed,
      * any combination, the text says what it does; 2026-10-30: the code's own
      * name in brackets, and the head like GENERAL OPTIONS): PAGE x OF y, the Y
@@ -2337,8 +2343,8 @@ void thps_boot_video(void)
     if (!boot_state(path, sizeof path)) {
         if (s_boot_text[0] == 'C')
             fprintf(stderr, "[BOOT] boot video: media\\boot.mp4 or boot.mkv found, but no boot.mpg -- convert it once "
-                            "(README: ffmpeg -i boot.mp4 -vf scale=-2:720 -r 30 -c:v mpeg1video -q:v 2 -c:a mp2 "
-                            "-b:a 192k boot.mpg); "
+                            "(README, 1080p 60 fps: ffmpeg -i boot.mp4 -c:v mpeg1video -q:v 1 -qmin 1 -bf 2 -g 30 "
+                            "-pix_fmt yuv420p -c:a mp2 -b:a 256k boot.mpg); "
                             "the port does not convert or change files in media\\\n");
         return;
     }
@@ -2539,7 +2545,7 @@ static uint32_t s_bind_cursor;
  * ON / OFF in its sub-list (see "BOOT ANIMATION" above). */
 enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE, VAL_VSYNC, VAL_COUNTER,
        VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
-       VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER,
+       VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER, VAL_MANUALS,
        VAL_FREECAM1, VAL_FREECAM2, VAL_FREECAM3, VAL_FREECAM4,   /* PLAYER n: FREE CAMERA, INVERT CAMERA */
        VAL_INVCAM1, VAL_INVCAM2, VAL_INVCAM3, VAL_INVCAM4,
        VAL_CAMSX1, VAL_CAMSX2, VAL_CAMSX3, VAL_CAMSX4,           /* PLAYER n: CAMERA SENSITIVITY X, Y */
@@ -2667,6 +2673,8 @@ static const OptVal s_val[VAL_COUNT] = {
                         { "ORIGINAL", "NO BAIL", "OFF" }, 3 },
     /* tester wish 11 (maintainer, 2026-10-31): grind held into a wall at 60 degrees
      * or more - no wallride and, with NO BAIL, no bail either (see WALL TRACE) */
+    /* maintainer 2026-11-05: manuals can be switched off (THPS 1 had none); see "MANUALS" below */
+    [VAL_MANUALS]   = { "MANUALS", "manuals", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
     [VAL_WALLBAIL]  = { "WALL BAIL", "wall_bail", "original", { "original", "no_bail" },
                         { "ORIGINAL", "NO BAIL" }, 2 },
     /* classic career (maintainer, 2026-10-30: the last GAMEPLAY line):
@@ -2726,7 +2734,7 @@ static uint32_t s_sub_line[OPT_LISTS];            /* a sub-list's line in RECOMP
 /* a line's next state: built lists keep theirs in s_line_next */
 static uint32_t opt_next(int list, uint32_t line)
 {
-    if (list == OPT_RECOMP || list == OPT_GENERAL || list == OPT_CTLPLAYER)
+    if (list == OPT_RECOMP || list == OPT_GENERAL || list == OPT_GAMEPLAY || list == OPT_CTLPLAYER)
         return line < 12 ? s_line_next[list][line] : OPT_STAY;
     return s_opt[list].next[line];
 }
@@ -2736,7 +2744,26 @@ static uint32_t opt_parent_line(int list)
 {
     if (list == OPT_CTLPLAYER)
         return (uint32_t)s_ctl_player;            /* PLAYER n's line */
-    return s_opt[list].parent == OPT_RECOMP ? s_sub_line[list] : (uint32_t)s_opt[list].parent_line;
+    return s_opt[list].parent == OPT_RECOMP || s_opt[list].parent == OPT_GENERAL ? s_sub_line[list]
+           : (uint32_t)s_opt[list].parent_line;
+}
+
+/* SOUNDTRACKS' five lines (ST_LINE_*): the source, a blank (greyed,
+ * sub_0013D400), the PLAYBACK MODE heading (normal text, skipped by
+ * opt_updown), the two modes */
+static void st_build(void)
+{
+    char name[28];
+    int shuffle = thps_st_mode();
+    memset(s_val_text[OPT_SOUND], 0, sizeof s_val_text[OPT_SOUND]);
+    thps_st_choice_text(thps_st_choice(), name, sizeof name);
+    snprintf(s_val_text[OPT_SOUND][ST_LINE_SOURCE], sizeof s_val_text[OPT_SOUND][0], "SOUNDTRACK: %s", name);
+    snprintf(s_val_text[OPT_SOUND][1], sizeof s_val_text[OPT_SOUND][1], " ");
+    snprintf(s_val_text[OPT_SOUND][2], sizeof s_val_text[OPT_SOUND][2], "PLAYBACK MODE");
+    snprintf(s_val_text[OPT_SOUND][ST_LINE_ORDER], sizeof s_val_text[OPT_SOUND][3], "PLAY IN ORDER: %s",
+             shuffle ? "OFF" : "ON");
+    snprintf(s_val_text[OPT_SOUND][ST_LINE_ORDER + 1], sizeof s_val_text[OPT_SOUND][4], "SHUFFLE: %s",
+             shuffle ? "ON" : "OFF");
 }
 
 /* the value in use as an index into val[] (an unknown value: the default) */
@@ -3040,9 +3067,12 @@ static void opt_build(int list)
      * sub_0013D400), then CAREER MODE and the other values (maintainer,
      * 2026-10-28; CAREER MODE the first value without its own blank line
      * 2026-10-31) */
-    static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_CAREER, VAL_TIPS, VAL_SCORE,
-                                     VAL_CHAT, VAL_BLUR, VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP,
-                                     VAL_WALLBAIL };
+    /* SOUNDTRACKS the second value, right after CAREER MODE (maintainer, 2026-11-05) */
+    static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_CAREER, OPT_E_SUB + OPT_SOUND, VAL_TIPS, VAL_SCORE,
+                                     VAL_CHAT, VAL_BLUR, VAL_LAYOUT, OPT_E_SUB + OPT_GAMEPLAY };
+    /* GAMEPLAY (maintainer, 2026-11-05): the gameplay values from GENERAL OPTIONS plus MANUALS */
+    static const short gameplay[] = { OPT_E_HINT, OPT_E_BLANK, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL,
+                                      VAL_MANUALS };
     /* PLAYER n (issue #6): BUTTON MAPPING, then that player's camera values */
     short player[6];
     const short *e = NULL;
@@ -3057,12 +3087,18 @@ static void opt_build(int list)
         sh_build(list);
         return;
     }
+    if (list == OPT_SOUND) {
+        st_build();
+        return;
+    }
     if (list == OPT_RECOMP)
         e = recomp, n = (int)(sizeof recomp / sizeof recomp[0]);
     else if (list == OPT_FPS)
         e = frame, n = (int)(sizeof frame / sizeof frame[0]);
     else if (list == OPT_GENERAL)
         e = general, n = (int)(sizeof general / sizeof general[0]);
+    else if (list == OPT_GAMEPLAY)
+        e = gameplay, n = (int)(sizeof gameplay / sizeof gameplay[0]);
     else if (list == OPT_CTLPLAYER)
         e = player, n = 6;
     if (!e)
@@ -3192,18 +3228,15 @@ void sub_0013D470(void)
         s_opt_list = to;
         opt_build(to);
         GUEST32(0x00306250u) = 0;
-        if (s_opt_list == OPT_ALBUM) {             /* on the value line, showing the choice */
-            thps_st_choice_text(thps_st_choice(), s_album_text, sizeof s_album_text);
-            GUEST32(0x00306250u) = OPT_ALBUM_VALUE_LINE;
-        } else if (s_opt_list == OPT_PLAYBACK) {   /* on the mode in use */
-            GUEST32(0x00306250u) = (uint32_t)thps_st_mode();
+        if (s_opt_list == OPT_SOUND) {             /* on SOUNDTRACK (st_build ran in opt_build) */
+            GUEST32(0x00306250u) = ST_LINE_SOURCE;
         } else if (s_opt_list == OPT_AA) {         /* on the antialiasing in use */
             GUEST32(0x00306250u) = (uint32_t)opt_aa_index();
         } else if (s_opt_list == OPT_BOOT) {       /* the status line fresh; on ON / OFF in use */
             char bp[700];
             if (boot_state(bp, sizeof bp))
                 GUEST32(0x00306250u) = boot_on() ? 1u : 2u;
-        } else if (s_opt_list == OPT_GENERAL) {    /* on its first value, CAREER MODE */
+        } else if (s_opt_list == OPT_GENERAL || s_opt_list == OPT_GAMEPLAY) {   /* on the first value */
             GUEST32(0x00306250u) = OPT_GENERAL_FIRST;
         } else if (s_opt_list == OPT_QUIT) {       /* on NO */
             GUEST32(0x00306250u) = 2;
@@ -3276,10 +3309,13 @@ void sub_0013D470(void)
         if (opt_val_step(opt_val_at(s_opt_list, line), +1))
             opt_build(s_opt_list);
         g_eax = OPT_STAY;
-    } else if (s_opt_list == OPT_PLAYBACK) {       /* a mode picked: saved, back to SOUNDTRACKS */
-        thps_st_set_mode((int)line);
-        s_opt_list = s_opt[OPT_PLAYBACK].parent;
-        GUEST32(0x00306250u) = (uint32_t)s_opt[OPT_PLAYBACK].parent_line;
+    } else if (s_opt_list == OPT_SOUND) {          /* A: the next source, or a mode picked; saved, same line */
+        if (line == ST_LINE_SOURCE)
+            thps_st_set_choice((thps_st_choice() + 1) % thps_st_choices());
+        else if (line == ST_LINE_ORDER || line == ST_LINE_ORDER + 1)
+            thps_st_set_mode((int)(line - ST_LINE_ORDER));
+        st_build();
+        GUEST32(0x00306250u) = line;
         g_eax = OPT_STAY;
     }
 }
@@ -3355,11 +3391,14 @@ static void opt_lr(uint32_t screen, int dir, int pad)
         PAD_LATCH(0x00305369u, pad) = 1;
         return;
     }
-    if (s_opt_shown == OPT_ALBUM && line == OPT_ALBUM_VALUE_LINE) {
-        int n = thps_st_choices(), c = (thps_st_choice() + dir + n) % n;   /* wraps */
-        thps_st_set_choice(c);
-        thps_st_choice_text(c, s_album_text, sizeof s_album_text);
-        PAD_LATCH(0x00305369u, pad) = 1;
+    if (s_opt_shown == OPT_SOUND) {                /* SOUNDTRACK: the source, wraps; rebuilt via A */
+        if (line == ST_LINE_SOURCE) {
+            int n = thps_st_choices(), c = (thps_st_choice() + dir + n) % n;
+            thps_st_set_choice(c);
+            st_build();
+            s_val_refresh = 1;
+            PAD_LATCH(0x00305369u, pad) = 1;
+        }
         return;
     }
     if (opt_val_at(s_opt_shown, line) >= 0 && opt_val_step(opt_val_at(s_opt_shown, line), dir)) {
@@ -3472,12 +3511,12 @@ void sub_001E66E0(void)
     if (!opt_menu_on() || GUEST32(screen) != 0x0022A2B0u)
         return;
     line = GUEST32(screen + 0x1B8u);
-    if (s_opt_shown == OPT_GENERAL) {
-        int id = opt_val_at(OPT_GENERAL, line);
+    if (s_opt_shown == OPT_GENERAL || s_opt_shown == OPT_GAMEPLAY) {
+        int id = opt_val_at(s_opt_shown, line);
         if (id < 0)
             return;
         changed = opt_val_default(id);
-        opt_build(OPT_GENERAL);
+        opt_build(s_opt_shown);
     } else if (s_opt_shown == OPT_CHEATS) {
         int i = s_cheat_page * CHEAT_PAGE + (int)line - CHEAT_FIRST;
         if (line < CHEAT_FIRST || line >= (uint32_t)(CHEAT_FIRST + cheat_on_page()))
@@ -3502,6 +3541,48 @@ void sub_0013D050(void)
         s_opt_back = 0;
         g_eax = OPT_STAY;
     }
+}
+
+/* Up / down (maintainer, 2026-11-05: the PLAYBACK MODE heading in SOUNDTRACKS
+ * in normal text, not greyed, and still skipped): the Options vtable
+ * 0x0022A2B0 has its own up (+0x30, 0x0013D520) and down (+0x34, 0x0013D560);
+ * each clears the pads' latches, plays the move sound and calls the panel's
+ * select 0x001E93F0 (ecx = screen + 0x90, eax = the new line; it skips
+ * greyed lines in the move's direction and keeps the line at panel + 0x128 =
+ * screen + 0x1B8). A move that lands on the heading is moved on once more by
+ * the same select, to the line after it in that direction. */
+extern void sub_001E93F0(void);
+static void opt_updown(uint32_t screen, int dir)
+{
+    uint32_t eax = g_eax, ecx = g_ecx, line;
+    if (!opt_menu_on() || GUEST32(screen) != 0x0022A2B0u || s_opt_shown != OPT_SOUND)
+        return;
+    line = GUEST32(screen + 0x1B8u);
+    if (line != ST_LINE_HEADING)
+        return;
+    g_ecx = screen + 0x90u;
+    g_eax = dir < 0 ? ST_LINE_SOURCE : ST_LINE_ORDER;   /* up: over the greyed blank to SOUNDTRACK */
+    g_esp -= 4;
+    GUEST32(g_esp) = 0;                           /* its ret pops it */
+    sub_001E93F0();
+    g_eax = eax;
+    g_ecx = ecx;
+}
+
+extern void sub_0013D520_gen(void);
+void sub_0013D520(void)
+{
+    uint32_t screen = g_ecx;
+    sub_0013D520_gen();
+    opt_updown(screen, -1);
+}
+
+extern void sub_0013D560_gen(void);
+void sub_0013D560(void)
+{
+    uint32_t screen = g_ecx;
+    sub_0013D560_gen();
+    opt_updown(screen, +1);
 }
 
 /* Lines greyed out: the original (sub_0013D400) greys line j (1-4) for a
@@ -3538,10 +3619,13 @@ void sub_0013D400(void)
             v = s_boot_text[0] == 'B';                  /* ON / OFF: only with media\boot.mpg (boot_state) */
         else if (s_opt_shown == OPT_SHADERS && !sh_menu_usable())
             v = 0;                                      /* no librashader / no pack: the hint, the rest greyed */
-        else if (s_opt_shown == OPT_GENERAL && !strcmp(s_val_text[OPT_GENERAL][line], " "))
-            v = 0;                                      /* GENERAL OPTIONS: the blank under the Y hint */
+        else if ((s_opt_shown == OPT_GENERAL || s_opt_shown == OPT_GAMEPLAY)
+                 && !strcmp(s_val_text[s_opt_shown][line], " "))
+            v = 0;                                      /* GENERAL OPTIONS, GAMEPLAY: the blank under the Y hint */
         else if (s_opt_shown == OPT_CHEATS && line == CHEAT_FIRST - 1)
             v = 0;                                      /* BUTTON CHEATS: the blank under the Y hint */
+        else if (s_opt_shown == OPT_SOUND && line == ST_LINE_HEADING - 1)
+            v = 0;                                      /* SOUNDTRACKS: the blank (the heading: opt_updown) */
         GUEST32(0x003054A4u + k * 0x18Cu) = v;
     }
     sub_0013D400_gen();
@@ -4734,6 +4818,192 @@ void sub_000A85E0(void)
 extern THPS_TLS uint32_t g_esi;
 extern void sub_00095D80_gen(void);
 extern void sub_0017BE20_gen(void);
+
+/* ── MANUALS ON / OFF (maintainer, 2026-11-05: GENERAL OPTIONS -> GAMEPLAY; THPS 1 had no manuals) ──
+ * The pad history (ring at skater+0x52FC, codes from sub_000A72A0 / table 0x29DF88: 1 / 2 = up / down, 3 / 4 left /
+ * right, 5..8 diagonals, 9..0x10 buttons) is matched against the ground trick list by sub_000A7740, called from
+ * 0x000B2B24; its answer there starts MANUAL (1) / NOSE MANUAL (2) - see the override below. (A first guess,
+ * the two-press check sub_000A7200, is not called at all during a manual: test run.) With manuals = off
+ * (THPS_MANUALS=off) that answer is 0. THPS_MANUAL_TRACE=1 logs the answers, =2 every pad-history reader. */
+static int manuals_off(void)
+{
+    static int off = -1;
+    static unsigned calls;
+    if (off < 0 || ++calls % 600u == 0)
+        off = !strcmp(settings_get("manuals", "on"), "off");
+    return off;
+}
+
+/* THPS_MANUAL_TRACE=2 (research, 2026-11-05): the pad-history readers (every function that reads the ring at
+ * skater+0x52FC) log each new (function, caller, eax/ebx/edx in, eax out) once, with the frame (0x2FD504) -- to
+ * find the one that starts a manual (sub_000A7200 is not it: no call during a manual). */
+extern THPS_TLS uint32_t g_ebx;
+static int manual_research(void)
+{
+    static int tr = -1;
+    if (tr < 0) {
+        const char *e = getenv("THPS_MANUAL_TRACE");
+        tr = e && *e == '2';
+    }
+    return tr;
+}
+static void ring_trace(const char *fn, uint32_t ret, uint32_t a, uint32_t b, uint32_t d, uint32_t out)
+{
+    static uint64_t seen[8192];
+    uint64_t key = ((uint64_t)ret << 32) ^ ((uint64_t)(a & 0xFFFF) << 16) ^ ((b & 0xFF) << 8) ^ (d & 0xFFFF)
+                 ^ ((uint64_t)out << 40) ^ (uint64_t)(uintptr_t)fn;
+    uint32_t h = (uint32_t)(key ^ (key >> 29)) * 2654435761u >> 19, i;
+    for (i = 0; i < 64; i++, h = (h + 1) & 8191u) {
+        if (seen[h] == key)
+            return;
+        if (!seen[h]) {
+            seen[h] = key;
+            fprintf(stderr, "[RING] f%u %s from 0x%08X eax=%08X ebx=%08X edx=%08X -> %08X\n",
+                    GUEST32(0x2FD504u), fn, ret, a, b, d, out);
+            return;
+        }
+    }
+}
+#define RING_TRACE(addr) \
+    extern void sub_##addr##_gen(void); \
+    void sub_##addr(void) \
+    { \
+        uint32_t ret = GUEST32(g_esp), a = g_eax, b = g_ebx, d = g_edx; \
+        sub_##addr##_gen(); \
+        if (manual_research()) \
+            ring_trace(#addr, ret, a, b, d, g_eax); \
+    }
+/* MANUALS OFF, the real hook (found with THPS_MANUAL_TRACE=4): a manual is a trick script queued at
+ * skater+0x52C8; sub_000AC6D0 (esi = skater) starts a queued script - sub_000A7040 puts it at +0x52B4, the
+ * interpreter sub_000C8890 runs it (call at 0x000AC73E), then +0x52C8 and +0x54C0 are cleared. The manual scripts
+ * begin with op 0x52 <kind> and op 0x0B "<name>": 52 01 0B "MANUAL", 52 02 0B "NOSE MANUAL" (the specials such as
+ * {Muska Nose Manual} carry "Manual" in their name too). With manuals = off a queued script whose name holds
+ * "MANUAL" (any case) is dropped the way the game drops a started one (+0x52C8 = +0x54C0 = 0) before it starts:
+ * no manual, so no manual points. THPS_MANUAL_TRACE=1 logs each one dropped. */
+static int manual_script(uint32_t sp, char *name, size_t n)
+{
+    const volatile uint8_t *b = (const volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + sp);
+    size_t i;
+    if (sp < 0x10000u || b[0] != 0x52 || b[2] != 0x0B)
+        return 0;
+    for (i = 0; i + 1 < n && i < 40 && b[3 + i] >= 0x20 && b[3 + i] < 0x7F; i++)
+        name[i] = (char)b[3 + i];
+    name[i] = 0;
+    for (i = 0; name[i]; i++) {
+        static const char w[] = "MANUAL";
+        size_t k = 0;
+        while (k < 6 && name[i + k] && (name[i + k] & ~0x20) == w[k])
+            k++;
+        if (k == 6)
+            return 1;
+    }
+    return 0;
+}
+
+extern void sub_000AC6D0_gen(void);
+void sub_000AC6D0(void)
+{
+    uint32_t sk = g_esi, sp = sk ? GUEST32(sk + 0x52C8u) : 0;
+    char name[48];
+    if (sp && manuals_off() && manual_script(sp, name, sizeof name)) {
+        const char *e = getenv("THPS_MANUAL_TRACE");
+        if (e && *e == '1')
+            fprintf(stderr, "[MANUAL] f%u %s dropped (MANUALS OFF)\n", GUEST32(0x2FD504u), name);
+        GUEST32(sk + 0x52C8u) = 0;
+        GUEST32(sk + 0x54C0u) = 0;
+    }
+    sub_000AC6D0_gen();
+}
+
+/* THPS_MANUAL_TRACE=4 (research): the trick script interpreter sub_000C8890 (ecx = skater, script pointer at
+ * skater+0x52B4, one op byte each) -- every new script pointer at entry, with the frame and its first 16 bytes,
+ * to find the manual's script */
+extern void sub_000C8890_gen(void);
+void sub_000C8890(void)
+{
+    static int tr = -1;
+    if (tr < 0) {
+        const char *e = getenv("THPS_MANUAL_TRACE");
+        tr = e && *e == '4';
+    }
+    if (tr) {
+        static uint32_t seen[512];
+        uint32_t sk = g_ecx, sp = sk ? GUEST32(sk + 0x52B4u) : 0, i;
+        for (i = 0; sp && i < 512 && seen[i] != sp; i++)
+            if (!seen[i]) {
+                const volatile uint8_t *b = (const volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + sp);
+                seen[i] = sp;
+                fprintf(stderr, "[SCRIPT] f%u from 0x%08X skater 0x%08X script 0x%08X: %02X %02X %02X %02X %02X %02X "
+                        "%02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n", GUEST32(0x2FD504u), GUEST32(g_esp), sk,
+                        sp, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13],
+                        b[14], b[15]);
+                break;
+            }
+    }
+    sub_000C8890_gen();
+}
+
+RING_TRACE(000A7250)
+RING_TRACE(000A7650)
+RING_TRACE(000A76C0)
+RING_TRACE(000AEA90)
+RING_TRACE(000B1650)
+
+/* The ground trick sequence check (traced with THPS_MANUAL_TRACE=2): sub_000A7740 called from
+ * 0x000B2B24 (eax = skater, edx = the ground trick list) answers the index of the matched entry, -1 for none
+ * (-1 every frame without a sequence); right after up,down it answered 1, after down,up 2 --
+ * MANUAL and NOSE MANUAL. With MANUALS OFF (maintainer 2026-11-05: no manual at all, so no manual points) those two
+ * answers become -1, every other answer stays. THPS_MANUAL_TRACE=1 logs every answer other than -1. */
+#define MANUAL_ENTRY      1u
+#define NOSE_MANUAL_ENTRY 2u
+extern void sub_000A7740_gen(void);
+void sub_000A7740(void)
+{
+    uint32_t ret = GUEST32(g_esp), a = g_eax, b = g_ebx, d = g_edx;
+    sub_000A7740_gen();
+    if (manual_research())
+        ring_trace("000A7740", ret, a, b, d, g_eax);
+    {   /* THPS_MANUAL_TRACE=3 (research): at the first answers 0, 1 and 2 after frame 100, one line each with the
+         * list at edx (0x100 bytes as words) and the skater's ring (+0x52FC, 32 x 8 bytes: code, pressed, frame) */
+        static int done[3];
+        static int tr3 = -1;
+        if (tr3 < 0) {
+            const char *e = getenv("THPS_MANUAL_TRACE");
+            tr3 = e && *e == '3';
+        }
+        if (tr3 && ret == 0x000B2B24u && g_eax < 3u && !done[g_eax] && GUEST32(0x2FD504u) > 100u) {
+            static char line[8192];
+            size_t n = 0;
+            int i;
+            done[g_eax] = 1;
+            n += (size_t)snprintf(line + n, sizeof line - n, "[LIST] f%u answer %u list 0x%08X:", GUEST32(0x2FD504u),
+                                  g_eax, d);
+            for (i = 0; i < 0x100 && n < sizeof line - 16; i += 4)
+                n += (size_t)snprintf(line + n, sizeof line - n, " %08X", GUEST32(d + (uint32_t)i));
+            n += (size_t)snprintf(line + n, sizeof line - n, " | ring idx %u:", GUEST32(a + 0x53FCu));
+            for (i = 0; i < 32 && n < sizeof line - 24; i++)
+                n += (size_t)snprintf(line + n, sizeof line - n, " %02X/%u@%u",
+                                      *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + a + 0x52FCu + 8u * (uint32_t)i),
+                                      *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + a + 0x52FDu + 8u * (uint32_t)i),
+                                      GUEST32(a + 0x5300u + 8u * (uint32_t)i));
+            fprintf(stderr, "%s\n", line);
+        }
+    }
+    if (ret == 0x000B2B24u && g_eax != 0xFFFFFFFFu) {
+        int block = manuals_off() && (g_eax == MANUAL_ENTRY || g_eax == NOSE_MANUAL_ENTRY);
+        static int tr = -1;
+        if (tr < 0) {
+            const char *e = getenv("THPS_MANUAL_TRACE");
+            tr = e && (*e == '1' || *e == '3');
+        }
+        if (tr)
+            fprintf(stderr, "[MANUAL] f%u ground sequence entry %u%s\n", GUEST32(0x2FD504u), g_eax,
+                    block ? " -> none (MANUALS OFF)" : "");
+        /* NOT a manual check (maintainer's logged play session 2026-11-05: answers 0..7 every few seconds while
+         * simply rolling) -- nothing is changed here; MANUALS OFF needs the manual's real start (open) */
+        (void)block;
+    }
+}
 
 static int s_wall_angle_bail;                     /* the last check failed on the angle */
 

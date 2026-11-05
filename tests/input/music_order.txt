@@ -1,0 +1,40 @@
+# music_order.txt - PLAY IN ORDER goes on with the next song at every new stream (maintainer, 2026-11-05: "like
+# stock - at a level select the next track plays"): Free Skate -> first skater -> first level, then RETRY from the
+# pause list twice. The log's "[MUSIC] playing ..." lines must name consecutive songs of the chosen source (no
+# return to the first one). Source and mode from the environment, e.g. THPS_SOUNDTRACK_ALBUM=game / custom / <album>,
+# THPS_SOUNDTRACK_MODE=order (a layout with media\ albums for the custom sources).
+#   THPS2X.exe --max-seconds 140 --save-dir <temp> --data-dir <temp> --input-script tests\input\music_order.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: Free Skate is the third entry
+21000:down:300
+22000:down:300
+24000:a:300
+33000:a:300
+42000:a:300
+
+# loading, the FREE SKATE rules screen (A), then the level
+71000:a:300
+84000:shot=01_level
+# Start: the pause list on CONTINUE; down: RETRY, A; "DO YOU REALLY WANT TO RETRY?" opens on NO: up = YES, A
+90000:start:300
+92000:down:300
+93000:a:300
+94500:up:300
+95500:a:300
+106000:shot=02_retry1
+110000:start:300
+112000:down:300
+113000:a:300
+114500:up:300
+115500:a:300
+126000:shot=03_retry2

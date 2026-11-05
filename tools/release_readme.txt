@@ -6,17 +6,18 @@ This download contains no game data, no game code and no keys. You need your own
 AI disclosure:  AI assistance yes (Claude Code by Anthropic).
 
 Start:
-  1. Unpack this zip into an empty folder (keep the tools\ folder next to the exe) and start
-     'THPS 2X Recomp.exe'.
-  2. It creates its folders and asks for the game: put your disc image (.iso) or the extracted disc files
-     into game\ - or click 'Choose disc image...'.
-  3. The first start needs no internet: the compiler (llvm-mingw, in tools\download\, checked by its
-     SHA-256) is unpacked, then the game's code is translated and compiled on your PC - about 2 GB of disk
-     space and a few minutes. Then the game starts; later starts go straight into the game.
-     Only if tools\download\ is missing is the compiler downloaded (about 190 MB); if that fails, the
-     message says why and offers Retry.
+  1. Unpack this zip (keep the tools\ folder next to the exe) and start 'THPS 2X Recomp.exe'.
+  2. The setup window asks for two things: your disc image (.iso) and the folder to install into.
+     Press Go.
+  3. No internet needed: the compiler (llvm-mingw, in tools\download\, checked by its SHA-256) is copied
+     along and unpacked, then the game's code is translated and compiled on your PC - about 2 GB of disk
+     space and a few minutes. Then press Play. Later, start 'THPS 2X Recomp.exe' in the install folder -
+     it goes straight into the game. Only if tools\download\ is missing is the compiler downloaded
+     (about 190 MB).
+  Your disc image is only read; it is never changed or deleted.
 
-Requirements: a GPU with Vulkan 1.3; your own Tony Hawk's Pro Skater 2X (USA) disc
+Requirements: a graphics card with at least Vulkan 1.3 - without one, the setup and the game show a
+message saying so; your own Tony Hawk's Pro Skater 2X (USA) disc
 (default.xbe SHA-1 469818E015AED2730641C0BDCBD2557D8A6B8BB4).
 
 Linux via Proton / Wine (best effort, less tested than Windows): needs Vulkan (winevulkan + the host's

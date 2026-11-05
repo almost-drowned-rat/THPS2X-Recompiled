@@ -4,6 +4,30 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.0.1 - 2026-11-05
+
+A new setup window, a reworked soundtrack menu and a MANUALS switch.
+
+### Added
+- **Setup window:** start `THPS 2X Recomp.exe` in an empty folder - pick your disc image and the folder to install
+  to, then Go; it builds the game there and Go turns into Play. Install folders with spaces work.
+- **Vulkan 1.3 check:** on a PC without a Vulkan 1.3 graphics card the setup and THPS2X.exe now say so in a message
+  box (with an apology) instead of failing silently. The README names Vulkan 1.3 as the minimum.
+- **MANUALS ON / OFF** in OPTIONS -> GENERAL OPTIONS -> GAMEPLAY: with OFF, no manuals or nose manuals (also not
+  out of the air), so no manual points either - as in THPS 1.
+- **Pause menu -> SOUND OPTIONS:** SOUNDTRACK now steps through every source (GAME MUSIC, ALL CUSTOM SOUNDTRACKS,
+  COMBINED, each of your albums) and a new PLAYBACK MODE line switches IN ORDER / SHUFFLE; both are saved and apply
+  at once. New order: SOUNDTRACK, PLAYBACK MODE, SFX LEVEL, MUSIC LEVEL, SELECT TRACK, NEXT TRACK, BACK.
+
+### Changed
+- **SOUNDTRACKS moved into GENERAL OPTIONS** (the line after CAREER MODE) and is one list: SOUNDTRACK (GAME MUSIC,
+  ALL CUSTOM SOUNDTRACKS, COMBINED, each album), then PLAYBACK MODE with PLAY IN ORDER / SHUFFLE. The 8 old modes
+  are gone; a saved old mode is converted.
+- **PLAY IN ORDER** goes on with the next song at a song's end, at a new level and at RETRY - it never starts over
+  with the first song.
+- **GAMEPLAY** is its own list in GENERAL OPTIONS: 180 SPIN TAPS, BIG DROP, WALL BAIL and MANUALS.
+- **Boot animation:** the README conversion keeps your video at 1920x1080 and 60 fps in full quality.
+
 ## v1.0.0 - 2026-10-31
 
 The first full release: a classic career, a free camera, more gameplay options and the fixes for the GitHub reports

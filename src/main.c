@@ -38,6 +38,7 @@
 #if defined(THPS_VULKAN)
 #include "nv2a_vk.h"
 #include "shader_pack.h"
+#include "vk_check.h"
 #endif
 #if defined(THPS_INSTALLER)
 #include "game_setup.h"
@@ -156,6 +157,27 @@ int main(int argc, char **argv)
     printf("=== THPS 2X - static recompilation ===\n");
     host_log_version_and_host(opt.game_dir);       /* "version: ..." / "host: ..." for bug reports (#1) */
     printf("game: %s\nsaves: %s\ndata: %s\n", opt.game_dir, opt.save_dir, opt.data_dir);
+
+#if defined(THPS_VULKAN)
+    /* No Vulkan 1.3 device: a polite message box and out, before the installer or a window (maintainer
+     * 2026-11-04/05; the launcher asks the same, src/vk_check.c). The toolkit's own device check (nv2a_vk.c
+     * vk_device_ok, with the technical list) stays behind it as the last line. Headless runs
+     * (RECOMP_VK_HEADLESS=1) skip it; RECOMP_NO_DIALOGS=1 logs only (host_fatal); RECOMP_VK_TEST_NO_DEVICE=1
+     * tests this path on any GPU. */
+    {
+        const char *hl = getenv("RECOMP_VK_HEADLESS");
+        char found[1024], msg[1600];
+        if (!(hl && *hl == '1')) {
+            if (!thps_vk_check(found, sizeof found)) {
+                fprintf(stderr, "[VK] no Vulkan 1.3 device: %s\n", found);
+                thps_vk_message(msg, sizeof msg, found);
+                host_fatal(msg);
+                return 1;
+            }
+            printf("[VK] devices: %s\n", found);
+        }
+    }
+#endif
 
 #if defined(THPS_INSTALLER)
     if (!thps_game_setup(opt.game_dir))

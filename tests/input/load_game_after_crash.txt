@@ -12,12 +12,12 @@
 24000:up:300
 25500:shot=ld_main_up
 26000:a:300
-# Options (since 2026-10-18): Chat Messages -> Controls -> Sound Levels -> Soundtracks -> Movies -> Memory Unit
+# Options (since 2026-11-05, SOUNDTRACKS moved into GENERAL OPTIONS): Chat Messages -> Controls -> Sound Levels
+# -> Movies -> Memory Unit
 32000:down:300
 33000:down:300
 34000:down:300
 35000:down:300
-36000:down:300
 36500:shot=ld_options
 37000:a:300
 42000:a:300

@@ -1,5 +1,6 @@
 # career_delete.txt - with CAREER A in the save dir: Options -> Memory Unit -> Save Game -> Xbox Hard Disk -> UP onto CAREER A
-# -> X (DELETE) -> NO -> YES (left) -> A. Navigation as save_overwrite.txt.
+# -> X (DELETE) -> NO -> YES (left) -> A. Navigation as save_overwrite.txt (Memory Unit the 5th OPTIONS line, 4 downs,
+# since 2026-11-05: SOUNDTRACKS moved into GENERAL OPTIONS).
 3000:start:200
 6000:start:200
 9000:start:200
@@ -11,7 +12,6 @@
 29000:down:300
 30000:down:300
 31000:down:300
-32000:down:300
 33000:a:300
 38000:down:300
 39000:a:300

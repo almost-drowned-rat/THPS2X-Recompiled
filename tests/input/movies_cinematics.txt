@@ -1,7 +1,7 @@
 # movies_cinematics.txt - testplan "Unlockables", movies: Options -> MOVIES -> CINEMATICS, the list shot, then 15
 # downs (locked lines are skipped, so the cursor shows how far the list is open) and shots, then the line it stopped
 # at played for 12 s and skipped. Run once with the ALL CHEATED save and once fresh.
-# Same walk as menu_walk.txt up to MOVIES (Options: the fifth entry). Times count from the first pad report.
+# Same walk as menu_walk.txt up to MOVIES (Options: the fourth entry since 2026-11-05). Times count from the first pad report.
 #   THPS2X.exe --max-seconds 108 --input-script movies_cinematics.txt
 0:p2-connect
 3000:start:200
@@ -22,11 +22,10 @@
 31000:a:300
 37000:shot=c02_options
 
-# MOVIES: four downs, A
+# MOVIES: three downs, A (the fourth OPTIONS line since 2026-11-05: SOUNDTRACKS moved into GENERAL OPTIONS)
 38000:down:300
 39500:down:300
 41000:down:300
-42500:down:300
 44000:a:300
 50000:shot=c03_movies
 

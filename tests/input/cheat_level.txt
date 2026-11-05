@@ -23,7 +23,7 @@
 25000:down:300
 26000:down:300
 28000:a:300
-# OPTIONS: RECOMP OPTIONS is the 11th line
+# OPTIONS: RECOMP OPTIONS is the 10th line (SOUNDTRACKS moved into GENERAL OPTIONS, 2026-11-05)
 33000:down:300
 34000:down:300
 35000:down:300
@@ -33,7 +33,6 @@
 39000:down:300
 40000:down:300
 41000:down:300
-42000:down:300
 43000:a:300
 # RECOMP OPTIONS at 4:3: BUTTON CHEATS is the 8th line; opening it enters the test cheats
 48000:down:300

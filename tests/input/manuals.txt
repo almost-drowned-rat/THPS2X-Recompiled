@@ -1,0 +1,54 @@
+# manuals.txt - MANUALS ON / OFF (maintainer, 2026-11-05; GENERAL OPTIONS -> GAMEPLAY): Free Skate -> first skater
+# -> first level, push off, then up,down (manual) and down,up (nose manual) on the D-pad while rolling, twice each,
+# shots right after. Run with THPS_MANUAL_TRACE=1: MANUALS ON (default) logs "[MANUAL] 1,2 ... -> 1" / "2,1 ... -> 1"
+# and the shots show MANUAL / NOSE MANUAL; with THPS_MANUALS=off every such check logs "-> 0 (MANUALS OFF)" and no
+# manual appears. A grind try (Y) at the end stays as before.
+# MANUALS OFF (maintainer 2026-11-05): no manual at all - none from the ground, none out of the air - so no manual
+# points either; the score at the shots stays without a MANUAL line.
+#   THPS2X.exe --max-seconds 120 --save-dir <temp> --data-dir <temp> --input-script tests\input\manuals.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# Free Skate is the third entry
+21000:down:300
+23000:down:300
+26000:a:300
+35000:a:300
+44000:a:300
+
+# loading, the FREE SKATE rules screen (A), then the level
+70000:shot=01_rules
+71000:a:300
+84000:shot=02_level
+# push off, then the pairs while rolling
+86000:lup:2500
+89000:up:100
+89150:down:100
+89700:shot=03_manual1
+91500:down:100
+91650:up:100
+92200:shot=04_nose_manual1
+94000:lup:2000
+96500:up:100
+96650:down:100
+97200:shot=05_manual2
+99000:down:100
+99150:up:100
+99700:shot=06_nose_manual2
+# a grind try: forward + Y
+101000:lup:2000
+103000:y:300
+104000:shot=07_grind_try
+# a manual out of the air: ollie (A held, released), up,down before landing, shots during and after the landing
+106000:lup:2000
+108000:a:400
+108500:up:100
+108650:down:100
+109300:shot=08_air_manual_landing
+110300:shot=09_after_landing

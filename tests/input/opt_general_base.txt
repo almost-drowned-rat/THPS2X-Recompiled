@@ -1,4 +1,5 @@
 # general options effect (base): Options -> General Options, then Free Skate in Hangar
+# (2026-11-05: GENERAL OPTIONS is the 9th OPTIONS line, 8 downs - SOUNDTRACKS moved into GENERAL OPTIONS)
 0:p2-connect
 3000:start:200
 6000:start:200
@@ -21,7 +22,6 @@
 46500:down:300
 48000:down:300
 49500:down:300
-51000:down:300
 53000:a:300
 59000:shot=g02_general_before
 68000:shot=g03_general_after

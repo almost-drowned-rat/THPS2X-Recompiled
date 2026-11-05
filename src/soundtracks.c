@@ -26,16 +26,24 @@
  * TONY HAWK); 0x001A98B0 starts the next song: 0x001B4220 opens a level song
  * as "D:\songs\<name>", 0x001B4340 a custom song by its handle. At a song's
  * end the stream service (0x001AEDC0) gets a short packet and calls Flush:
- * the song loops, the next track comes on Retry --
- * the original behaviour (maintainer, 2026-10-17), kept for "play songs in
- * order". Every other mode follows a playlist (src/media/media_playlist.h)
- * through one host media object, so the stream never sees a song end; game
- * tracks inside a playlist are the game's own WMA decoder, driven from here.
- * Music in the menus (0x00240F78 table) and ambience stay the game's own.
+ * on the console the song loops and the next track comes on Retry or the
+ * next level.
  *
- * Settings (saves\settings.ini): soundtrack_album = game | combined | <album
- * path below media\>; soundtrack_mode = one of s_mode_key. A choice made in
- * the pause menu's own picker is saved too. RECOMP_SOUNDTRACK_HLE=0: off.
+ * Since 2026-11-05 (maintainer) there are two choices only: the SOURCE
+ * (GAME MUSIC, ALL CUSTOM SOUNDTRACKS, COMBINED = game music + every album,
+ * or one album) and the PLAYBACK MODE (PLAY IN ORDER or SHUFFLE). Every
+ * combination follows a playlist (src/media/media_playlist.h) through one
+ * host media object, so the stream never sees a song end: at a song's end the
+ * next one plays (no in-level loop any more), and a new stream (level
+ * select, Retry) goes on with the song after the last one played, as the
+ * console's own music goes on to its next track -- never back to the first.
+ * Game tracks inside a playlist are the game's own WMA decoder, driven from
+ * here. Music in the menus (0x00240F78 table) and ambience stay the game's own.
+ *
+ * Settings (saves\settings.ini): soundtrack_album = game | custom | combined |
+ * <album path below media\>; soundtrack_mode = order | shuffle (the older
+ * eight mode keys are read and mapped). A choice made in the pause menu's own
+ * picker is saved too. RECOMP_SOUNDTRACK_HLE=0: off.
  */
 
 #include <stdio.h>
@@ -77,79 +85,112 @@ void xbox_HeapFree(uint32_t xbox_va);
 #define WMA_VTABLE   0x0021EAE4u
 #define MAX_SONGS    128                    /* the game's soundtrack screen: 0x80 songs per soundtrack */
 
-static const char *const s_mode_key[MEDIA_MODE_COUNT] = {
-    "game_order", "album_order", "game_shuffle", "album_shuffle",
-    "custom_shuffle", "all_shuffle", "all_order", "custom_order",
-};
+#define SEL_CUSTOM   (-3)                   /* the source: every custom album (MEDIA_SEL_* are -1 / -2) */
+#define CHOICE_FIRST_ALBUM 3                /* menu choices: GAME MUSIC, ALL CUSTOM, COMBINED, the albums */
 
 static int s_on;
-static int s_sel = MEDIA_SEL_GAME;          /* MEDIA_SEL_* or an album index */
-static MediaPlayMode s_mode = MEDIA_GAME_ORDER;
+static int s_sel = MEDIA_SEL_GAME;          /* MEDIA_SEL_*, SEL_CUSTOM or an album index */
+static int s_shuffle;                       /* PLAYBACK MODE: 0 PLAY IN ORDER, 1 SHUFFLE */
 static int s_req_game = -1;                 /* the level song 0x001B4220 is opening */
 static int s_pending = 1;                   /* the saved choice still has to go into the game */
 static int s_user_pick;                     /* the request comes from the pause menu's sound options */
 static uint32_t s_seed;
+static MediaSong s_last;                    /* the song played last (any stream), for "go on with the next" */
+static int s_have_last;
+
+/* source x mode -> the toolkit's playlist mode (its choice argument is s_sel) */
+static MediaPlayMode play_mode(void)
+{
+    if (s_sel == SEL_CUSTOM)
+        return s_shuffle ? MEDIA_CUSTOM_SHUFFLE : MEDIA_CUSTOM_ORDER;
+    if (s_sel == MEDIA_SEL_COMBINED)
+        return s_shuffle ? MEDIA_ALL_SHUFFLE : MEDIA_ALL_ORDER;
+    if (s_sel == MEDIA_SEL_GAME)
+        return s_shuffle ? MEDIA_GAME_SHUFFLE : MEDIA_ALBUM_ORDER;
+    return s_shuffle ? MEDIA_ALBUM_SHUFFLE : MEDIA_ALBUM_ORDER;
+}
 
 /* ── settings ─────────────────────────────────────────────────────────── */
 
 static void save_sel(void)
 {
     const MediaLibrary *lib = xdk_soundtrack_library();
-    settings_set("soundtrack_album", s_sel == MEDIA_SEL_COMBINED ? "combined"
+    settings_set("soundtrack_album", s_sel == MEDIA_SEL_COMBINED ? "combined" : s_sel == SEL_CUSTOM ? "custom"
                                      : s_sel >= 0 ? lib->albums[s_sel].rel : "game");
 }
 
 static void load_settings(void)
 {
+    /* the eight mode keys before 2026-11-05: order or shuffle, and the
+     * source some of them carried (custom / all) */
+    static const struct { const char *key; int shuffle, sel; } old[] = {
+        { "game_order", 0, 0 }, { "album_order", 0, 0 }, { "game_shuffle", 1, MEDIA_SEL_GAME },
+        { "album_shuffle", 1, 0 }, { "custom_shuffle", 1, SEL_CUSTOM }, { "all_shuffle", 1, MEDIA_SEL_COMBINED },
+        { "all_order", 0, MEDIA_SEL_COMBINED }, { "custom_order", 0, SEL_CUSTOM },
+    };
     const MediaLibrary *lib = xdk_soundtrack_library();
-    const char *a = settings_get("soundtrack_album", "game"), *m = settings_get("soundtrack_mode", "game_order");
-    int i;
+    const char *a = settings_get("soundtrack_album", "game"), *m = settings_get("soundtrack_mode", "order");
+    size_t i;
     if (!strcmp(a, "game"))
         s_sel = MEDIA_SEL_GAME;
+    else if (!strcmp(a, "custom"))
+        s_sel = SEL_CUSTOM;
     else if (!strcmp(a, "combined"))
         s_sel = MEDIA_SEL_COMBINED;
     else if ((s_sel = media_find_album(lib, a)) < 0) {
         fprintf(stderr, "[MUSIC] soundtrack \"%s\" not found in media\\ -- game music\n", a);
         s_sel = MEDIA_SEL_GAME;
     }
-    s_mode = MEDIA_GAME_ORDER;
-    for (i = 0; i < MEDIA_MODE_COUNT; i++)
-        if (!strcmp(m, s_mode_key[i]) || (m[0] == '0' + i && !m[1]))
-            s_mode = (MediaPlayMode)i;
+    s_shuffle = !strcmp(m, "shuffle");
+    for (i = 0; i < sizeof old / sizeof old[0]; i++)
+        if (!strcmp(m, old[i].key)) {
+            s_shuffle = old[i].shuffle;
+            if (old[i].sel)
+                s_sel = old[i].sel;
+            save_sel();
+            settings_set("soundtrack_mode", s_shuffle ? "shuffle" : "order");
+            fprintf(stderr, "[MUSIC] old soundtrack_mode \"%s\" converted\n", old[i].key);
+            break;
+        }
     fprintf(stderr, "[MUSIC] soundtrack: %s, mode: %s\n",
-            s_sel == MEDIA_SEL_COMBINED ? "combined" : s_sel >= 0 ? lib->albums[s_sel].name : "game music",
-            media_mode_name(s_mode));
+            s_sel == MEDIA_SEL_COMBINED ? "combined" : s_sel == SEL_CUSTOM ? "all custom"
+            : s_sel >= 0 ? lib->albums[s_sel].name : "game music", s_shuffle ? "shuffle" : "in order");
 }
 
-/* Options -> SOUNDTRACKS (recomp_manual.c): choice 0 game music, 1 COMBINED,
- * 2 + k album k. */
-int thps_st_choices(void) { return 2 + xdk_soundtrack_library()->nalbums; }
-int thps_st_choice(void) { return s_sel == MEDIA_SEL_GAME ? 0 : s_sel == MEDIA_SEL_COMBINED ? 1 : 2 + s_sel; }
-int thps_st_mode(void) { return (int)s_mode; }
+/* GENERAL OPTIONS -> SOUNDTRACKS (recomp_manual.c): choice 0 game music,
+ * 1 ALL CUSTOM SOUNDTRACKS, 2 COMBINED, 3 + k album k. */
+int thps_st_choices(void) { return CHOICE_FIRST_ALBUM + xdk_soundtrack_library()->nalbums; }
+int thps_st_choice(void)
+{
+    return s_sel == MEDIA_SEL_GAME ? 0 : s_sel == SEL_CUSTOM ? 1 : s_sel == MEDIA_SEL_COMBINED ? 2
+         : CHOICE_FIRST_ALBUM + s_sel;
+}
+int thps_st_mode(void) { return s_shuffle; }
 
 void thps_st_set_choice(int c)
 {
     if (c < 0 || c >= thps_st_choices())
         return;
-    s_sel = c == 0 ? MEDIA_SEL_GAME : c == 1 ? MEDIA_SEL_COMBINED : c - 2;
+    s_sel = c == 0 ? MEDIA_SEL_GAME : c == 1 ? SEL_CUSTOM : c == 2 ? MEDIA_SEL_COMBINED : c - CHOICE_FIRST_ALBUM;
     save_sel();
     s_pending = 1;                          /* into the game's own state at the next song */
 }
 
 void thps_st_set_mode(int m)
 {
-    if (m < 0 || m >= MEDIA_MODE_COUNT)
+    if (m < 0 || m > 1)
         return;
-    s_mode = (MediaPlayMode)m;
-    settings_set("soundtrack_mode", s_mode_key[m]);
+    s_shuffle = m;
+    settings_set("soundtrack_mode", m ? "shuffle" : "order");
 }
 
 /* The menu text: upper case, only what the game's font draws (letters,
  * digits, space, dot, colon -- no hyphen), at most n - 1 characters. */
 void thps_st_choice_text(int c, char *out, size_t n)
 {
-    const char *s = c == 0 ? "GAME MUSIC" : c == 1 ? "COMBINED"
-                  : c - 2 < xdk_soundtrack_library()->nalbums ? xdk_soundtrack_library()->albums[c - 2].name : "?";
+    const char *s = c == 0 ? "GAME MUSIC" : c == 1 ? "ALL CUSTOM SOUNDTRACKS" : c == 2 ? "COMBINED"
+                  : c - CHOICE_FIRST_ALBUM < xdk_soundtrack_library()->nalbums
+                  ? xdk_soundtrack_library()->albums[c - CHOICE_FIRST_ALBUM].name : "?";
     size_t k = 0;
     for (; *s && k + 1 < n; s++) {
         unsigned char ch = (unsigned char)*s;
@@ -386,8 +427,8 @@ void sub_00097160(void)
 }
 
 /* 0x001A9CE0 from the pause menu: the player's own pick, saved (only a
- * change -- with COMBINED the game shows TONY HAWK, and keeping that is no
- * choice). */
+ * change -- with COMBINED or ALL CUSTOM the game shows TONY HAWK, and keeping
+ * that is no choice). */
 void sub_001A9CE0(void)
 {
     uint32_t before = GUEST32(ST_CHOSEN);
@@ -395,7 +436,7 @@ void sub_001A9CE0(void)
     if (on() && GUEST32(ST_CHOSEN) != before) {
         uint32_t k = GUEST32(ST_CHOSEN);
         fprintf(stderr, "[MUSIC] pause-menu soundtrack %u: saved\n", k);
-        thps_st_set_choice(k ? (int)k + 1 : 0);
+        thps_st_set_choice(k ? (int)k - 1 + CHOICE_FIRST_ALBUM : 0);
         s_pending = 0;
     }
 }
@@ -433,16 +474,30 @@ void sub_001B4220(void)
     s_req_game = saved;
 }
 
-/* WmaCreateDecoderEx: a custom song's handle, or a level song in a mode with
- * a playlist, gets a host media object; anything else the game's decoder. */
+/* The song playing now (the newest host stream), kept for the next stream. */
+static void remember_current(void)
+{
+    MediaSong cur;
+    int pl = 0;
+    if (xdk_music_current(&cur, &pl) && pl) {
+        s_last = cur;
+        s_have_last = 1;
+    }
+}
+
+/* WmaCreateDecoderEx: a custom song's handle or a level song (every source
+ * and mode has a playlist since 2026-11-05) gets a host media object; the
+ * playlist's inner game tracks the game's own decoder. */
 void sub_00067740(void)
 {
     MediaSong req;
     int custom = 0, game = 0;
     uint32_t pwfx = ARG(6), pp = ARG(7), obj = 0;
+    MediaPlaylist pl;
+    const MediaSong *c;
     if (on()) {
         custom = xdk_soundtrack_song_of_handle(ARG(1), &req);
-        if (!custom && s_req_game >= 0 && s_mode != MEDIA_GAME_ORDER) {
+        if (!custom && s_req_game >= 0) {
             req.album = -1;
             req.track = s_req_game;
             game = 1;
@@ -453,20 +508,38 @@ void sub_00067740(void)
         sub_00067740_gen();
         return;
     }
-    if (s_mode == MEDIA_GAME_ORDER) {
-        obj = xdk_music_create(req, NULL, pwfx);    /* one song; the game loops it */
+    remember_current();                         /* a stream still open: its song is the last one */
+    if (!s_seed)
+        s_seed = (uint32_t)time(NULL) ^ (uint32_t)clock() ^ 0x2545F491u;
+    media_playlist_build(&pl, xdk_soundtrack_library(), game_songs(), play_mode(), s_sel, s_seed++);
+    if (s_user_pick) {
+        c = media_playlist_seek(&pl, req);      /* the pause menu's pick plays */
+    } else if (s_have_last && !pl.shuffle) {
+        /* PLAY IN ORDER (maintainer, 2026-11-05): a new stream (level select,
+         * Retry) goes on with the song after the last one played, as the
+         * console's music does -- never back to the first; a song that is not
+         * in this list (the source changed) starts the list */
+        int found = 0, i;
+        for (i = 0; i < pl.n; i++)
+            if (pl.items[i].album == s_last.album && pl.items[i].track == s_last.track)
+                found = 1;
+        if (found) {
+            media_playlist_seek(&pl, s_last);
+            c = media_playlist_next(&pl);
+        } else {
+            c = media_playlist_current(&pl);
+        }
+    } else if (pl.shuffle) {
+        c = media_playlist_current(&pl);        /* a fresh shuffled pass: its first song */
     } else {
-        MediaPlaylist pl;
-        const MediaSong *c;
-        if (!s_seed)
-            s_seed = (uint32_t)time(NULL) ^ (uint32_t)clock() ^ 0x2545F491u;
-        media_playlist_build(&pl, xdk_soundtrack_library(), game_songs(), s_mode, s_sel, s_seed++);
-        /* order modes start at the song the game asks for (its own next
-         * song); shuffle modes at a random one unless the player picked it */
-        c = pl.shuffle && !s_user_pick ? media_playlist_current(&pl) : media_playlist_seek(&pl, req);
-        if (c && (c->album != req.album || c->track != req.track))
-            req = *c;
-        obj = xdk_music_create(req, &pl, pwfx);
+        c = media_playlist_seek(&pl, req);      /* the session's first stream: the game's own pick */
+    }
+    if (c && (c->album != req.album || c->track != req.track))
+        req = *c;
+    obj = xdk_music_create(req, &pl, pwfx);
+    if (obj) {
+        s_last = req;
+        s_have_last = 1;
     }
     if (pp)
         GUEST32(pp) = obj;
@@ -497,29 +570,47 @@ void sub_00067740(void)
 #define SND_MENU    0x00306914u
 #define UI_STATE    0x003068D4u
 #define ST_LINE     0x002F97ECu                     /* "SOUNDTRACK: <name>", 28 bytes */
+#define TRACK_LINE  0x002F97D0u                     /* "SELECT TRACK: <n>", 28 bytes (sub_001DBF50) */
 #define PAD_A(k)    (0x00305369u + (uint32_t)(k) * 0x18Cu)
 
 static uint32_t s_next_text;                       /* guest "NEXT SONG" */
+static uint32_t s_mode_text;                       /* guest "PLAYBACK MODE: IN ORDER" / ": SHUFFLE" (32 bytes) */
 
-static void ensure_next_line(uint32_t menu)
+static void mode_text(void)
 {
-    uint32_t n, i, last, ours;
-    if (!s_next_text) {
-        if (!(s_next_text = xbox_HeapAlloc(16, 4)))
-            return;
-        memcpy(GPTR(s_next_text), "NEXT SONG", 10);
-    }
-    n = *GPTR(menu + 9);
-    if (n < 2 || n >= 14)
-        return;
-    for (i = 0; i < n; i++)
-        if (GUEST32(menu + 0x18u + i * 0x18u) == s_next_text)
-            return;
-    last = menu + 0x18u + (n - 1) * 0x18u;          /* BACK */
-    ours = last;
-    memmove(GPTR(last + 0x18u), GPTR(last), 0x18);  /* BACK one line down */
-    GUEST32(ours) = s_next_text;                    /* the rest of BACK's line as the template */
-    *GPTR(menu + 9) = (uint8_t)(n + 1);
+    if (s_mode_text)
+        snprintf((char *)GPTR(s_mode_text), 32, "PLAYBACK MODE: %s", s_shuffle ? "SHUFFLE" : "IN ORDER");
+}
+
+/* SOUND OPTIONS in the maintainer's order (2026-11-05): SOUNDTRACK, PLAYBACK
+ * MODE, SFX LEVEL, MUSIC LEVEL, SELECT TRACK, NEXT TRACK, BACK (no blank line:
+ * maintainer, same day). The game builds SFX LEVEL, MUSIC LEVEL, SELECT
+ * TRACK, SOUNDTRACK, BACK; its UI tells the lines apart by their text, so the
+ * line records (0x18 bytes) can be put in any order; ours take BACK's record
+ * as the template. Once per build: only the game's five lines are reordered. */
+static void sound_menu_order(uint32_t menu)
+{
+    uint8_t rec[7][0x18];
+    uint32_t n = *GPTR(menu + 9), i;
+    if (!s_next_text || !s_mode_text || n != 5)
+        return;                                     /* not the game's five lines (or ours already) */
+    if (GUEST32(menu + 0x18u + 2u * 0x18u) != TRACK_LINE || GUEST32(menu + 0x18u + 3u * 0x18u) != ST_LINE)
+        return;                                     /* another layout than the one checked: left as it is */
+#define REC(k) GPTR(menu + 0x18u + (uint32_t)(k) * 0x18u)
+    memcpy(rec[0], REC(3), 0x18);                   /* SOUNDTRACK */
+    memcpy(rec[1], REC(4), 0x18);                   /* PLAYBACK MODE (BACK's record) */
+    memcpy(rec[2], REC(0), 0x18);                   /* SFX LEVEL */
+    memcpy(rec[3], REC(1), 0x18);                   /* MUSIC LEVEL */
+    memcpy(rec[4], REC(2), 0x18);                   /* SELECT TRACK */
+    memcpy(rec[5], REC(4), 0x18);                   /* NEXT TRACK */
+    memcpy(rec[6], REC(4), 0x18);                   /* BACK */
+    memcpy(rec[1], &s_mode_text, 4);
+    memcpy(rec[5], &s_next_text, 4);
+    for (i = 0; i < 7; i++)
+        memcpy(REC(i), rec[i], 0x18);
+#undef REC
+    *GPTR(menu + 9) = 7;
+    *GPTR(menu + 6) = 0;                            /* the cursor on SOUNDTRACK */
 }
 
 extern void sub_000FF600_gen(void);
@@ -527,47 +618,64 @@ void pause_quit_line(uint32_t menu);               /* recomp_manual.c: QUIT GAME
 void sub_000FF600(void)
 {
     pause_quit_line(g_ecx);
-    if (on() && g_ecx && g_ecx == GUEST32(SND_MENU))
-        ensure_next_line(g_ecx);
+    if (on() && g_ecx && g_ecx == GUEST32(SND_MENU)) {
+        if (!s_next_text && (s_next_text = xbox_HeapAlloc(16, 4)) != 0)
+            memcpy(GPTR(s_next_text), "NEXT TRACK", 11);
+        if (!s_mode_text)
+            s_mode_text = xbox_HeapAlloc(32, 4);
+        mode_text();
+        sound_menu_order(g_ecx);
+    }
     sub_000FF600_gen();
 }
 
 static uint32_t s_name_buf;
 
-/* 0x001A9C50 (ecx = soundtrack): the name for the SOUNDTRACK line. */
+/* 0x001A9C50 (ecx = soundtrack; returns eax = the name, plain ret): the name
+ * for the SOUNDTRACK line. Since 2026-11-05 (maintainer) always the source
+ * chosen in GENERAL OPTIONS -> SOUNDTRACKS, upper case: the album's own
+ * spelling ("Nu Med") came out in the font's small lower-case letters, a
+ * smaller line than the others; and the line is the source picker now. */
 extern void sub_001A9C50_gen(void);
 void sub_001A9C50(void)
 {
-    MediaSong cur;
-    int pl = 0;
-    if (on() && xdk_music_current(&cur, &pl) && pl) {
-        uint32_t k = cur.album >= 0 && (uint32_t)cur.album + 1u <= GUEST32(ST_COUNT) ? (uint32_t)cur.album + 1u : 0u;
-        g_ecx = k;                                  /* the playing album, as the game spells it */
+    if (on()) {
+        if (!s_name_buf)
+            s_name_buf = xbox_HeapAlloc(64, 4);
+        if (s_name_buf) {
+            thps_st_choice_text(thps_st_choice(), (char *)GPTR(s_name_buf), 64);
+            g_eax = s_name_buf;
+            g_esp += 4;                             /* ret */
+            return;
+        }
     }
     sub_001A9C50_gen();
 }
 
-/* The SOUNDTRACK line again after a song change (the game prints it when the
- * screen opens): "SOUNDTRACK: <name>", a name over 10 characters cut to 10
- * plus "..", as 0x00101790 does. */
+/* The SOUNDTRACK line (the game prints it when the screen opens; rewritten
+ * every frame while SOUND OPTIONS is open): since 2026-11-05 (maintainer) the
+ * full source choice of GENERAL OPTIONS -> SOUNDTRACKS -- "SOUNDTRACK: <name>",
+ * a name over 10 characters cut to 10 plus "..", as 0x00101790 does. */
 static void refresh_st_line(void)
 {
-    char line[28], name[16];
-    uint32_t eax = g_eax, ecx = g_ecx, n;
+    char line[28], name[64];
     const char *label = (const char *)GPTR(GUEST32(0x00289A70u));
-    g_ecx = GUEST32(ST_CHOSEN);
-    g_esp -= 4;
-    GUEST32(g_esp) = 0;
-    sub_001A9C50();
-    n = (uint32_t)strnlen((const char *)GPTR(g_eax), 64);
-    if (n > 10)
-        snprintf(name, sizeof name, "%.10s..", (const char *)GPTR(g_eax));
-    else
-        snprintf(name, sizeof name, "%s", (const char *)GPTR(g_eax));
-    snprintf(line, sizeof line, "%s: %s", label, name);
+    thps_st_choice_text(thps_st_choice(), name, sizeof name);
+    if (strlen(name) > 10) {
+        name[10] = '.';
+        name[11] = '.';
+        name[12] = 0;
+    }
+    snprintf(line, sizeof line, "%.12s: %s", label, name);
     memcpy(GPTR(ST_LINE), line, strlen(line) + 1);
-    g_eax = eax;
-    g_ecx = ecx;
+}
+
+/* the music again from the next song in the source / mode just picked: the
+ * game's next track (0x001A98B0(1), as Retry), which takes the choice first */
+static void restart_music(void)
+{
+    uint32_t one = 1;
+    guest_call(0x001A98B0u, sub_001A98B0, 1, &one);
 }
 
 /* 0x00101790 prints the in-game menu texts every frame and formats the
@@ -576,7 +684,6 @@ static void refresh_st_line(void)
  * sprintf. While a playlist plays, SELECT TRACK shows the song's number in
  * the album that is playing (a game track: its number in the game's list),
  * like the SOUNDTRACK line names that album. */
-#define TRACK_LINE  0x002F97D0u                     /* "SELECT TRACK: <n>", 28 bytes */
 extern void sub_001DBF50_gen(void);
 void sub_001DBF50(void)
 {
@@ -625,8 +732,44 @@ static void select_track_step(void)
     fprintf(stderr, "[MUSIC] SELECT TRACK %d\n", cur.track + 1);
 }
 
-/* A on NEXT SONG while SOUND OPTIONS is open (before the game's frame UI
- * reads the pads; it ignores A on a line it does not know). */
+/* the pads' left / right latches this frame: -1, +1 or 0; cleared, so the
+ * game's own step does not run */
+static int take_lr(void)
+{
+    int dir = 0;
+    uint32_t k;
+    for (k = 0; k < 4; k++) {
+        if (*GPTR(PAD_LEFT(k)))
+            dir = -1;
+        if (*GPTR(PAD_RIGHT(k)))
+            dir = 1;
+    }
+    if (dir)
+        for (k = 0; k < 4; k++)
+            *GPTR(PAD_LEFT(k)) = *GPTR(PAD_RIGHT(k)) = 0;
+    return dir;
+}
+
+static int take_a(void)
+{
+    uint32_t k, a = 0;
+    for (k = 0; k < 4; k++)
+        a |= *GPTR(PAD_A(k));
+    if (a)
+        for (k = 0; k < 4; k++)
+            *GPTR(PAD_A(k)) = 0;
+    return a != 0;
+}
+
+/* The pause menu's SOUND OPTIONS while open (before the game's frame UI
+ * reads the pads; it ignores A on a line it does not know):
+ * - NEXT SONG: A = the playlist's next song;
+ * - SOUNDTRACK (maintainer, 2026-11-05): left / right step through the full
+ *   source list of GENERAL OPTIONS -> SOUNDTRACKS (GAME MUSIC, ALL CUSTOM
+ *   SOUNDTRACKS, COMBINED, each album) instead of the game's own list (TONY
+ *   HAWK + the albums); saved, the music goes on in the new source at once;
+ * - PLAYBACK MODE (maintainer, 2026-11-05; under NEXT SONG): left / right or
+ *   A switch IN ORDER / SHUFFLE; saved, the music goes on at once. */
 extern void sub_00104210_gen(void);
 void classic_frame(void);                         /* recomp_manual.c: classic career screens */
 void sub_00104210(void)
@@ -634,23 +777,27 @@ void sub_00104210(void)
     uint32_t menu = GUEST32(SND_MENU);
     classic_frame();
     if (on() && menu && s_next_text && GUEST32(UI_STATE) == 0x2Fu) {
-        uint32_t sel = *GPTR(menu + 6), k, a = 0;
-        if (GUEST32(menu + 0x18u + sel * 0x18u) == TRACK_LINE)
+        uint32_t sel = *GPTR(menu + 6), text = GUEST32(menu + 0x18u + sel * 0x18u);
+        int dir;
+        if (text == TRACK_LINE)
             select_track_step();
-        if (GUEST32(menu + 0x18u + sel * 0x18u) == s_next_text) {
-            for (k = 0; k < 4; k++)
-                a |= *GPTR(PAD_A(k));
-            if (a) {
-                for (k = 0; k < 4; k++)
-                    *GPTR(PAD_A(k)) = 0;
-                if (!xdk_music_skip()) {
-                    uint32_t one = 1;               /* the original mode: the game's next track */
-                    guest_call(0x001A98B0u, sub_001A98B0, 1, &one);
-                }
-                fprintf(stderr, "[MUSIC] NEXT SONG\n");
-                refresh_st_line();
-            }
+        if (text == s_next_text && take_a()) {
+            xdk_music_skip();
+            fprintf(stderr, "[MUSIC] NEXT TRACK\n");
         }
+        if (text == ST_LINE && (dir = take_lr()) != 0) {
+            int n = thps_st_choices();
+            thps_st_set_choice((thps_st_choice() + dir + n) % n);
+            fprintf(stderr, "[MUSIC] pause SOUNDTRACK -> choice %d\n", thps_st_choice());
+            restart_music();
+        }
+        if (text == s_mode_text && s_mode_text && ((dir = take_lr()) != 0 || take_a())) {
+            thps_st_set_mode(!s_shuffle);
+            mode_text();
+            fprintf(stderr, "[MUSIC] pause PLAYBACK MODE -> %s\n", s_shuffle ? "shuffle" : "in order");
+            restart_music();
+        }
+        refresh_st_line();
     }
     sub_00104210_gen();
 }
@@ -662,7 +809,18 @@ void sub_00104210(void)
     void sub_##addr(void) { if (xdk_music_owns(ARG(0))) fn(); else sub_##addr##_gen(); }
 
 BIND(00067900, xdk_music_AddRef)
-BIND(00067940, xdk_music_Release)
+/* Release: the song that played to the end of the stream (a playlist moves on
+ * inside the object) is the one PLAY IN ORDER goes on from */
+extern void sub_00067940_gen(void);
+void sub_00067940(void)
+{
+    if (xdk_music_owns(ARG(0))) {
+        remember_current();
+        xdk_music_Release();
+    } else {
+        sub_00067940_gen();
+    }
+}
 BIND(000688B0, xdk_music_GetInfo)
 BIND(000688F0, xdk_music_GetStatus)
 BIND(000682A0, xdk_music_Process)

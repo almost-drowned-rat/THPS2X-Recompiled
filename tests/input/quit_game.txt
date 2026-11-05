@@ -1,4 +1,4 @@
-# quit_game.txt - QUIT GAME (GitHub issue #5, maintainer 2026-10-31): OPTIONS, the 12th and last line QUIT GAME.
+# quit_game.txt - QUIT GAME (GitHub issue #5, maintainer 2026-10-31): OPTIONS, the last line QUIT GAME (11th since 2026-11-05).
 # A opens the question on NO: A there = back to OPTIONS on QUIT GAME; A on QUIT GAME again, up to YES, A = the
 # process ends (log "options: QUIT GAME - YES, exiting", exit code 0, well before --max-seconds).
 #   THPS2X.exe --max-seconds 90 --save-dir <temp> --data-dir <temp> --input-script tests\input\quit_game.txt

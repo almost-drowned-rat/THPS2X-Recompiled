@@ -43,11 +43,7 @@
 85000:shot=o03_sound_levels
 86000:b:300
 89000:shot=o03_back
-90000:down:300
-91500:a:300
-97500:shot=o04_soundtracks
-98500:b:300
-101500:shot=o04_back
+# (o04 SOUNDTRACKS gone: moved into GENERAL OPTIONS, 2026-11-05; the next down is MOVIES)
 102500:down:300
 104000:a:300
 110000:shot=o05_movies

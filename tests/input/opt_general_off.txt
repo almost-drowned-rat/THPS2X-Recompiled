@@ -1,5 +1,6 @@
 # general options effect (off): Options -> General Options, SCORE DISPLAY and MOTION BLUR off, then Free Skate in Hangar
-# (General Options opens on CAREER MODE since 2026-10-31: one down to TRICK TIPS first)
+# (General Options opens on CAREER MODE since 2026-10-31; since 2026-11-05 SOUNDTRACKS follows it: two downs to
+# TRICK TIPS first; GENERAL OPTIONS is the 9th OPTIONS line, 8 downs)
 0:p2-connect
 3000:start:200
 6000:start:200
@@ -22,11 +23,11 @@
 46500:down:300
 48000:down:300
 49500:down:300
-51000:down:300
 53000:a:300
 59000:shot=g02_general_before
 59500:down:300
 60500:down:300
+61500:down:300
 62500:right:300
 63500:down:300
 64500:down:300

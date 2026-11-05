@@ -1,5 +1,6 @@
 # general options kept across starts, run 2 of 2 (see opt_general_persist.txt): a new start with the same
 # --save-dir, Options -> General Options: SCORE DISPLAY and MOTION BLUR OFF, TRICK TIPS and QUICK CHAT ON.
+# (2026-11-05: GENERAL OPTIONS is the 9th OPTIONS line, 8 downs - SOUNDTRACKS moved into GENERAL OPTIONS)
 #   THPS2X.exe --max-seconds 70 --save-dir <run 1's> --data-dir <temp> --input-script tests\input\opt_general_check.txt
 0:p2-connect
 3000:start:200
@@ -22,6 +23,5 @@
 46500:down:300
 48000:down:300
 49500:down:300
-51000:down:300
 53000:a:300
 59000:shot=c01_general_new_start

@@ -67,6 +67,7 @@ add_executable(${PROJECT_NAME}
     src/input.c
     src/settings.c
     src/soundtracks.c
+    src/vk_check.c
     src/platform/host_win32.c
     ${RECOMP_GEN_SOURCES}
 )
@@ -161,10 +162,16 @@ endif()
 # The release launcher "THPS 2X Recomp.exe" (docs/release_plan.md): the toolkit's launcher with THPS 2X's names and
 # icon - no game code. Built into the build folder (not the layout); tools/release.ps1 appends the payload to it.
 if(TARGET xbox_launcher)
-    add_executable(thps2x_launcher launcher/main.c)
+    # setup_win32.c: the setup window in the NG2 launcher's look (maintainer 2026-11-05, taken over from Panzer
+    # Dragoon Orta Recompiled) and the toolkit's progress UI (game_setup_ui.h) in the same look - its six functions
+    # replace game_setup_ui.c's at link time. src/vk_check.c: the Vulkan 1.3 check with the apology box (THPS2X.exe
+    # uses the same file). The setup window is Windows-only, as the release.
+    add_executable(thps2x_launcher launcher/main.c launcher/setup_win32.c src/vk_check.c)
+    target_include_directories(thps2x_launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     if(WIN32)
         target_sources(thps2x_launcher PRIVATE assets/thps2x.rc)
         set_target_properties(thps2x_launcher PROPERTIES WIN32_EXECUTABLE ON)
+        target_link_libraries(thps2x_launcher PRIVATE comdlg32 shell32 ole32 gdi32 user32)
     endif()
     set_target_properties(thps2x_launcher PROPERTIES OUTPUT_NAME "THPS 2X Recomp"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/launcher")
