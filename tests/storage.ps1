@@ -108,8 +108,10 @@ Check ((Get-ChildItem (Join-Path $Data "cache\41560001") -File -ErrorAction Sile
 
 Write-Host "5. overwrite the save from Options -> Load/Save, keeping its name (5 times)"
 # The game builds this save screen in "new save" mode (0x0010CB8D); "overwrite" mode only comes from the
-# in-game path (previous menu state 0x16, 0x0010CB45). Keeping the name therefore ends in the game's own
-# "a file named CAREER A already exists" -- the save must stay untouched every time.
+# in-game path (previous menu state 0x16, 0x0010CB45). In the original, keeping the name therefore ended in
+# "a file named CAREER A already exists" (a bug of the game, also on xemu). Since 2026-11-07 (maintainer) the
+# port switches to overwrite mode when the picked existing save keeps its name (hook 0x00110735,
+# thps_save_overwrite_mode): the save is written into the same folder, never a second one.
 # fresh saves\ with one save: step 2 left an unfinished second save folder behind on purpose
 Remove-RunItem $Saves; Remove-RunItem $Data
 New-Item -ItemType Directory -Path $Saves, $Data | Out-Null
@@ -119,9 +121,10 @@ Check ($h4.Count -ge 2 -and (Get-ChildItem $SaveRoot -Directory).Count -eq 1) "o
 for ($i = 1; $i -le 5; $i++) {
     $code = Run "5_overwrite_$i" "save_overwrite.txt" 85 @{ RECOMP_SAVE_TRACE = "1" }
     $log5 = Get-Content (Join-Path $Out "5_overwrite_$i.log") -Raw
-    Check ($code -eq 0 -and $log5 -match 'name-exists "CAREER A" .* -> 1 ret=0x00110759') "run $($i): the game reports the name as taken (exit $code)"
-    Check (SameHashes $h4 (SaveHashes)) "run $($i): the save is byte-identical"
+    Check ($code -eq 0 -and $log5 -match '\[SAVE\] overwrite "CAREER A"') "run $($i): overwrite mode taken for the kept name (exit $code)"
+    Check ($log5 -notmatch 'name-exists "CAREER A" .* -> 1 ret=0x00110759') "run $($i): no 'already exists' check failure"
     Check ((Get-ChildItem $SaveRoot -Directory).Count -eq 1) "run $($i): still exactly one save folder"
+    Check ((SaveHashes).Count -eq $h4.Count) "run $($i): the save still has all its files"
 }
 Remove-Item Env:RECOMP_SAVE_TRACE -ErrorAction SilentlyContinue
 

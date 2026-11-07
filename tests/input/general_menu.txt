@@ -1,12 +1,13 @@
 # general_menu.txt - GENERAL OPTIONS as our list (maintainer, 2026-10-28; replaces the game's screen and
 # gameplay_menu.txt): OPTIONS -> GENERAL OPTIONS (the 9th line since 2026-11-05). Lines (2026-11-05): PRESS Y FOR
 # DEFAULT SETTINGS, a blank (greyed), CAREER MODE, SOUNDTRACKS (sub-menu, opt_soundtracks.txt), TRICK TIPS, SCORE
-# DISPLAY, QUICK CHAT, MOTION BLUR (the game's four, ON by default), PLAYSTYLE, GAMEPLAY (sub-menu: the Y hint, a
+# DISPLAY, QUICK CHAT (the game's own, ON by default; MOTION BLUR moved to RECOMP OPTIONS 2026-11-07,
+# opt_motion_blur.txt), PLAYSTYLE, GAMEPLAY (sub-menu: the Y hint, a
 # blank, 180 SPIN TAPS, BIG DROP, WALL BAIL, MANUALS; it opens on 180 SPIN TAPS); GENERAL OPTIONS opens on CAREER MODE.
-# MOTION BLUR A = OFF; PLAYSTYLE right = PS2; GAMEPLAY: 180 SPIN TAPS right = OFF; BIG DROP right = NO BAIL,
+# PLAYSTYLE right = PS2; GAMEPLAY: 180 SPIN TAPS right = OFF; BIG DROP right = NO BAIL,
 # right = OFF; MANUALS right = OFF, Y = back to ON; up, up: BIG DROP, Y: only it back to ORIGINAL; B: GENERAL OPTIONS
-# on GAMEPLAY; up: PLAYSTYLE, Y: only it back to XBOX; B, then GENERAL OPTIONS again: the values kept (MOTION BLUR OFF
-# in the game's memory, the rest in saves\settings.ini).
+# on GAMEPLAY; up: PLAYSTYLE, Y: only it back to XBOX; B, then GENERAL OPTIONS again: the values kept (in
+# saves\settings.ini).
 # Expected saves\settings.ini afterwards: control_layout=xbox, spin_taps=off, big_drop=original, manuals=on.
 #   THPS2X.exe --max-seconds 105 --save-dir <temp> --data-dir <temp> --input-script tests\input\general_menu.txt
 # Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
@@ -40,16 +41,14 @@
 42000:shot=g01_options_general_line
 43000:a:300
 47000:shot=g02_general_defaults
-# MOTION BLUR (5 downs from CAREER MODE, SOUNDTRACKS between): A = OFF
+# PLAYSTYLE (5 downs from CAREER MODE, SOUNDTRACKS between; MOTION BLUR moved to RECOMP OPTIONS 2026-11-07):
+# right = PS2; down: GAMEPLAY, A
 47400:down:300
 48100:down:300
 48800:down:300
 49500:down:300
 50200:down:300
-51000:a:300
-52500:shot=g03_motion_blur_off
-# PLAYSTYLE: right = PS2; down: GAMEPLAY, A
-53500:down:300
+52500:shot=g03_playstyle_line
 54500:right:300
 55500:down:300
 56500:shot=g04_gameplay_line

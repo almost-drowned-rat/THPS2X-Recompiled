@@ -52,7 +52,7 @@ only that line.
 |---|---|
 | **Career mode** | ORIGINAL or CLASSIC, for new careers (see *Classic career*). A career keeps the mode it started with. |
 | **Soundtracks ▸** | The music source and the playback mode (see *Custom soundtracks*). |
-| **Trick tips, Score display, Quick chat, Motion blur** | The game's own options, ON (default) or OFF. Motion blur is the game's own effect while skating fast. |
+| **Trick tips, Score display, Quick chat** | The game's own options, ON (default) or OFF. (Motion blur moved to RECOMP OPTIONS.) |
 | **Playstyle** | XBOX (original) or PS2: spins on Black / White (on a modern pad the shoulder buttons LB / RB), nollie and switch stay on the triggers. Works on top of your button mapping - if Black / White are not mapped to anything, PS2 has no spins. |
 | **Gameplay ▸** | The gameplay options below, in their own list (Y works there too). |
 
@@ -92,21 +92,29 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 | Setting | Values |
 |---|---|
 | **Display mode** | Borderless (default), Fullscreen (exclusive), Windowed – window size and position are remembered |
-| **Render resolution** | 1x (original 640×480) up to 5x (e.g. 1080p, 1440p, 4K) – independent of the window size |
-| **Aspect ratio** | 4:3 (original) or 16:9 – real widescreen (wider view), not stretched |
-| **Menus at 16:9** | Pillarboxed (default) or stretched – only shown with 16:9; movies always stay 4:3 |
+| **Render resolution** | From the original 640X480 up to about 5 times the lines (e.g. 1920X1080, 2560X1440, 3840X2160) – the sizes of the chosen aspect ratio, independent of the window size |
+| **Aspect ratio** | 4:3 (original), 16:9, 16:10 or 21:9 – real widescreen (wider view), not stretched; after a restart |
+| **Field of view** | ORIGINAL or +5 up to +30 degrees on the game's own camera – at once, every aspect ratio and split screen |
+| **Menus at 16:9 / 16:10 / 21:9** | Pillarboxed (default) or stretched – only shown with a wide aspect ratio; movies always stay 4:3 |
 | **Anisotropic filter** | Off up to 16x |
 | **Antialiasing** | Off, FXAA (default), SMAA, MSAA 2x, MSAA 4x |
+| **Motion blur** | The game's own effect while skating fast, ON (default) or OFF |
 | **Frame rate** | Original (60 fps) or 120 fps (needs a display with 120 Hz or more), Frame pacing, V-Sync, FPS counter (FPS, frame time or both) |
 | **Frame pacing** | DISPLAY (default) or 60 HZ TIMER: on a 120 / 180 / 240 Hz display the game's 60 Hz clock follows the display's own refresh, so every frame stays on screen equally long (no judder). Other displays (60, 144, 165 Hz, VRR) keep the timer either way. Applies after a restart. |
 | **Shaders** | RetroArch slang shaders with preset browser, live parameters and your own presets |
 | **Button cheats** | The game's button cheats as a list of 30 - no typing codes with LT held. Each line says what the cheat does and its code, and shows ON / OFF; A switches it, any combination works, Y switches the selected one off. One-time ones (unlock everything, 5000 cash, all gaps) say DO IT / DONE and cannot be undone. Only in the main menu's Options. |
 | **Boot animation** | Plays your own intro video before the game for example a video of original xbox boot animation ;) |
 
-### Widescreen (16:9)
-- Gameplay is rendered in true 16:9 (Hor+): you see more to the sides, nothing is stretched or cut.
+### Widescreen (16:9, 16:10, 21:9)
+- Gameplay is rendered in the chosen aspect ratio (Hor+): you see more to the sides, nothing is stretched or cut.
+  21:9 matches 2560x1080 screens exactly; on 3440x1440 tiny bars remain.
+- The gameplay HUD keeps its original proportions: SCORE and the SPECIAL bar at the left edge, SWITCH at the right.
 - Menus, loading screens and movies stay 4:3 with black side bars (or optionally stretched for menus).
 - Split screen is handled as well.
+
+### Small comforts
+- The mouse cursor hides itself over the game window and reappears when you move the mouse.
+- The name entry after a high score starts with the initials you entered last time.
 
 ### 120 fps
 - Optional, on displays with at least 120 Hz. On slower displays the game stays at 60 fps.

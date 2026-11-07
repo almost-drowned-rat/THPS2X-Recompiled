@@ -516,12 +516,8 @@ void sub_00018F90(void)
     {
         /* Widescreen: gameplay at 16:9, menus/movies at 4:3 (see thps_widescreen). */
         extern void xbox_SetPresentWide(int wide);
-        static int ws = -1;
-        if (ws < 0) {
-            const char *e = getenv("THPS_WIDESCREEN");
-            ws = e && *e == '1';
-        }
-        if (ws) {
+        extern int thps_widescreen_any(void);     /* 16:9, 16:10 or 21:9 (2026-11-07) */
+        if (thps_widescreen_any()) {
             extern void thps_ws_apply(void);
             extern uint64_t xbox_GuestVblankCount(void);
             extern void nv2a_vk_set_stretch_43(int on);
@@ -531,6 +527,24 @@ void sub_00018F90(void)
              * 2026-10-26): the Bink loop ran within the last half second */
             nv2a_vk_set_stretch_43(s_menus_stretched
                                    && !(s_movie_vbl && xbox_GuestVblankCount() - s_movie_vbl < 30));
+            {
+                /* HUD at the wide aspects (maintainer, 2026-11-07): SCORE,
+                 * SPECIAL, SWITCH and the rest of the 2D are drawn with the
+                 * game's screen-space program (FNV 0x389B6898, found with
+                 * RECOMP_VK_DRAW_LOG; the level's only other user is the
+                 * full-screen blur pass, which the 60 % width rule keeps);
+                 * the toolkit presses each element back to its 4:3 width at
+                 * the left edge, the centre or the right edge.
+                 * THPS_HUD_ANCHOR=0: off (stretched as before). */
+                extern double thps_hud_k(void);
+                extern void nv2a_vk_set_hud_squash(uint32_t program_hash, double k);
+                static int hud = -1;
+                if (hud < 0) {
+                    const char *e = getenv("THPS_HUD_ANCHOR");
+                    hud = !(e && *e == '0');
+                }
+                nv2a_vk_set_hud_squash(0x389B6898u, hud && s_in_level ? thps_hud_k() : 0.0);
+            }
         }
     }
     {
@@ -1554,6 +1568,51 @@ void sub_0019A430(void)
                 name, list, GUEST32(list + 0x15bac), g_eax, ret_va);
 }
 
+/* Save overwrite fix (maintainer, 2026-11-07; config/hooks.toml 0x00110735).
+ * Why: OPTIONS -> MEMORY UNIT -> SAVE GAME, an existing save picked, the
+ * game's "overwrite this save game?" answered YES, the name kept -> "A file
+ * named [%s] already exists. Please select a different name." (original bug,
+ * xemu): the screen runs in mode 1 (new save, name must be free); only the
+ * in-game path sets mode 3 (overwrite the picked entry, sub_0019A410 with
+ * index [screen+0x15E28]).
+ * How: at the mode branch, mode 1 + a picked existing entry (0 <= index <
+ * count [list+0x15BAC], list = screen+0x244) whose name (list+0x12114 +
+ * index*0x1E) equals the typed one ([screen+0x15E2C]) -> mode 3 for this
+ * step. Another name keeps the original: a new save, or the game's message
+ * when that name is taken too.
+ * Verified: tests/storage.ps1 step 5 (save_overwrite.txt): saved, still one
+ * save folder, [SAVE] line in the log. */
+/* the screen: sub_00110560 is thiscall (ebp = ecx at its start); ebp is a
+ * local of the lifted function, so the wrapper keeps ecx for the hook */
+static uint32_t s_save_scr;
+extern void sub_00110560_gen(void);
+void sub_00110560(void)
+{
+    uint32_t was = s_save_scr;
+    s_save_scr = g_ecx;
+    sub_00110560_gen();
+    s_save_scr = was;
+}
+
+void thps_save_overwrite_mode(void)
+{
+    uint32_t scr = s_save_scr, list = scr + 0x244u, cnt, idx, typed;
+    char a[32], b[32];
+    if (g_eax != 1u || !scr)
+        return;
+    cnt = GUEST32(list + 0x15BACu);
+    idx = GUEST32(scr + 0x15E28u);
+    typed = GUEST32(scr + 0x15E2Cu);
+    if ((int32_t)idx < 0 || idx >= cnt || cnt > 1000u || !typed)
+        return;
+    guest_str(list + 0x12114u + idx * 0x1Eu, a, sizeof a);
+    guest_str(typed, b, sizeof b);
+    if (!a[0] || strcmp(a, b) != 0)
+        return;
+    fprintf(stderr, "[SAVE] overwrite \"%s\" (entry %u of %u): new-save mode -> overwrite mode\n", a, idx, cnt);
+    g_eax = 3u;
+}
+
 void sub_0019AB90(void)
 {
     uint32_t idx = g_eax, list = g_ecx, ret_va = GUEST32(g_esp);
@@ -1748,15 +1807,58 @@ void sub_000D5FB0(void)
  * square pixels and presents gameplay at 16:9, menus/movies at 4:3
  * pillarboxed (aspect-ratio rule, CLAUDE.md; toolkit xbox_SetPresentWide).
  * THPS_WIDESCREEN=1 turns it on (main.c sets RECOMP_WIDESCREEN); 4:3 is the
- * default. */
+ * default.
+ * More aspects (maintainer, 2026-11-07): THPS_WIDESCREEN = 1 or 16:9, 16:10,
+ * 21:9 (64:27, as the toolkit's xbox_video_aspect). Everything that was 4/3
+ * (tan word, frustum, 3/4 x scale) is now k = aspect / (4/3): 16:10 1.2,
+ * 16:9 1.333, 21:9 1.778. */
+static int thps_aspect_index(void)                 /* 0 4:3, 1 16:9, 2 16:10, 3 21:9 (the menu's order) */
+{
+    static int a = -1;
+    if (a < 0) {
+        const char *e = getenv("THPS_WIDESCREEN");
+        a = !e || !*e || !strcmp(e, "0") || !strcmp(e, "4:3") ? 0
+          : !strcmp(e, "16:10") ? 2 : !strcmp(e, "21:9") ? 3 : 1;
+    }
+    return a;
+}
+
+static double thps_aspect_of(int a)                /* width / height */
+{
+    static const double r[4] = { 4.0 / 3.0, 16.0 / 9.0, 16.0 / 10.0, 64.0 / 27.0 };
+    return r[a >= 0 && a < 4 ? a : 0];
+}
+
+static double thps_aspect_k(void)                  /* columns over 4:3: 1, 1.333, 1.2, 1.778 */
+{
+    return thps_aspect_of(thps_aspect_index()) * 0.75;
+}
+
 static int thps_widescreen(void)
 {
-    static int on = -1;
-    if (on < 0) {
-        const char *e = getenv("THPS_WIDESCREEN");
-        on = e && *e == '1';
+    return thps_aspect_index() != 0;
+}
+
+int thps_widescreen_any(void) { return thps_widescreen(); }
+double thps_hud_k(void) { return thps_aspect_k(); }
+
+/* FIELD OF VIEW (maintainer, 2026-11-07; GitHub #8 / #9): extra degrees on
+ * the camera's own field of view (the 4:3 horizontal one the tan word holds),
+ * 0 = the game's. RECOMP OPTIONS, at once (settings key fov, THPS_FOV). Read
+ * every 600th camera frame, like the PHYSICS switch. */
+static volatile int s_fov_reload;                 /* set by the menu: read it at the next camera frame */
+
+static int thps_fov_extra(void)
+{
+    static int v = -1;
+    static unsigned calls;
+    if (v < 0 || s_fov_reload || ++calls % 600u == 0) {
+        s_fov_reload = 0;
+        v = atoi(settings_get("fov", "0"));
+        if (v < 0) v = 0;
+        if (v > 30) v = 30;
     }
-    return on;
+    return v;
 }
 
 /* SetScreenSize sub_00193020(512, 240) (once at start, the PS1 heritage):
@@ -1780,7 +1882,7 @@ static void ws_apply_xscale(void)
 {
     if (!thps_widescreen() || !s_xscale_base)
         return;
-    GUEST32(0x0030458Cu) = s_in_level ? s_xscale_base * 3u / 4u : s_xscale_base;
+    GUEST32(0x0030458Cu) = s_in_level ? (uint32_t)(s_xscale_base / thps_aspect_k() + 0.5) : s_xscale_base;
 }
 
 void thps_ws_apply(void) { ws_apply_xscale(); }
@@ -1800,14 +1902,25 @@ void thps_ws_apply(void) { ws_apply_xscale(); }
 extern void sub_00190FB0_gen(void);
 static uint16_t s_fov_set;
 
+/* 2026-11-07: k = the aspect's factor (thps_aspect_k) and FIELD OF VIEW: the
+ * camera's half angle atan(t / 4096) plus half the extra degrees, before k
+ * (the tan word alone widens both axes alike; the x scale keeps the 4:3
+ * height, so the extra degrees are on the 4:3 horizontal view). */
 void sub_00190FB0(void)
 {
-    if (thps_widescreen() && s_in_level) {
+    int extra = thps_fov_extra();
+    if ((thps_widescreen() || extra) && s_in_level) {
         uint32_t view = GUEST32(0x00304584u);
         volatile uint16_t *t = (volatile uint16_t *)((uintptr_t)g_xbox_mem_offset + view + 0xCu);
-        if (view && *t != s_fov_set) {
-            uint32_t v = (uint32_t)*t * 4u / 3u;
-            s_fov_set = (uint16_t)(v > 0xFFFFu ? 0xFFFFu : v);
+        if (view && *t && *t != s_fov_set) {
+            double tn = *t / 4096.0, v;
+            if (extra) {
+                double h = atan(tn) + extra * 0.5 * 3.14159265358979 / 180.0;
+                if (h > 1.45) h = 1.45;                /* below 170 degrees */
+                tn = tan(h);
+            }
+            v = tn * thps_aspect_k() * 4096.0 + 0.5;
+            s_fov_set = (uint16_t)(v > 65535.0 ? 65535u : (unsigned)v);
             *t = s_fov_set;
         }
     }
@@ -1846,9 +1959,9 @@ void sub_001603C0(void)
     }
     a = *fov;
     x1 = r[0];
-    r[0] = (uint16_t)(r[2] + (unsigned)(x1 - r[2]) * 4u / 3u);
+    r[0] = (uint16_t)(r[2] + (unsigned)((x1 - r[2]) * thps_aspect_k() + 0.5));
     if (a > 1.0f && a < 170.0f)
-        *fov = 2.0f * atanf(tanf(a * 0.5f * 3.14159265f / 180.0f) * 4.0f / 3.0f) * 180.0f / 3.14159265f;
+        *fov = 2.0f * atanf(tanf(a * 0.5f * 3.14159265f / 180.0f) * (float)thps_aspect_k()) * 180.0f / 3.14159265f;
     sub_001603C0_gen();
     r[0] = x1;
     *fov = a;
@@ -2164,9 +2277,12 @@ static const OptList s_opt[OPT_LISTS] = {
         OPT_MAIN, 9 },
     /* FRAME RATE, VSYNC, FPS COUNTER -- VSYNC and the counter belong with the
      * frame rate (maintainer, 2026-10-26) */
+    /* four lines since FRAME PACING (2026-11-05): FRAME RATE, FRAME PACING,
+     * VSYNC, FPS COUNTER - the fourth was missing, FPS COUNTER could not be
+     * reached (maintainer's play test, 2026-11-07) */
     [OPT_FPS] = { "FRAME RATE",
-        { s_val_text[OPT_FPS][0], s_val_text[OPT_FPS][1], s_val_text[OPT_FPS][2] },
-        { OPT_STAY, OPT_STAY, OPT_STAY },
+        { s_val_text[OPT_FPS][0], s_val_text[OPT_FPS][1], s_val_text[OPT_FPS][2], s_val_text[OPT_FPS][3] },
+        { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY },
         OPT_RECOMP, 0 },
     /* media\boot.mpg (maintainer, 2026-10-27: MPEG-1 + MP2 through pl_mpeg,
      * no H.264 / AAC): the status line (s_boot_text: found / needs the file /
@@ -2544,6 +2660,7 @@ static uint32_t s_bind_cursor;
  * the unblocked present modes, RECOMP_VSYNC=0). BOOT ANIMATION: media\boot.mpg,
  * ON / OFF in its sub-list (see "BOOT ANIMATION" above). */
 enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE, VAL_PACING, VAL_VSYNC, VAL_COUNTER,
+       VAL_FOV,
        VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
        VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER, VAL_MANUALS, VAL_PHYSICS, VAL_SCORECALC,
        VAL_FREECAM1, VAL_FREECAM2, VAL_FREECAM3, VAL_FREECAM4,   /* PLAYER n: FREE CAMERA, INVERT CAMERA */
@@ -2600,9 +2717,15 @@ static int game_opt_set(int id, int on)
 }
 
 /* the four from the settings file over the game's values (see above) */
+/* Fix 2026-11-07 (maintainer's play test: MOTION BLUR changed together with
+ * ASPECT RATIO - i.e. with a restart - showed the new value but did not act):
+ * the effect reads the save-block copy (MOTION BLUR -> 0x002FFF60), which only
+ * sub_00073810 fills from the globals. Setting the globals here left the copy
+ * at the game's start default / the save's value; so after any value from the
+ * settings file, sub_00073810 runs too, as game_opt_set does. */
 static void game_opts_from_settings(void)
 {
-    int id;
+    int id, any = 0;
     for (id = VAL_FIRST_GAME; id <= VAL_LAST_GAME; id++) {
         const char *v = settings_get(s_game_opt[id - VAL_FIRST_GAME].key, NULL);
         uint32_t va = s_game_opt[id - VAL_FIRST_GAME].va;
@@ -2614,7 +2737,97 @@ static void game_opts_from_settings(void)
             *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + va) = (uint8_t)on;
         else
             GUEST32(va) = (uint32_t)on;
+        any = 1;
     }
+    if (any) {
+        g_esp -= 4;
+        GUEST32(g_esp) = 0;                       /* return address, popped by its ret */
+        sub_00073810();
+        fprintf(stderr, "  options: game values from settings (motion blur %u, save block %u)\n",
+                (unsigned)*(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + 0x002B191Cu),
+                (unsigned)*(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + 0x002FFF60u));
+    }
+}
+
+/* High-score initials (maintainer, 2026-11-07; GitHub #8).
+ * Why: the name entry after a high score always starts at "AAA": it starts
+ * from the game's own initials option 0x002B1864 (4 bytes; "AAA" from the
+ * start defaults sub_00073D20, 0x00239574; copied to the save block 0x002FFEA8
+ * by sub_00073810, back by sub_00073A30), and the game never writes the
+ * confirmed initials back into it.
+ * How: the new entry is made by sub_00103860 (seeded from 0x002FFEA8, its slot
+ * in 0x002765B8, level [0x00276198]; table 0x002FF4F4 + (level * 8 + slot) *
+ * 8, initials in the first 3 bytes) and edited in place by the entry screen -
+ * there is no "accepted" event (single player; sub_000D5300's copy is the
+ * network path). So the wrapper below remembers that entry, and
+ * thps_initials_tick (from thps_options_tick) reads its letters every 30th call:
+ * when they changed, they go into 0x002B1864 + the save block and the settings
+ * file (key initials, THPS_INITIALS). initials_from_settings puts the saved ones
+ * back after the start defaults and after a save's options load.
+ * Verified: docs/status.md (initials run: second entry starts with the first's). */
+static void initials_put(const char *s)
+{
+    char v[4] = { 'A', 'A', 'A', 0 };
+    int i;
+    for (i = 0; i < 3 && s[i]; i++)
+        v[i] = s[i];
+    memcpy((void *)((uintptr_t)g_xbox_mem_offset + 0x002B1864u), v, 4);
+    memcpy((void *)((uintptr_t)g_xbox_mem_offset + 0x002FFEA8u), v, 4);
+}
+
+static void initials_from_settings(void)
+{
+    const char *s = settings_get("initials", NULL);
+    if (s && strlen(s) == 3)
+        initials_put(s);
+}
+
+static uint32_t s_ini_entry;                     /* guest VA of the entry being named, 0 = none */
+static char s_ini_last[4];
+
+extern void sub_00103860_gen(void);
+void sub_00103860(void)                           /* a new high-score entry (or none) */
+{
+    uint32_t slot, level;
+    sub_00103860_gen();
+    slot = GUEST32(0x002765B8u);
+    level = GUEST32(0x00276198u);
+    if (slot < 8u && level < 64u) {
+        s_ini_entry = 0x002FF4F4u + (level * 8u + slot) * 8u;
+        memcpy(s_ini_last, (const void *)((uintptr_t)g_xbox_mem_offset + s_ini_entry), 3);
+        s_ini_last[3] = 0;
+    }
+}
+
+/* every 30th call: a change is taken into the game at once, but written to the
+ * settings file only once the letters stayed for 2 checks (~1 s at 60 fps;
+ * maintainer 2026-11-07: was ~3 s) - the entry screen steps through the
+ * alphabet one letter at a time */
+void thps_initials_tick(void)
+{
+    static unsigned n, still;
+    static int pending;
+    char v[4];
+    int i;
+    if (!s_ini_entry || ++n % 30u)
+        return;
+    memcpy(v, (const void *)((uintptr_t)g_xbox_mem_offset + s_ini_entry), 3);
+    v[3] = 0;
+    if (!memcmp(v, s_ini_last, 3)) {
+        if (pending && ++still >= 2) {
+            pending = 0;
+            settings_set("initials", s_ini_last);
+            fprintf(stderr, "  options: high-score initials \"%s\" kept\n", s_ini_last);
+        }
+        return;
+    }
+    for (i = 0; i < 3; i++)
+        if (v[i] < 0x21 || v[i] > 0x7E || v[i] == '=' || v[i] == ';')
+            return;                               /* not letters (the entry was reused) */
+    memcpy(s_ini_last, v, 4);
+    initials_put(v);
+    pending = 1;
+    still = 0;
 }
 
 extern void sub_00073D20_gen(void);
@@ -2622,6 +2835,7 @@ void sub_00073D20(void)                           /* the game's start defaults *
 {
     sub_00073D20_gen();
     game_opts_from_settings();
+    initials_from_settings();
 }
 
 extern void sub_00073A30_gen(void);
@@ -2629,6 +2843,7 @@ void sub_00073A30(void)                           /* a save's options into the g
 {
     sub_00073A30_gen();
     game_opts_from_settings();
+    initials_from_settings();
 }
 
 typedef struct {
@@ -2644,7 +2859,13 @@ static const OptVal s_val[VAL_COUNT] = {
     [VAL_DISPMODE]  = { "DISPLAY MODE", "display_mode", "borderless", { "fullscreen", "borderless", "windowed" },
                         { "FULLSCREEN", "BORDERLESS", "WINDOWED" }, 3 },
     [VAL_RENDER]    = { "RENDER RESOLUTION", NULL, NULL, { NULL }, { NULL }, 0 },   /* opt_render_* */
-    [VAL_ASPECT]    = { "ASPECT RATIO", "aspect_ratio", "4:3", { "4:3", "16:9" }, { "4:3", "16:9" }, 2 },
+    /* 16:10 and 21:9 (maintainer, 2026-11-07; GitHub #9 / #10); the order is
+     * thps_aspect_index's */
+    [VAL_ASPECT]    = { "ASPECT RATIO", "aspect_ratio", "4:3", { "4:3", "16:9", "16:10", "21:9" },
+                        { "4:3", "16:9", "16:10", "21:9" }, 4 },
+    /* FIELD OF VIEW (maintainer, 2026-11-07): extra degrees, at once (thps_fov_extra) */
+    [VAL_FOV]       = { "FIELD OF VIEW", "fov", "0", { "0", "5", "10", "15", "20", "25", "30" },
+                        { "ORIGINAL", "+5", "+10", "+15", "+20", "+25", "+30" }, 7 },
     /* "menus stretched" (aspect-ratio rule, maintainer 2026-10-25): with 16:9
      * on, the 4:3 menu screens pillarboxed or stretched; movies always stay
      * pillarboxed (maintainer, 2026-10-26); gameplay is real 16:9 either way */
@@ -2841,29 +3062,52 @@ static int opt_display_mode(void)                 /* NV2A_VK_DISPLAY_*, from DIS
  * own (render_scale / render_scale_wide); switching ASPECT RATIO carries the
  * width over (3X 1920X1440 -> 1920X1080), opt_render_carry. A value the device
  * cannot hold is shown, marked, and neither applied nor saved. */
+/* 2026-11-07 (maintainer): the argument "ws" is now the aspect index (0 4:3,
+ * 1 16:9, 2 16:10, 3 21:9); each wide aspect has its standard sizes: 16:10
+ * 768X480 native, 1280X800 .. 3840X2400; 21:9 (64:27) 1138X480 native,
+ * 1707X720, 2560X1080, 3413X1440, 5120X2160. */
 static const int s_wide_lines[] = { 480, 720, 900, 1080, 1440, 1800, 2160, 2400 };
+static const int s_1610_lines[] = { 480, 800, 900, 1050, 1200, 1600, 1800, 2400 };
+static const int s_219_lines[] = { 480, 720, 1080, 1440, 2160 };
 #define OPT_WIDE_STEPS ((int)(sizeof s_wide_lines / sizeof s_wide_lines[0]) - 1)
+
+static const int *opt_render_lines(int ws, int *last)
+{
+    if (ws == 2) { *last = (int)(sizeof s_1610_lines / sizeof s_1610_lines[0]) - 1; return s_1610_lines; }
+    if (ws == 3) { *last = (int)(sizeof s_219_lines / sizeof s_219_lines[0]) - 1; return s_219_lines; }
+    *last = OPT_WIDE_STEPS;
+    return s_wide_lines;
+}
 
 static int opt_render_last(int ws)
 {
-    return ws ? OPT_WIDE_STEPS : OPT_RENDER_STEPS;
+    int last;
+    if (!ws)
+        return OPT_RENDER_STEPS;
+    opt_render_lines(ws, &last);
+    return last;
 }
 
 static double opt_render_factor(int s, int ws)
 {
-    return ws ? s_wide_lines[s] / 480.0 : 1.0 + 0.25 * s;
+    int last;
+    const int *l;
+    if (!ws)
+        return 1.0 + 0.25 * s;
+    l = opt_render_lines(ws, &last);
+    return l[s < 0 ? 0 : s > last ? last : s] / 480.0;
 }
 
 static int opt_render_width(int s, int ws)
 {
-    return (int)(ws ? s_wide_lines[s] * 16.0 / 9.0 + 0.5 : 640 * opt_render_factor(s, 0) + 0.5);
+    return (int)(480.0 * opt_render_factor(s, ws) * (ws ? thps_aspect_of(ws) : 4.0 / 3.0) + 0.5);
 }
 
 /* the step whose width is closest to w (native stays native) */
 static int opt_render_step_for_width(int w, int ws)
 {
     int s, best = 0;
-    if (w <= (ws ? 640 : 854))
+    if (w <= opt_render_width(0, ws) || w <= 640)
         return 0;
     for (s = 1; s <= opt_render_last(ws); s++)
         if (abs(opt_render_width(s, ws) - w) < abs(opt_render_width(best, ws) - w))
@@ -2873,7 +3117,8 @@ static int opt_render_step_for_width(int w, int ws)
 
 static const char *opt_render_key(int ws)
 {
-    return ws ? "render_scale_wide" : "render_scale";
+    static const char *const k[4] = { "render_scale", "render_scale_wide", "render_scale_1610", "render_scale_219" };
+    return k[ws >= 0 && ws < 4 ? ws : 0];
 }
 
 /* the saved step for an aspect; without one, the other aspect's by width */
@@ -2912,14 +3157,13 @@ static void opt_render_carry(int from_ws, int to_ws)
         opt_render_save(opt_render_step_for_width(opt_render_width(s, from_ws), to_ws), to_ws);
 }
 
-/* "RENDER RESOLUTION: 2.25X 1920X1080" */
+/* "RENDER RESOLUTION: 1920X1080" - the resolution only, no factor
+ * (maintainer, 2026-11-07; was "2.25X 1920X1080") */
 static void opt_render_text(int s, int ws, char *out, size_t n)
 {
     double f = opt_render_factor(s, ws);
-    int m = (int)(f * 1000.0 + 0.5);
-    snprintf(out, n, m % 10 ? "RENDER RESOLUTION: %d.%03dX %dX%d%s" : "RENDER RESOLUTION: %d.%02dX %dX%d%s", m / 1000,
-             m % 10 ? m % 1000 : (m % 1000) / 10, opt_render_width(s, ws), (int)(480 * f + 0.5),
-             nv2a_vk_render_scale_fits(f, ws) ? "" : " TOO LARGE");
+    snprintf(out, n, "RENDER RESOLUTION: %dX%d%s", opt_render_width(s, ws), (int)(480 * f + 0.5),
+             nv2a_vk_render_scale_fits(f, ws != 0) ? "" : " TOO LARGE");
 }
 
 static void opt_shader_apply(void);
@@ -2928,12 +3172,12 @@ static void opt_shader_apply(void);
  * time. No saved render size leaves the toolkit's default (RECOMP_GL_SCALE). */
 void thps_options_apply(void)
 {
-    int saved, s = opt_render_saved_step_for(thps_widescreen(), &saved);
+    int a = thps_aspect_index(), saved, s = opt_render_saved_step_for(a, &saved);
     char rt[48];
     const char *rs = saved ? rt + 19 : NULL;      /* past "RENDER RESOLUTION: " */
     if (saved) {
-        nv2a_vk_set_render_scale(opt_render_factor(s, thps_widescreen()), thps_widescreen());
-        opt_render_text(s, thps_widescreen(), rt, sizeof rt);
+        nv2a_vk_set_render_scale(opt_render_factor(s, a), a != 0);
+        opt_render_text(s, a, rt, sizeof rt);
     }
     s_vsync_start = opt_val_index(VAL_VSYNC);
     s_pacing_start = opt_val_index(VAL_PACING);
@@ -2952,7 +3196,7 @@ void thps_options_apply(void)
     fprintf(stderr, "  options: display %s, render scale %s, anisotropic filter %dx, antialiasing %s, frame rate %s, "
             "aspect %s, menus %s, vsync %s, fps counter %s\n", s_val[VAL_DISPMODE].val[opt_val_index(VAL_DISPMODE)],
             rs ? rs : "default", nv2a_vk_aniso, s_aa_val[opt_aa_index()], settings_get("frame_rate", "original"),
-            thps_widescreen() ? "16:9" : "4:3", opt_stretch_on() ? "stretched" : "pillarboxed",
+            s_val[VAL_ASPECT].txt[thps_aspect_index()], opt_stretch_on() ? "stretched" : "pillarboxed",
             settings_get("vsync", "on"), settings_get("fps_counter", "off"));
     opt_shader_apply();
 }
@@ -3019,11 +3263,18 @@ static void opt_val_text(int id, char *out, size_t n)
 {
     const char *hint = "";
     if (id == VAL_RENDER) {
-        int ws = thps_widescreen();
-        opt_render_text(opt_render_saved_step_for(ws, NULL), ws, out, n);
+        /* the sizes of the ASPECT RATIO picked, also before the restart
+         * (maintainer, 2026-11-07) */
+        int a = opt_val_index(VAL_ASPECT);
+        opt_render_text(opt_render_saved_step_for(a, NULL), a, out, n);
         return;
     }
-    if (id == VAL_ASPECT && opt_val_index(id) != thps_widescreen())
+    if (id == VAL_MENUS) {                         /* "MENUS AT 16:10" with 16:10 picked */
+        snprintf(out, n, "MENUS AT %s: %s", s_val[VAL_ASPECT].txt[opt_val_index(VAL_ASPECT)],
+                 s_val[id].txt[opt_val_index(id)]);
+        return;
+    }
+    if (id == VAL_ASPECT && opt_val_index(id) != thps_aspect_index())
         hint = " AFTER RESTART";
     else if (id == VAL_VSYNC && s_vsync_start >= 0 && opt_val_index(id) != s_vsync_start)
         hint = " AFTER RESTART";
@@ -3045,7 +3296,7 @@ static int opt_restart_pending(void)
 {
     const char *what[4];
     int n = 0;
-    if (opt_val_index(VAL_ASPECT) != thps_widescreen())
+    if (opt_val_index(VAL_ASPECT) != thps_aspect_index())
         what[n++] = "ASPECT RATIO";
     if (s_vsync_start >= 0 && opt_val_index(VAL_VSYNC) != s_vsync_start)
         what[n++] = "VSYNC";
@@ -3073,9 +3324,13 @@ static int opt_restart_pending(void)
 static void opt_build(int list)
 {
     /* SHADERS before BOOT ANIMATION (maintainer, 2026-10-27); BUTTON CHEATS
-     * between them (maintainer, 2026-10-28) */
-    static const short recomp[] = { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO,
-                                    OPT_E_SUB + OPT_AA, OPT_E_SUB + OPT_FPS, OPT_E_SUB + OPT_SHADERS,
+     * between them (maintainer, 2026-10-28); MOTION BLUR (the game's own value,
+     * game_opt_*) moved here from GENERAL OPTIONS, under ANTIALIASING with the
+     * other picture settings (maintainer, 2026-11-07) */
+    /* FIELD OF VIEW right under ASPECT RATIO (maintainer, 2026-11-07); with
+     * MENUS AT 16:9 the list holds 12 lines, the most it can */
+    static const short recomp[] = { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_FOV, VAL_MENUS, VAL_ANISO,
+                                    OPT_E_SUB + OPT_AA, VAL_BLUR, OPT_E_SUB + OPT_FPS, OPT_E_SUB + OPT_SHADERS,
                                     OPT_E_SUB + OPT_CHEATS, OPT_E_SUB + OPT_BOOT };
     static const short frame[] = { VAL_FRAMERATE, VAL_PACING, VAL_VSYNC, VAL_COUNTER };
     /* the game's four, then LAYOUT and the gameplay values (maintainer,
@@ -3086,7 +3341,7 @@ static void opt_build(int list)
      * 2026-10-31) */
     /* SOUNDTRACKS the second value, right after CAREER MODE (maintainer, 2026-11-05) */
     static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_CAREER, OPT_E_SUB + OPT_SOUND, VAL_TIPS, VAL_SCORE,
-                                     VAL_CHAT, VAL_BLUR, VAL_LAYOUT, OPT_E_SUB + OPT_GAMEPLAY };
+                                     VAL_CHAT, VAL_LAYOUT, OPT_E_SUB + OPT_GAMEPLAY };
     /* GAMEPLAY (maintainer, 2026-11-05): the gameplay values from GENERAL OPTIONS plus MANUALS */
     /* PHYSICS and SCORE CALCULATION at the end (maintainer, 2026-11-05) */
     static const short gameplay[] = { OPT_E_HINT, OPT_E_BLANK, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL,
@@ -3126,8 +3381,8 @@ static void opt_build(int list)
     for (i = 0; i < 12; i++)
         s_line_next[list][i] = OPT_STAY;
     for (i = 0; i < n; i++) {
-        if (e[i] == VAL_MENUS && opt_val_index(VAL_ASPECT) != 1)
-            continue;                              /* MENUS AT 16:9: only with 16:9 saved */
+        if (e[i] == VAL_MENUS && opt_val_index(VAL_ASPECT) == 0)
+            continue;                              /* MENUS AT 16:9: only with a wide aspect saved */
         if (e[i] == OPT_E_BLANK) {
             snprintf(s_val_text[list][line], sizeof s_val_text[list][line], " ");
         } else if (e[i] == OPT_E_HINT) {           /* Y resets the line's value (sub_001E66E0) */
@@ -3169,15 +3424,19 @@ static void opt_build(int list)
 static int opt_val_step(int id, int dir)
 {
     if (id == VAL_RENDER) {
-        int ws = thps_widescreen(), was = opt_render_saved_step_for(ws, NULL), s = was + dir;
+        /* the ASPECT RATIO picked (maintainer, 2026-11-07): before the
+         * restart into it the size is only saved, not set live */
+        int ws = opt_val_index(VAL_ASPECT), was = opt_render_saved_step_for(ws, NULL), s = was + dir;
         double f;
         if (s < 0 || s > opt_render_last(ws))
             return 0;
         f = opt_render_factor(s, ws);
-        if (!nv2a_vk_render_scale_fits(f, ws))
+        if (!nv2a_vk_render_scale_fits(f, ws != 0))
             return 0;                              /* beyond the image limits or failed before: stays */
         opt_render_save(s, ws);
-        nv2a_vk_set_render_scale(f, ws);           /* the next flip */
+        if (ws != thps_aspect_index())
+            return 1;                              /* applies after the restart */
+        nv2a_vk_set_render_scale(f, ws != 0);      /* the next flip */
         s_render_undo = was + 1;                   /* opt_render_check: back to it if f fails to allocate */
         s_render_undo_ws = ws;
         s_render_undo_frames = 180;
@@ -3197,6 +3456,8 @@ static int opt_val_step(int id, int dir)
             nv2a_vk_set_fps_hud(opt_hud_mode());
         else if (id == VAL_MENUS)
             s_menus_stretched = opt_stretch_on();
+        else if (id == VAL_FOV)
+            s_fov_reload = 1;                      /* at once (thps_fov_extra) */
         else if (id == VAL_ASPECT)
             opt_render_carry(was, to);             /* the other aspect's render size, same width */
         else if (id == VAL_DISPMODE)
@@ -3440,14 +3701,18 @@ void thps_options_tick(void)
     static int still;
     int x, y, w, h;
     unsigned g;
+    {
+        extern void thps_initials_tick(void);
+        thps_initials_tick();                      /* high-score initials (GitHub #8) */
+    }
     if (s_render_undo_frames > 0) {
         int ws = s_render_undo_ws, s = opt_render_saved_step_for(ws, NULL);
         s_render_undo_frames--;
-        if (s_render_undo && !nv2a_vk_render_scale_fits(opt_render_factor(s, ws), ws)) {
+        if (s_render_undo && !nv2a_vk_render_scale_fits(opt_render_factor(s, ws), ws != 0)) {
             fprintf(stderr, "  options: render resolution %.3fx failed to allocate -- back to %.3fx\n",
                     opt_render_factor(s, ws), opt_render_factor(s_render_undo - 1, ws));
             opt_render_save(s_render_undo - 1, ws);
-            nv2a_vk_set_render_scale(opt_render_factor(s_render_undo - 1, ws), ws);
+            nv2a_vk_set_render_scale(opt_render_factor(s_render_undo - 1, ws), ws != 0);
             s_render_undo = 0;
             s_render_undo_frames = 0;
             if (s_opt_shown == OPT_RECOMP) {       /* the screen again with the old step */
@@ -5204,6 +5469,46 @@ void thps_grav_air_imul(void)
 }
 void thps_ollie_max(void) { if (physics_thps2()) g_ecx = (uint32_t)((int32_t)g_eax * 5000 + 2700000); }
 void thps_ollie_min(void) { if (physics_thps2()) g_ecx = (uint32_t)((int32_t)g_eax * 3300 + 1470000); }
+
+/* ── Ollie charge at 120 fps (maintainer, 2026-11-07) ────────────────────────
+ * Why: in HandleJump sub_000AEA90 (= PS1 0x8001BB24) the ollie charge
+ * skater+0x5694 grows by one (0x000AEFBC) only when the 60 Hz vblank counter
+ * byte [0x0030697C] is odd (test at 0x000AEFB3) - one step every second
+ * vblank. At 120 fps two game frames see the same odd value, so the charge
+ * filled twice as fast: a 100 ms tap took off with the impulse of a 200 ms one
+ * (run 2026-11-06, docs/status.md: 99.8k at 60 vs 114.0k at 120). The only
+ * parity test of 0x30697C in the image.
+ * Address: config/hooks.toml, at 0x000AEFB3 (replaces the test; nonzero ->
+ * 0x000AEFBC, zero -> 0x000AEFC2; edi = the skater).
+ * How: count only when the byte is odd AND changed since this skater's last
+ * call - at 60 fps it changes every frame, so the same as before; at 120 the
+ * second frame on the same value is skipped. Per skater (split screen: up to
+ * four, by pointer).
+ * Verified: docs/status.md (ollie charge run, take-off vel.y at 60 / 120). */
+int thps_ollie_charge_tick(void)
+{
+    static uint32_t who[4];
+    static uint8_t last[4];
+    uint8_t v = *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + 0x0030697Cu);
+    int i, slot = -1;
+    for (i = 0; i < 4; i++)
+        if (who[i] == g_edi) { slot = i; break; }
+    if (slot < 0) {                                /* a new skater object: take a free or the oldest slot */
+        static int next;
+        slot = next;
+        next = (next + 1) & 3;
+        for (i = 0; i < 4; i++)
+            if (!who[i]) { slot = i; break; }
+        who[slot] = g_edi;
+        last[slot] = (uint8_t)(v ^ 1u);            /* first call: counts like the original */
+    }
+    if (!(v & 1u) || v == last[slot]) {
+        last[slot] = v;
+        return 0;
+    }
+    last[slot] = v;
+    return 1;
+}
 
 /* ── QUIT GAME in the pause menu (issue #5; maintainer, 2026-10-31) ──────────
  *

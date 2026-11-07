@@ -4,6 +4,38 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.2.0 - 2026-11-07
+
+Ultrawide and 16:10, a FIELD OF VIEW option, a proper widescreen HUD - and two bugs of the original game fixed.
+
+### Added
+- **ASPECT RATIO 16:10 and 21:9** besides 4:3 and 16:9 (RECOMP OPTIONS): gameplay fills the whole screen of a
+  Steam Deck / 16:10 monitor or an ultrawide (21:9 = 2560x1080; 3440x1440 keeps tiny bars), Hor+ - you see more to
+  the sides, nothing is stretched. Menus and movies stay 4:3 as in the original (or stretched with MENUS AT ...).
+  Applies after a restart.
+- **FIELD OF VIEW** (RECOMP OPTIONS, under ASPECT RATIO): ORIGINAL or +5 up to +30 degrees on the game's own camera,
+  in every aspect ratio and in split screen. Applies at once.
+- **Widescreen HUD:** at 16:9, 16:10 and 21:9 the gameplay HUD keeps its original proportions - SCORE and the
+  SPECIAL bar sit at the left edge, SWITCH at the right edge, trick text in the middle. Before, it was stretched
+  with the picture.
+- **High-score initials are remembered:** the name entry after a high score starts with the initials you entered
+  last time instead of AAA, also after a restart.
+- **Mouse cursor hides itself** over the game window and comes back as soon as you move the mouse.
+
+### Changed
+- **MOTION BLUR** moved from GENERAL OPTIONS to RECOMP OPTIONS (under ANTIALIASING), with the other picture settings.
+- **RENDER RESOLUTION** shows the resolution only ("1920X1080"), and after you change ASPECT RATIO it lists the sizes
+  of the new aspect ratio right away (applied after the restart).
+
+### Fixed
+- **Overwriting a save from OPTIONS -> MEMORY UNIT -> SAVE GAME:** picking an existing save, answering YES to
+  "overwrite?" and keeping its name ended in "A file named ... already exists" - a bug of the original game. Now
+  the save is overwritten.
+- **FPS COUNTER** was missing from RECOMP OPTIONS -> FRAME RATE since v1.1.0 - it is back.
+- **120 fps:** the ollie charged twice as fast - a tapped ollie jumped like a held one. Now the same as at 60 fps.
+- **MOTION BLUR** changed together with ASPECT RATIO showed the new value but kept the old effect until the next
+  change.
+
 ## v1.1.0 - 2026-11-05
 
 Play it like the originals: THPS 1 scoring, THPS 2 PS1 physics, and smooth frame pacing on 120 / 180 / 240 Hz.

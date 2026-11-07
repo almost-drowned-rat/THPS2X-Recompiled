@@ -172,3 +172,26 @@ after = true
 at = 0x000ADE8E
 call = "thps_ollie_max"
 after = true
+
+# Save overwrite from OPTIONS -> MEMORY UNIT -> SAVE GAME (maintainer, 2026-11-07;
+# a bug of the original too, checked on xemu): the save step sub_00110560
+# branches on the screen's mode at 0x00110735 (eax = [screen+0x15E24]: 1 new,
+# 3 overwrite). From the options menu the screen is built in mode 1 even when
+# the player picked an existing save and confirmed the game's own "Are you sure
+# you want to overwrite this save game?", so keeping the name ended in "A file
+# named [%s] already exists". See thps_save_overwrite_mode in recomp_manual.c.
+[[hook]]
+at = 0x00110735
+call = "thps_save_overwrite_mode"
+
+# Ollie charge at 120 fps (maintainer, 2026-11-07): HandleJump sub_000AEA90
+# counts the charge (skater+0x5694, 0x000AEFBC) only when the 60 Hz vblank
+# counter byte [0x30697C] is odd (test at 0x000AEFB3, je 0x000AEFC2). At 120
+# fps two game frames see the same odd value, so the charge filled twice as
+# fast. The hook replaces the test: nonzero = count, zero = skip. See
+# thps_ollie_charge_tick in recomp_manual.c.
+[[hook]]
+at = 0x000AEFB3
+call = "thps_ollie_charge_tick"
+on_true = 0x000AEFBC
+on_false = 0x000AEFC2

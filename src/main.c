@@ -246,8 +246,14 @@ int main(int argc, char **argv)
      * before the kernel and the renderer read them; an env var already set
      * wins, and settings_get itself prefers THPS_<KEY> (CLAUDE.md, Settings). */
     settings_init(opt.save_dir);
-    if (!strcmp(settings_get("aspect_ratio", "4:3"), "16:9"))
-        host_setenv_default("THPS_WIDESCREEN", "1");
+    {
+        /* 16:9 = "1" as before; 16:10 and 21:9 by name (maintainer, 2026-11-07) */
+        const char *ar = settings_get("aspect_ratio", "4:3");
+        if (!strcmp(ar, "16:9"))
+            host_setenv_default("THPS_WIDESCREEN", "1");
+        else if (!strcmp(ar, "16:10") || !strcmp(ar, "21:9"))
+            host_setenv_default("THPS_WIDESCREEN", ar);
+    }
     if (!strcmp(settings_get("vsync", "on"), "off"))
         host_setenv_default("RECOMP_VSYNC", "0");
     /* FRAME PACING (maintainer, 2026-11-05): DISPLAY (default) = on a 120 / 180
@@ -259,8 +265,11 @@ int main(int argc, char **argv)
     /* Widescreen (M5 item 3): THPS_WIDESCREEN=1 is the one switch -- the
      * toolkit's square-pixel 16:9 rendering plus THPS's wider projection and
      * the per-frame 16:9 / 4:3 choice (recomp_manual.c). 4:3 is the default. */
-    if (getenv("THPS_WIDESCREEN") && *getenv("THPS_WIDESCREEN") == '1')
-        host_setenv_default("RECOMP_WIDESCREEN", "1");
+    {
+        const char *w = getenv("THPS_WIDESCREEN");    /* 1 / 16:9, 16:10, 21:9 -> the toolkit */
+        if (w && (!strcmp(w, "1") || !strcmp(w, "16:9") || !strcmp(w, "16:10") || !strcmp(w, "21:9")))
+            host_setenv_default("RECOMP_WIDESCREEN", w);
+    }
     thps_input_init();
 #if defined(THPS_LLE)
     if (*getenv("RECOMP_USB") != '0')

@@ -1,0 +1,59 @@
+# opt_motion_blur.txt - MOTION BLUR in RECOMP OPTIONS (maintainer, 2026-11-07; was in GENERAL OPTIONS): main menu ->
+# OPTIONS -> RECOMP OPTIONS, from a fresh saves\ (4:3, so no MENUS AT 16:9 line): DISPLAY MODE, RENDER RESOLUTION,
+# ASPECT RATIO, FIELD OF VIEW (2026-11-07), ANISOTROPIC FILTER, ANTIALIASING, MOTION BLUR (6 downs). MOTION BLUR shows ON (the game's default);
+# right = OFF; B back to OPTIONS, A: RECOMP OPTIONS again with OFF kept; then GENERAL OPTIONS without the line.
+# Expected saves\settings.ini afterwards: motion_blur=off.
+#   THPS2X.exe --max-seconds 95 --save-dir <temp> --data-dir <temp> --input-script tests\input\opt_motion_blur.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the 10th line
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+46000:a:300
+51000:shot=b01_recomp_options
+
+# MOTION BLUR: 6 downs from DISPLAY MODE
+51600:down:300
+52300:down:300
+53000:down:300
+53700:down:300
+54400:down:300
+55100:down:300
+57500:shot=b02_motion_blur_on
+58500:right:300
+60500:shot=b03_motion_blur_off
+
+# B: OPTIONS on RECOMP OPTIONS; A: the list again, OFF kept
+61500:b:300
+64500:a:300
+69000:shot=b04_recomp_again
+
+# B, up: GENERAL OPTIONS (the 9th line), A: no MOTION BLUR line any more
+70000:b:300
+73000:up:300
+75000:a:300
+80000:shot=b05_general_without_blur
