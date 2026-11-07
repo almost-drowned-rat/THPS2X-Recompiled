@@ -99,7 +99,7 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 | **Anisotropic filter** | Off up to 16x |
 | **Antialiasing** | Off, FXAA (default), SMAA, MSAA 2x, MSAA 4x |
 | **Motion blur** | The game's own effect while skating fast, ON (default) or OFF |
-| **Frame rate** | Original (60 fps) or 120 fps (needs a display with 120 Hz or more), Frame pacing, V-Sync, FPS counter (FPS, frame time or both) |
+| **Frame rate** | Original (60 fps) or 120 fps (needs a display with 120 Hz or more, or V-Sync OFF), Frame pacing, V-Sync, FPS counter (FPS, frame time or both) |
 | **Frame pacing** | DISPLAY (default) or 60 HZ TIMER: on a 120 / 180 / 240 Hz display the game's 60 Hz clock follows the display's own refresh, so every frame stays on screen equally long (no judder). Other displays (60, 144, 165 Hz, VRR) keep the timer either way. Applies after a restart. |
 | **Shaders** | RetroArch slang shaders with preset browser, live parameters and your own presets |
 | **Button cheats** | The game's button cheats as a list of 30 - no typing codes with LT held. Each line says what the cheat does and its code, and shows ON / OFF; A switches it, any combination works, Y switches the selected one off. One-time ones (unlock everything, 5000 cash, all gaps) say DO IT / DONE and cannot be undone. Only in the main menu's Options. |
@@ -117,7 +117,9 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 - The name entry after a high score starts with the initials you entered last time.
 
 ### 120 fps
-- Optional, on displays with at least 120 Hz. On slower displays the game stays at 60 fps.
+- Optional, on displays with at least 120 Hz. On slower displays the game stays at 60 fps - unless V-Sync is OFF:
+  then 120 fps runs on any display (for example a 60 Hz monitor: smaller tears and slightly fresher input, at
+  twice the GPU work). V-Sync changes apply after a restart.
 - Gravity, speed, the session timer and replays behave exactly like at 60 fps.
 
 ### Custom soundtracks

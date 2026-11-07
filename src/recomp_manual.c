@@ -1215,8 +1215,25 @@ void sub_001B9DB6(void)
  * says why, so no frame is rendered that is never shown. The log also says
  * whether 120 divides the display rate evenly. Looked at again every 2 s: a window moved to
  * another display. THPS_FPS=<n> (10..240) forces a rate without that check --
- * the tests on the 60 Hz panel; 30 is a test switch only. */
+ * the tests on the 60 Hz panel; 30 is a test switch only.
+ * VSYNC OFF (GitHub #12, maintainer 2026-11-07, v1.2.1): 120 on every display,
+ * also below 120 Hz - the player picked both; without V-Sync the extra frames
+ * are not lost (each refresh shows parts of two frames: smaller tears, newer
+ * input). The guest vblank then runs on the 120 Hz timer. With VSYNC ON the
+ * 120 Hz rule above stays (half the frames would never be shown). */
 #include "settings.h"
+
+/* VSYNC OFF as this start runs it (main.c: settings vsync=off -> RECOMP_VSYNC=0;
+ * a change in the menu applies after the restart, like the present mode) */
+static int thps_vsync_off(void)
+{
+    static int off = -1;
+    if (off < 0) {
+        const char *e = getenv("RECOMP_VSYNC");
+        off = e && *e == '0';
+    }
+    return off;
+}
 
 static int thps_fps_setting(void)
 {
@@ -1227,6 +1244,8 @@ static int thps_fps_setting(void)
     const char *why;
     if (strcmp(settings_get("frame_rate", "original"), "120"))
         why = "original (60)";
+    else if (thps_vsync_off())
+        fps = 120, why = "120 (VSYNC OFF: on any display)";
     else if (hz <= 0.0f)
         why = "120 asked, display refresh not known -> 60";
     else if (hz < 0.99f * 120.0f)
@@ -3282,8 +3301,8 @@ static void opt_val_text(int id, char *out, size_t n)
         hint = " AFTER RESTART";
     else if (id == VAL_FRAMERATE && opt_val_index(id) == 1) {
         float hz = nv2a_vk_display_hz();
-        if (hz > 0.0f && hz < 0.99f * 120.0f)
-            hint = " NEEDS 120 HZ";                /* kept for a 120 Hz display; plays at 60 here */
+        if (hz > 0.0f && hz < 0.99f * 120.0f && !thps_vsync_off())
+            hint = " NEEDS 120 HZ OR VSYNC OFF";   /* kept for a 120 Hz display; plays at 60 here (#12) */
     }
     /* no NOT ORIGINAL mark any more: Y puts a line back (maintainer, 2026-10-28) */
     snprintf(out, n, "%s: %s%s", s_val[id].label, s_val[id].txt[opt_val_index(id)], hint);

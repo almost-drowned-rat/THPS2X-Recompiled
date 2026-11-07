@@ -4,6 +4,18 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.2.1 - 2026-11-07
+
+### Changed
+- **120 fps with V-Sync OFF on any display:** with FRAME RATE 120 and VSYNC OFF the game now runs at 120 fps also on
+  a 60 Hz monitor - smaller tears and slightly fresher input, at twice the GPU work. With V-Sync ON, 120 fps still
+  needs a display with 120 Hz or more (the menu says "NEEDS 120 HZ OR VSYNC OFF").
+
+### Fixed
+- **Grind balance meter** at 16:9, 16:10 and 21:9: its left end was drawn far off to the left, apart from the rest
+  of the meter (since v1.2.0's widescreen HUD). The meter is whole again; SCORE, SPECIAL and SWITCH stay at the
+  edges.
+
 ## v1.2.0 - 2026-11-07
 
 Ultrawide and 16:10, a FIELD OF VIEW option, a proper widescreen HUD - and two bugs of the original game fixed.
