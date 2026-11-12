@@ -4,6 +4,42 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.2.2 - 2026-11-12
+
+### Added
+- **REMEMBER CAMERA** (GENERAL OPTIONS, last line, default OFF): the game puts the camera back to its first view
+  (the one Back switches away from) at every level start and every retry. With REMEMBER CAMERA ON the view you
+  picked with Back stays, also after a restart of the game.
+- **CAMERA OPTIONS in the pause menu** (under SOUND OPTIONS): FIELD OF VIEW, REMEMBER CAMERA, FREE CAMERA,
+  SENSITIVITY X / Y and INVERT CAMERA of the player who paused, changed in the level. The same settings as in RECOMP
+  OPTIONS and RECOMP CONTROL OPTIONS.
+  **Note:** a new FIELD OF VIEW takes effect after a RETRY (pause -> RETRY) or at the next level, not in the run
+  that is going on.
+- **HUD AT 16:9 / 16:10 / 21:9** (RECOMP OPTIONS -> WIDESCREEN): ORIGINAL PROPORTIONS (the widescreen HUD since
+  v1.2.0, default) or STRETCHED (the HUD stretched across the screen as before v1.2.0). Applies at once.
+- **BRIGHTNESS** (RECOMP OPTIONS -> PICTURE): ORIGINAL, brighter in five steps (+1 to +5) or darker in three
+  (-1 to -3). Applies at once, also to menus and movies. (The darker look is the original Xbox game's - it never
+  changes the console's display brightness - so ORIGINAL stays as it was.)
+
+### Changed
+- **RECOMP OPTIONS** got two sub-lists, because the list was full: **WIDESCREEN** (MENUS AT 16:9 and the new HUD AT
+  16:9; only shown with a wide aspect ratio) and **PICTURE** (ANISOTROPIC FILTER, ANTIALIASING, MOTION BLUR and the
+  new BRIGHTNESS). Your settings stay as they were.
+
+### Fixed
+- **Floating crate at the start of Warehouse** (a bug of the original game, also on xemu): when you knock away a
+  crate, the crates standing on it now go with it. Before, the top crate of the stack by the FRAGILE crate stayed in
+  the air until you hit it with an ollie.
+- **21:9 on a 3440x1440 monitor:** 21:9 now takes the exact aspect ratio of the monitor the game starts on
+  (anything from 2.30:1 to 2.42:1, e.g. 3440x1440 = 2.39:1), so the thin black bars at the sides are gone.
+  2560x1080 stays as it was.
+- **Menus over gameplay at 16:9, 16:10 and 21:9** (pause, end of run, name entry after a high score): these
+  screens stay together in the middle again; since v1.2.0's widescreen HUD parts of them (e.g. the ENTER NAME
+  letter grid) were pulled toward the edges.
+- **Pop-up messages at 120 fps** (goal, tape, gap and other messages in the middle of the screen): at FRAME RATE
+  120 they disappeared twice as fast as at 60. They now stay on screen as long as at 60 fps, the same time as on
+  the Xbox.
+
 ## v1.2.1 - 2026-11-07
 
 ### Changed

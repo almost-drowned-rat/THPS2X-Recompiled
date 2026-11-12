@@ -772,10 +772,15 @@ static int take_a(void)
  *   A switch IN ORDER / SHUFFLE; saved, the music goes on at once. */
 extern void sub_00104210_gen(void);
 void classic_frame(void);                         /* recomp_manual.c: classic career screens */
+int pause_camera_frame(void);                     /* recomp_manual.c: CAMERA OPTIONS in this screen */
 void sub_00104210(void)
 {
     uint32_t menu = GUEST32(SND_MENU);
     classic_frame();
+    if (pause_camera_frame()) {                   /* our camera lines are open: not the sound lines */
+        sub_00104210_gen();
+        return;
+    }
     if (on() && menu && s_next_text && GUEST32(UI_STATE) == 0x2Fu) {
         uint32_t sel = *GPTR(menu + 6), text = GUEST32(menu + 0x18u + sel * 0x18u);
         int dir;

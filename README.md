@@ -55,6 +55,7 @@ only that line.
 | **Trick tips, Score display, Quick chat** | The game's own options, ON (default) or OFF. (Motion blur moved to RECOMP OPTIONS.) |
 | **Playstyle** | XBOX (original) or PS2: spins on Black / White (on a modern pad the shoulder buttons LB / RB), nollie and switch stay on the triggers. Works on top of your button mapping - if Black / White are not mapped to anything, PS2 has no spins. |
 | **Gameplay ▸** | The gameplay options below, in their own list (Y works there too). |
+| **Remember camera** | OFF (original) or ON: the game puts the camera back to its first view at every level start and retry; with ON the view you picked with Back stays, also after a restart of the game. |
 
 **GAMEPLAY:**
 
@@ -85,6 +86,8 @@ camera around the skater and up / down in every situation; it stays where you tu
 Y, X AND Y), **CAMERA SENSITIVITY X / Y** (0-10, 0 locks that axis) and **CAMERA RESET SPEED** (0 slow to 9 fast,
 10 jumps back at once). **CAMERA RESET** (the right stick click by default, remappable in BUTTON MAPPING) brings the
 camera back behind the skater.
+In a level, **pause → CAMERA OPTIONS** changes FIELD OF VIEW, REMEMBER CAMERA, FREE CAMERA, SENSITIVITY X / Y and
+INVERT CAMERA of the player who paused (a new FIELD OF VIEW applies after a RETRY or at the next level).
 
 ### RECOMP OPTIONS
 Changes are saved immediately. Settings that need a restart are marked, and leaving the menu asks **RESTART NEEDED**.
@@ -95,10 +98,8 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 | **Render resolution** | From the original 640X480 up to about 5 times the lines (e.g. 1920X1080, 2560X1440, 3840X2160) – the sizes of the chosen aspect ratio, independent of the window size |
 | **Aspect ratio** | 4:3 (original), 16:9, 16:10 or 21:9 – real widescreen (wider view), not stretched; after a restart |
 | **Field of view** | ORIGINAL or +5 up to +30 degrees on the game's own camera – at once, every aspect ratio and split screen |
-| **Menus at 16:9 / 16:10 / 21:9** | Pillarboxed (default) or stretched – only shown with a wide aspect ratio; movies always stay 4:3 |
-| **Anisotropic filter** | Off up to 16x |
-| **Antialiasing** | Off, FXAA (default), SMAA, MSAA 2x, MSAA 4x |
-| **Motion blur** | The game's own effect while skating fast, ON (default) or OFF |
+| **Widescreen ▸** | Only shown with a wide aspect ratio. **Menus at 16:9 / 16:10 / 21:9:** pillarboxed (default) or stretched; movies always stay 4:3. **HUD at 16:9 / 16:10 / 21:9:** original proportions (default: SCORE and SPECIAL at the left edge, SWITCH at the right, nothing stretched) or stretched across the screen as before v1.2.0 – at once |
+| **Picture ▸** | **Anisotropic filter:** off up to 16x. **Antialiasing:** off, FXAA (default), SMAA, MSAA 2x, MSAA 4x. **Motion blur:** the game's own effect while skating fast, ON (default) or OFF. **Brightness:** ORIGINAL (as on the Xbox), +1 to +5 brighter or -1 to -3 darker – at once, menus and movies too |
 | **Frame rate** | Original (60 fps) or 120 fps (needs a display with 120 Hz or more, or V-Sync OFF), Frame pacing, V-Sync, FPS counter (FPS, frame time or both) |
 | **Frame pacing** | DISPLAY (default) or 60 HZ TIMER: on a 120 / 180 / 240 Hz display the game's 60 Hz clock follows the display's own refresh, so every frame stays on screen equally long (no judder). Other displays (60, 144, 165 Hz, VRR) keep the timer either way. Applies after a restart. |
 | **Shaders** | RetroArch slang shaders with preset browser, live parameters and your own presets |
@@ -107,8 +108,9 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 
 ### Widescreen (16:9, 16:10, 21:9)
 - Gameplay is rendered in the chosen aspect ratio (Hor+): you see more to the sides, nothing is stretched or cut.
-  21:9 matches 2560x1080 screens exactly; on 3440x1440 tiny bars remain.
-- The gameplay HUD keeps its original proportions: SCORE and the SPECIAL bar at the left edge, SWITCH at the right.
+  21:9 takes the exact ratio of the monitor the game starts on (2560x1080, 3440x1440 and others), so no bars remain.
+- The gameplay HUD keeps its original proportions: SCORE and the SPECIAL bar at the left edge, SWITCH at the right
+  (or stretched as before, with WIDESCREEN → HUD AT 16:9: STRETCHED).
 - Menus, loading screens and movies stay 4:3 with black side bars (or optionally stretched for menus).
 - Split screen is handled as well.
 
@@ -120,7 +122,7 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
 - Optional, on displays with at least 120 Hz. On slower displays the game stays at 60 fps - unless V-Sync is OFF:
   then 120 fps runs on any display (for example a 60 Hz monitor: smaller tears and slightly fresher input, at
   twice the GPU work). V-Sync changes apply after a restart.
-- Gravity, speed, the session timer and replays behave exactly like at 60 fps.
+- Gravity, speed, the session timer, pop-up messages and replays behave exactly like at 60 fps.
 
 ### Custom soundtracks
 Put your own music into the `media` folder and choose it in **Options → GENERAL OPTIONS → SOUNDTRACKS**:

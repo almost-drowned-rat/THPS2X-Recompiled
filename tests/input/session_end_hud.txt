@@ -1,0 +1,76 @@
+# session_end_hud.txt - v1.2.2 HUD at wide aspects on the end-of-run screens (GitHub #10 tournament outline, the
+# ENTER NAME letter grid): Single Session -> first skater -> first level, kickflips and grabs for some score, the 2:00
+# clock runs out, then the end screens (score, high scores, name entry if the score made the list) shot every 3 s.
+# Run at 16:9 (set THPS_ASPECT_RATIO=16:9), once with the fix and once with THPS_HUD_UI_CENTRE=0 (v1.2.1: edges):
+#   THPS2X.exe --max-seconds 250 --save-dir <temp> --data-dir <temp> --input-script tests\input\session_end_hud.txt
+# The log's "hud: anchors centre (ui state N)" lines say when the game's in-level UI was up.
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# Single Session is the second entry
+21000:down:300
+24000:a:300
+33000:a:300
+42000:a:300
+
+# loading, the rules screen (accepted with A), then the level with the clock running (0:00 due at ~196 s)
+75000:shot=01_rules
+76000:a:300
+84000:shot=02_level
+# tricks: push, ollie + kickflip, push, ollie + held grab - repeated
+86000:lup:1500
+87600:a:150
+87900:left:250
+87950:x:200
+90000:lup:1500
+91600:a:150
+91900:up:900
+91950:b:850
+94000:lup:1500
+95600:a:150
+95900:left:250
+95950:x:200
+98000:lup:1500
+99600:a:150
+99900:up:900
+99950:b:850
+102000:lup:1500
+103600:a:150
+103900:right:250
+103950:x:200
+106000:lup:1500
+107600:a:150
+107900:up:900
+107950:b:850
+110000:shot=03_score
+110500:lup:1500
+112100:a:150
+112400:left:250
+112450:x:200
+115000:lup:1500
+116600:a:150
+116900:up:900
+116950:b:850
+# end of the run and its screens
+190000:shot=10_clock_end
+197000:shot=11_end
+200000:shot=12_end
+203000:shot=13_end
+206000:shot=14_end
+209000:shot=15_end
+212000:a:300
+215000:shot=16_end_after_a
+218000:shot=17_end
+221000:a:300
+224000:shot=18_end_after_a
+227000:shot=19_end
+230000:a:300
+233000:shot=20_end_after_a
+236000:shot=21_end
+240000:shot=22_end

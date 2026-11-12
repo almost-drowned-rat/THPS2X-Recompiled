@@ -87,8 +87,19 @@ Layout table: `src/input.c`. The keyboard is merged on top of host pad 0, so a r
   back, 10 = a jump; the stick takes over during the turn). While the camera turns it follows the stick more
   directly than the game's own camera (its slerp step raised with the speed), so it keeps up at every value. Details
   in `recomp_manual.c` ("FREE CAMERA").
+- **CAMERA OPTIONS in the pause menu (v1.2.2; maintainer 2026-11-08, a user's wish):** the pause list is CONTINUE,
+  RETRY, SOUND OPTIONS, **CAMERA OPTIONS**, QUIT GAME, END RUN. CAMERA OPTIONS opens FIELD OF VIEW, REMEMBER CAMERA,
+  FREE CAMERA, SENSITIVITY X, SENSITIVITY Y, INVERT CAMERA, BACK - the same settings as RECOMP OPTIONS / GENERAL
+  OPTIONS / RECOMP CONTROL OPTIONS (the FREE CAMERA ones of the player whose pad pressed A on CAMERA OPTIONS), live,
+  saved at once; left / right (or A) step a value. Exception: FIELD OF VIEW takes effect only after a RETRY or at the
+  next level (maintainer's play session 2026-11-10; the CHANGELOG says so). Details in `recomp_manual.c` ("CAMERA OPTIONS").
+- **REMEMBER CAMERA (GitHub #8, v1.2.2):** GENERAL OPTIONS, the last line, `remember_camera=off|on` (default off =
+  the original). Back (Create on a DualSense) switches the game's camera between its two distances; the game puts it
+  back to the first at every level start and retry. On: the last switch is kept (`camera_toggled=0|1`) and put back
+  (one player, or the game modes that allow the switch; not in replays). Details in `recomp_manual.c`
+  ("REMEMBER CAMERA").
 - **Front end only:** BUTTON MAPPING is reachable from the front-end Options only - the in-level pause menu has no
-  Options entry (CONTINUE, RETRY, SOUND OPTIONS, QUIT GAME, END RUN), and the menu code refuses the list while a level runs
+  Options entry (CONTINUE, RETRY, SOUND OPTIONS, CAMERA OPTIONS, QUIT GAME, END RUN), and the menu code refuses the list while a level runs
   (`s_in_level`). The pause menu has no lock-out protection (maintainer, 2026-10-25: the front end is protected).
 - **Emergency exit:** start once with `THPS_BIND_RESET=1` (stored bindings ignored for that run), then RESET TO
   DEFAULT in BUTTON MAPPING; or delete the `bind.` lines from `saves\settings.ini`. Also in the README.

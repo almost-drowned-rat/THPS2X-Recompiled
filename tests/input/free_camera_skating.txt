@@ -1,0 +1,39 @@
+# free_camera_skating.txt - GitHub #13 check (2026-11-10): FREE CAMERA turns the camera while the skater ROLLS too,
+# not only standing; up / down; speed by CAMERA SENSITIVITY X / Y. Free Skate -> first skater -> first level; the
+# skater pushes off (left stick up held) and the right stick turns the camera during the ride.
+# Run with FREE CAMERA on (set THPS_FREE_CAMERA_P1=on), once with SENSITIVITY 1 and once with 10
+# (set THPS_CAMERA_SENSITIVITY_X_P1=10 & set THPS_CAMERA_SENSITIVITY_Y_P1=10); and once off (the game's own camera):
+#   THPS2X.exe --max-seconds 105 --save-dir <temp> --data-dir <temp> --input-script tests\input\free_camera_skating.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: Free Skate is the third entry
+21000:down:300
+22000:down:300
+24000:a:300
+33000:a:300
+42000:a:300
+
+# loading, the FREE SKATE rules screen (A), then the level
+71000:a:300
+84000:shot=01_level
+# push off and keep rolling
+85000:lup:9000
+87000:shot=02_rolling
+# while rolling: right stick right 1.5 s
+88000:rright:1500
+89700:shot=03_rolling_turned_right
+# right stick up 1 s: the camera lower, looking up
+91000:rup:1000
+92200:shot=04_rolling_lower
+# released, still rolling: it stays where it was turned
+93500:shot=05_rolling_released
+98000:shot=06_end

@@ -1,0 +1,61 @@
+# pause_camera.txt - CAMERA OPTIONS in the pause menu (maintainer 2026-11-08): Free Skate -> first skater -> first
+# level; Start: the pause list CONTINUE, RETRY, SOUND OPTIONS, CAMERA OPTIONS, QUIT GAME, END RUN; A on CAMERA
+# OPTIONS: FIELD OF VIEW, REMEMBER CAMERA, FREE CAMERA, SENSITIVITY X, SENSITIVITY Y, INVERT CAMERA, BACK.
+# Right on FIELD OF VIEW (+5), REMEMBER CAMERA (ON), FREE CAMERA (ON), SENSITIVITY X twice (3); B back to the pause
+# list; SOUND OPTIONS still the game's own lines; B, Start: the level.
+# Expected saves\settings.ini afterwards: fov=5, remember_camera=on, free_camera_p1=on, camera_sensitivity_x_p1=3.
+#   THPS2X.exe --max-seconds 125 --save-dir <temp> --data-dir <temp> --input-script tests\input\pause_camera.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: Free Skate is the third entry
+21000:down:300
+22000:down:300
+24000:a:300
+33000:a:300
+42000:a:300
+
+# loading, the FREE SKATE rules screen (A), then the level
+71000:a:300
+84000:shot=01_level
+# pause: CAMERA OPTIONS is the fourth line
+86000:start:300
+88000:shot=02_pause
+88500:down:300
+89500:down:300
+90500:down:300
+91500:shot=03_pause_camera_line
+92000:a:300
+94000:shot=04_camera_options
+# FIELD OF VIEW right: +5
+95000:right:300
+96000:down:300
+# REMEMBER CAMERA right: ON
+97000:right:300
+98000:down:300
+# FREE CAMERA right: ON
+99000:right:300
+100000:down:300
+# SENSITIVITY X right twice: 3
+101000:right:300
+102000:right:300
+103000:shot=05_camera_options_changed
+# B: the pause list again
+104000:b:300
+106000:shot=06_pause_back
+# SOUND OPTIONS (up one): the game's own lines
+107000:up:300
+108000:a:300
+110000:shot=07_sound_options
+111000:b:300
+113000:shot=08_pause_again
+114000:b:300
+117000:shot=09_level_fov

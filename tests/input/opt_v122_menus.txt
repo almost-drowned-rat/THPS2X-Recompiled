@@ -1,0 +1,76 @@
+# opt_v122_menus.txt - v1.2.2 RECOMP OPTIONS sub-lists (maintainer, 2026-11-12): WIDESCREEN (MENUS AT / HUD AT,
+# only with a wide aspect) and PICTURE (ANISOTROPIC FILTER, ANTIALIASING, MOTION BLUR, BRIGHTNESS). Run with
+# THPS_ASPECT_RATIO=16:9 and a throw-away --save-dir; afterwards saves\settings.ini has hud_widescreen=stretched and
+# brightness=2. Shots: 05 RECOMP OPTIONS (10 lines, WIDESCREEN 5th, PICTURE 6th), 06 WIDESCREEN, 07 HUD AT 16:9
+# STRETCHED, 08 RECOMP OPTIONS on WIDESCREEN, 09 PICTURE, 10 BRIGHTNESS +2, 11 ANTIALIASING list, 12 PICTURE again
+# (A in ANTIALIASING goes back there, on ANTIALIASING), 13 RECOMP OPTIONS on PICTURE.
+#   THPS2X.exe --max-seconds 95 --save-dir <temp> --data-dir <temp> --input-script tests\input\opt_v122_menus.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:shot=01_main_menu
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the 10th line
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+42000:down:300
+43000:down:300
+46000:a:300
+51000:shot=05_recomp_options
+
+# WIDESCREEN (5th line): four downs, A
+52000:down:300
+53000:down:300
+54000:down:300
+55000:down:300
+56500:a:300
+58500:shot=06_widescreen
+# HUD AT 16:9 (second line): right = STRETCHED
+59500:down:300
+60500:right:300
+62500:shot=07_hud_stretched
+# B: back to RECOMP OPTIONS on WIDESCREEN
+63500:b:300
+65500:shot=08_recomp_on_widescreen
+
+# PICTURE (6th line): one down, A
+66500:down:300
+67500:a:300
+69500:shot=09_picture
+# BRIGHTNESS (4th line): three downs, right twice = +2
+70500:down:300
+71500:down:300
+72500:down:300
+73500:right:300
+74500:right:300
+76500:shot=10_brightness_p2
+# ANTIALIASING (2nd line): two ups, A = its list; A picks the one in use and goes back to PICTURE
+77500:up:300
+78500:up:300
+79500:a:300
+81500:shot=11_antialiasing
+82500:a:300
+84500:shot=12_picture_on_aa
+# B: back to RECOMP OPTIONS on PICTURE
+85500:b:300
+87500:shot=13_recomp_on_picture

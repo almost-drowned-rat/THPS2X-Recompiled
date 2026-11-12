@@ -402,6 +402,8 @@ static volatile int s_in_level;               /* the last frame ran the level li
 static void thps_bind_tick(void);             /* BUTTON MAPPING (end of file) */
 static volatile uint64_t s_movie_vbl;         /* the guest vblank of the Bink loop's last pass (thps_movie_wait) */
 static volatile int s_menus_stretched;        /* MENUS AT 16:9 = STRETCHED (RECOMP OPTIONS values) */
+static volatile int s_hud_stretched;          /* HUD AT 16:9 = STRETCHED (GitHub #10, v1.2.2) */
+void thps_gamma_apply(void);                  /* BRIGHTNESS (GitHub #11, v1.2.2) */
 extern void xbox_GuestSetHz(int hz);
 extern int xbox_GuestHz(void);
 
@@ -535,15 +537,32 @@ void sub_00018F90(void)
                  * full-screen blur pass, which the 60 % width rule keeps);
                  * the toolkit presses each element back to its 4:3 width at
                  * the left edge, the centre or the right edge.
-                 * THPS_HUD_ANCHOR=0: off (stretched as before). */
+                 * HUD AT 16:9 = STRETCHED (GitHub #10, v1.2.2; THPS_HUD_ANCHOR=0
+                 * the same): off, stretched as before v1.2.0. */
                 extern double thps_hud_k(void);
                 extern void nv2a_vk_set_hud_squash(uint32_t program_hash, double k);
-                static int hud = -1;
-                if (hud < 0) {
-                    const char *e = getenv("THPS_HUD_ANCHOR");
-                    hud = !(e && *e == '0');
+                nv2a_vk_set_hud_squash(0x389B6898u, !s_hud_stretched && s_in_level ? thps_hud_k() : 0.0);
+                {
+                    /* v1.2.2 (maintainer's list; GitHub #10 tournament outline,
+                     * ENTER NAME grid): while the game's in-level UI is up
+                     * ([0x003068DC] = 1: pause, end-of-run, score and name
+                     * entry screens) every element takes the centre anchor,
+                     * so those screens stay together; the edges only for the
+                     * gameplay HUD. THPS_HUD_UI_CENTRE=0: edges always (v1.2.1). */
+                    extern void nv2a_vk_set_hud_squash_edges(int on);
+                    static int uic = -1, was = -1;
+                    int edges;
+                    if (uic < 0) {
+                        const char *e = getenv("THPS_HUD_UI_CENTRE");
+                        uic = !(e && *e == '0');
+                    }
+                    edges = !(uic && *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + 0x003068DCu));
+                    if (edges != was && s_in_level)
+                        fprintf(stderr, "  hud: anchors %s (ui state %u)\n", edges ? "edges" : "centre",
+                                *(volatile uint32_t *)((uintptr_t)g_xbox_mem_offset + 0x003068D4u));
+                    was = edges;
+                    nv2a_vk_set_hud_squash_edges(edges);
                 }
-                nv2a_vk_set_hud_squash(0x389B6898u, hud && s_in_level ? thps_hud_k() : 0.0);
             }
         }
     }
@@ -1842,9 +1861,15 @@ static int thps_aspect_index(void)                 /* 0 4:3, 1 16:9, 2 16:10, 3 
     return a;
 }
 
+extern double xbox_video_aspect(void);
 static double thps_aspect_of(int a)                /* width / height */
 {
     static const double r[4] = { 4.0 / 3.0, 16.0 / 9.0, 16.0 / 10.0, 64.0 / 27.0 };
+    /* the aspect in use from the toolkit: its 21:9 is the display's exact ratio
+     * (2.30..2.42, e.g. 3440x1440 = 43:18; maintainer 2026-11-08, a user's GIF
+     * showed 3 px bars at 64:27) */
+    if (a == 3 && a == thps_aspect_index())
+        return xbox_video_aspect();
     return r[a >= 0 && a < 4 ? a : 0];
 }
 
@@ -2190,7 +2215,7 @@ typedef struct {
 } OptList;
 
 enum { OPT_MAIN, OPT_CONTROLS, OPT_RECOMP, OPT_FPS, OPT_AA, OPT_BOOT, OPT_RESTART, OPT_SOUND, OPT_BINDKEYS, OPT_SHADERS, OPT_SHBROWSE, OPT_SHPARAMS, OPT_SHRESET,
-       OPT_GENERAL, OPT_CHEATS, OPT_QUIT, OPT_CTLREC, OPT_CTLPLAYER, OPT_GAMEPLAY, OPT_LISTS };
+       OPT_GENERAL, OPT_CHEATS, OPT_QUIT, OPT_CTLREC, OPT_CTLPLAYER, OPT_GAMEPLAY, OPT_WIDE, OPT_PICTURE, OPT_LISTS };
 
 /* RECOMP CONTROL OPTIONS -> PLAYER n (GitHub issue #6, maintainer
  * 2026-10-31): the player whose page is open, its title */
@@ -2331,6 +2356,20 @@ static const OptList s_opt[OPT_LISTS] = {
     [OPT_AA] = { "ANTIALIASING",
         { "OFF", "FXAA", "SMAA", "MSAA 2X", "MSAA 4X" },
         { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY },
+        OPT_PICTURE, 0 },                         /* opt_parent_line: s_sub_line */
+    /* v1.2.2 (maintainer, 2026-11-12: RECOMP OPTIONS was at its 12 lines):
+     * WIDESCREEN = MENUS AT 16:9 and HUD AT 16:9 (GitHub #10: the HUD
+     * correction can be switched off), only with a wide aspect saved; PICTURE =
+     * ANISOTROPIC FILTER, ANTIALIASING, MOTION BLUR, BRIGHTNESS. Built by
+     * opt_build. */
+    [OPT_WIDE] = { "WIDESCREEN",
+        { s_val_text[OPT_WIDE][0], s_val_text[OPT_WIDE][1] },
+        { OPT_STAY },                             /* opt_next */
+        OPT_RECOMP, 0 },                          /* opt_parent_line: s_sub_line */
+    [OPT_PICTURE] = { "PICTURE",
+        { s_val_text[OPT_PICTURE][0], s_val_text[OPT_PICTURE][1], s_val_text[OPT_PICTURE][2],
+          s_val_text[OPT_PICTURE][3] },
+        { OPT_STAY },                             /* opt_next */
         OPT_RECOMP, 0 },
     /* SOUNDTRACKS: one sub-menu with everything (maintainer, 2026-11-05; was
      * an OPTIONS line with two sub-menus and 8 modes): see ST_LINE_* above;
@@ -2679,9 +2718,10 @@ static uint32_t s_bind_cursor;
  * the unblocked present modes, RECOMP_VSYNC=0). BOOT ANIMATION: media\boot.mpg,
  * ON / OFF in its sub-list (see "BOOT ANIMATION" above). */
 enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE, VAL_PACING, VAL_VSYNC, VAL_COUNTER,
-       VAL_FOV,
+       VAL_FOV, VAL_HUD, VAL_BRIGHT,                              /* v1.2.2: HUD AT 16:9 (#10), BRIGHTNESS (#11) */
        VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
        VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER, VAL_MANUALS, VAL_PHYSICS, VAL_SCORECALC,
+       VAL_REMCAM,                                                /* REMEMBER CAMERA (GitHub #8) */
        VAL_FREECAM1, VAL_FREECAM2, VAL_FREECAM3, VAL_FREECAM4,   /* PLAYER n: FREE CAMERA, INVERT CAMERA */
        VAL_INVCAM1, VAL_INVCAM2, VAL_INVCAM3, VAL_INVCAM4,
        VAL_CAMSX1, VAL_CAMSX2, VAL_CAMSX3, VAL_CAMSX4,           /* PLAYER n: CAMERA SENSITIVITY X, Y */
@@ -2865,6 +2905,63 @@ void sub_00073A30(void)                           /* a save's options into the g
     initials_from_settings();
 }
 
+/* REMEMBER CAMERA (GitHub #8; maintainer, 2026-11-08: a GENERAL OPTIONS
+ * toggle, default OFF = the original).
+ * Why: Back (Create on a DualSense) switches the camera between its two
+ * distances, and the game puts it back to the first one at every level start
+ * and retry.
+ * Address: the switch is [0x002FD5C0] (0 / 1; one for all players): the level
+ * frame sub_001AF080 flips it (xor 1) when a pad's Back press byte
+ * (0x00305429 + port * 0x18C) is set, the game is not paused ([0x003068DC] ==
+ * 0) and it is one player ([0x0027619C] < 2) or game mode [0x00276194] 7 /
+ * 0xA; sub_001AF080 picks the distance / pitch / height presets
+ * [0x0028BE00..08] by it and sub_0017D3B0 widens the view by 1.08 with it. The
+ * level set-up sub_0015D080 writes 0 there (beside [0x003061E8]).
+ * How: with REMEMBER CAMERA on, the frame wrapper puts the kept value back
+ * before the game's frame whenever the game reset it (same conditions as the
+ * game's own switch, so split screen stays as it was; not in replays or the
+ * attract mode), and a flip the game made during the frame is kept in the
+ * settings file (camera_toggled 0 / 1, THPS_CAMERA_TOGGLED). OFF: nothing
+ * changes, the flips are not kept.
+ * Verified: docs/status.md (REMEMBER CAMERA run). */
+#define RC_FLAG 0x002FD5C0u
+static int s_rc_loaded, s_rc_on;                  /* read once; the menu line clears s_rc_loaded */
+static uint32_t s_rc_kept;
+static int rc_on(void)
+{
+    if (!s_rc_loaded) {
+        s_rc_loaded = 1;
+        s_rc_on = !strcmp(settings_get("remember_camera", "off"), "on");
+        s_rc_kept = !strcmp(settings_get("camera_toggled", "0"), "1") ? 1u : 0u;
+    }
+    return s_rc_on;
+}
+
+static int rc_allowed(void)
+{
+    uint32_t mode = GUEST32(0x00276194u);
+    return ((int32_t)GUEST32(0x0027619Cu) < 2 || mode == 7u || mode == 0xAu) && GUEST32(0x00300844u) != 1u &&
+           !thps_replay_playing();
+}
+
+extern void sub_001AF080_gen(void);
+void sub_001AF080(void)                           /* the level frame: Back flips the camera */
+{
+    uint32_t before;
+    int on = rc_on() && rc_allowed();
+    if (on && GUEST32(RC_FLAG) != s_rc_kept) {
+        GUEST32(RC_FLAG) = s_rc_kept;              /* the level start reset it */
+        fprintf(stderr, "  options: camera %u put back (REMEMBER CAMERA)\n", (unsigned)s_rc_kept);
+    }
+    before = GUEST32(RC_FLAG);
+    sub_001AF080_gen();
+    if (on && GUEST32(RC_FLAG) != before) {        /* Back during this frame */
+        s_rc_kept = GUEST32(RC_FLAG) ? 1u : 0u;
+        settings_set("camera_toggled", s_rc_kept ? "1" : "0");
+        fprintf(stderr, "  options: camera %u kept (REMEMBER CAMERA)\n", (unsigned)GUEST32(RC_FLAG));
+    }
+}
+
 typedef struct {
     const char *label, *key, *def;
     const char *val[11], *txt[11];                /* stored values, shown texts */
@@ -2890,6 +2987,15 @@ static const OptVal s_val[VAL_COUNT] = {
      * pillarboxed (maintainer, 2026-10-26); gameplay is real 16:9 either way */
     [VAL_MENUS]     = { "MENUS AT 16:9", "menus_stretched", "off", { "off", "on" },
                         { "PILLARBOXED", "STRETCHED" }, 2 },
+    /* GitHub #10 (maintainer, 2026-11-12): the widescreen HUD correction
+     * (v1.2.0, nv2a_vk_set_hud_squash) can be switched off - STRETCHED = the
+     * HUD as before v1.2.0; at once */
+    [VAL_HUD]       = { "HUD AT 16:9", "hud_widescreen", "original", { "original", "stretched" },
+                        { "ORIGINAL PROPORTIONS", "STRETCHED" }, 2 },
+    /* GitHub #11 (maintainer, 2026-11-12): steps of the display gamma
+     * (thps_gamma_apply); at once */
+    [VAL_BRIGHT]    = { "BRIGHTNESS", "brightness", "0", { "-3", "-2", "-1", "0", "1", "2", "3", "4", "5" },
+                        { "-3", "-2", "-1", "ORIGINAL", "+1", "+2", "+3", "+4", "+5" }, 9 },
     [VAL_ANISO]     = { "ANISOTROPIC FILTER", "anisotropic_filter", "16", { "off", "2", "4", "8", "16" },
                         { "OFF", "2X", "4X", "8X", "16X" }, 5 },
     [VAL_FRAMERATE] = { "FRAME RATE", "frame_rate", "original", { "original", "120" }, { "ORIGINAL 60", "120" }, 2 },
@@ -2924,6 +3030,9 @@ static const OptVal s_val[VAL_COUNT] = {
     /* maintainer 2026-11-05: THPS 1 scoring for players outside the campaign;
      * the classic career's THPS 1 levels always score THPS 1 (see "SCORE CALCULATION") */
     [VAL_SCORECALC] = { "SCORE CALCULATION", "score_calc", "thps2", { "thps2", "thps1" }, { "THPS 2", "THPS 1" }, 2 },
+    /* GitHub #8 (maintainer, 2026-11-08: a toggle, default OFF = the original
+     * reset at every level start); see "REMEMBER CAMERA" below */
+    [VAL_REMCAM]    = { "REMEMBER CAMERA", "remember_camera", "off", { "off", "on" }, { "OFF", "ON" }, 2 },
     [VAL_WALLBAIL]  = { "WALL BAIL", "wall_bail", "original", { "original", "no_bail" },
                         { "ORIGINAL", "NO BAIL" }, 2 },
     /* classic career (maintainer, 2026-10-30: the last GAMEPLAY line):
@@ -2984,7 +3093,8 @@ static uint32_t s_sub_line[OPT_LISTS];            /* a sub-list's line in RECOMP
 /* a line's next state: built lists keep theirs in s_line_next */
 static uint32_t opt_next(int list, uint32_t line)
 {
-    if (list == OPT_RECOMP || list == OPT_GENERAL || list == OPT_GAMEPLAY || list == OPT_CTLPLAYER)
+    if (list == OPT_RECOMP || list == OPT_GENERAL || list == OPT_GAMEPLAY || list == OPT_CTLPLAYER
+        || list == OPT_WIDE || list == OPT_PICTURE)
         return line < 12 ? s_line_next[list][line] : OPT_STAY;
     return s_opt[list].next[line];
 }
@@ -2994,8 +3104,8 @@ static uint32_t opt_parent_line(int list)
 {
     if (list == OPT_CTLPLAYER)
         return (uint32_t)s_ctl_player;            /* PLAYER n's line */
-    return s_opt[list].parent == OPT_RECOMP || s_opt[list].parent == OPT_GENERAL ? s_sub_line[list]
-           : (uint32_t)s_opt[list].parent_line;
+    return s_opt[list].parent == OPT_RECOMP || s_opt[list].parent == OPT_GENERAL || s_opt[list].parent == OPT_PICTURE
+           ? s_sub_line[list] : (uint32_t)s_opt[list].parent_line;
 }
 
 /* SOUNDTRACKS' five lines (ST_LINE_*): the source, a blank (greyed,
@@ -3052,6 +3162,45 @@ static int opt_hud_mode(void)
 static int opt_stretch_on(void)
 {
     return !strcmp(settings_get("menus_stretched", "off"), "on");
+}
+
+/* HUD AT 16:9 = STRETCHED (GitHub #10): the HUD without the v1.2.0
+ * correction; THPS_HUD_ANCHOR=0 (test) the same */
+static int opt_hud_stretched(void)
+{
+    const char *e = getenv("THPS_HUD_ANCHOR");
+    if (e && *e == '0')
+        return 1;
+    return !strcmp(settings_get("hud_widescreen", "original"), "stretched");
+}
+
+/* ── BRIGHTNESS (GitHub #11; maintainer, 2026-11-12) ─────────────────────────
+ * Why: players find the game dark (the PS1 version was brighter). It is the
+ * original look: the game never calls D3DDevice_SetGammaRamp (sub_00011A70 has
+ * no caller and no pointer to it in the image), so the Xbox's display ramp
+ * stays the identity as here (game\gammas.txt does not reach the DAC).
+ * How: BRIGHTNESS as a display gamma, v^(1 / 1.1^step) (+1 = brighter),
+ * handed to the toolkit as a ramp (nv2a_vk_set_gamma_ramp; ORIGINAL = the
+ * identity = no pass). At once, menus and movies too.
+ * Verified: docs/status.md (BRIGHTNESS runs: level mean 61.8 at ORIGINAL,
+ * 81.2 at +3, 45.3 at -3). */
+void thps_gamma_apply(void)
+{
+    extern void nv2a_vk_set_gamma_ramp(const uint8_t r[256], const uint8_t g[256], const uint8_t b[256]);
+    static uint8_t out[256];
+    int step = atoi(settings_get("brightness", "0"));
+    double g = 1.0;
+    int i;
+    if (step < -3) step = -3;
+    if (step > 5) step = 5;
+    for (i = 0; i < (step < 0 ? -step : step); i++)
+        g = step < 0 ? g / 1.1 : g * 1.1;
+    for (i = 0; i < 256; i++) {
+        double v = i / 255.0;
+        v = v > 0.0 ? pow(v, 1.0 / g) : 0.0;
+        out[i] = (uint8_t)(v * 255.0 + 0.5);
+    }
+    nv2a_vk_set_gamma_ramp(out, out, out);
 }
 
 /* ANTIALIASING: saved as off / fxaa / smaa / msaa2 / msaa4 (index = NV2A_VK_AA_*) */
@@ -3212,6 +3361,10 @@ void thps_options_apply(void)
     nv2a_vk_aniso = opt_aniso_level();
     nv2a_vk_set_fps_hud(opt_hud_mode());
     s_menus_stretched = opt_stretch_on();       /* per frame in sub_00018F90: not during a movie */
+    s_hud_stretched = opt_hud_stretched();      /* HUD AT 16:9 (GitHub #10) */
+    thps_gamma_apply();                         /* BRIGHTNESS (GitHub #11) */
+    fprintf(stderr, "  options: hud %s, brightness %s\n", s_hud_stretched ? "stretched" : "original proportions",
+            settings_get("brightness", "0"));
     fprintf(stderr, "  options: display %s, render scale %s, anisotropic filter %dx, antialiasing %s, frame rate %s, "
             "aspect %s, menus %s, vsync %s, fps counter %s\n", s_val[VAL_DISPMODE].val[opt_val_index(VAL_DISPMODE)],
             rs ? rs : "default", nv2a_vk_aniso, s_aa_val[opt_aa_index()], settings_get("frame_rate", "original"),
@@ -3288,9 +3441,9 @@ static void opt_val_text(int id, char *out, size_t n)
         opt_render_text(opt_render_saved_step_for(a, NULL), a, out, n);
         return;
     }
-    if (id == VAL_MENUS) {                         /* "MENUS AT 16:10" with 16:10 picked */
-        snprintf(out, n, "MENUS AT %s: %s", s_val[VAL_ASPECT].txt[opt_val_index(VAL_ASPECT)],
-                 s_val[id].txt[opt_val_index(id)]);
+    if (id == VAL_MENUS || id == VAL_HUD) {        /* "MENUS AT 16:10" with 16:10 picked */
+        snprintf(out, n, "%s AT %s: %s", id == VAL_MENUS ? "MENUS" : "HUD",
+                 s_val[VAL_ASPECT].txt[opt_val_index(VAL_ASPECT)], s_val[id].txt[opt_val_index(id)]);
         return;
     }
     if (id == VAL_ASPECT && opt_val_index(id) != thps_aspect_index())
@@ -3348,9 +3501,13 @@ static void opt_build(int list)
      * other picture settings (maintainer, 2026-11-07) */
     /* FIELD OF VIEW right under ASPECT RATIO (maintainer, 2026-11-07); with
      * MENUS AT 16:9 the list holds 12 lines, the most it can */
-    static const short recomp[] = { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_FOV, VAL_MENUS, VAL_ANISO,
-                                    OPT_E_SUB + OPT_AA, VAL_BLUR, OPT_E_SUB + OPT_FPS, OPT_E_SUB + OPT_SHADERS,
+    /* v1.2.2 (maintainer, 2026-11-12): WIDESCREEN and PICTURE sub-lists (see
+     * OPT_WIDE / OPT_PICTURE); WIDESCREEN only with a wide aspect saved */
+    static const short recomp[] = { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_FOV, OPT_E_SUB + OPT_WIDE,
+                                    OPT_E_SUB + OPT_PICTURE, OPT_E_SUB + OPT_FPS, OPT_E_SUB + OPT_SHADERS,
                                     OPT_E_SUB + OPT_CHEATS, OPT_E_SUB + OPT_BOOT };
+    static const short wide[] = { VAL_MENUS, VAL_HUD };
+    static const short picture[] = { VAL_ANISO, OPT_E_SUB + OPT_AA, VAL_BLUR, VAL_BRIGHT };
     static const short frame[] = { VAL_FRAMERATE, VAL_PACING, VAL_VSYNC, VAL_COUNTER };
     /* the game's four, then LAYOUT and the gameplay values (maintainer,
      * 2026-10-28); OPT_E_HINT: a text line without an action */
@@ -3360,7 +3517,7 @@ static void opt_build(int list)
      * 2026-10-31) */
     /* SOUNDTRACKS the second value, right after CAREER MODE (maintainer, 2026-11-05) */
     static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_CAREER, OPT_E_SUB + OPT_SOUND, VAL_TIPS, VAL_SCORE,
-                                     VAL_CHAT, VAL_LAYOUT, OPT_E_SUB + OPT_GAMEPLAY };
+                                     VAL_CHAT, VAL_LAYOUT, OPT_E_SUB + OPT_GAMEPLAY, VAL_REMCAM };
     /* GAMEPLAY (maintainer, 2026-11-05): the gameplay values from GENERAL OPTIONS plus MANUALS */
     /* PHYSICS and SCORE CALCULATION at the end (maintainer, 2026-11-05) */
     static const short gameplay[] = { OPT_E_HINT, OPT_E_BLANK, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL,
@@ -3387,6 +3544,10 @@ static void opt_build(int list)
         e = recomp, n = (int)(sizeof recomp / sizeof recomp[0]);
     else if (list == OPT_FPS)
         e = frame, n = (int)(sizeof frame / sizeof frame[0]);
+    else if (list == OPT_WIDE)
+        e = wide, n = (int)(sizeof wide / sizeof wide[0]);
+    else if (list == OPT_PICTURE)
+        e = picture, n = (int)(sizeof picture / sizeof picture[0]);
     else if (list == OPT_GENERAL)
         e = general, n = (int)(sizeof general / sizeof general[0]);
     else if (list == OPT_GAMEPLAY)
@@ -3400,8 +3561,8 @@ static void opt_build(int list)
     for (i = 0; i < 12; i++)
         s_line_next[list][i] = OPT_STAY;
     for (i = 0; i < n; i++) {
-        if (e[i] == VAL_MENUS && opt_val_index(VAL_ASPECT) == 0)
-            continue;                              /* MENUS AT 16:9: only with a wide aspect saved */
+        if (e[i] == OPT_E_SUB + OPT_WIDE && opt_val_index(VAL_ASPECT) == 0)
+            continue;                              /* WIDESCREEN: only with a wide aspect saved */
         if (e[i] == OPT_E_BLANK) {
             snprintf(s_val_text[list][line], sizeof s_val_text[list][line], " ");
         } else if (e[i] == OPT_E_HINT) {           /* Y resets the line's value (sub_001E66E0) */
@@ -3483,6 +3644,12 @@ static int opt_val_step(int id, int dir)
             nv2a_vk_set_display_mode(opt_display_mode());
         else if (id >= VAL_FREECAM1 && id <= VAL_CAMRS4)
             fc_reload();                           /* the camera reads them again, at once */
+        else if (id == VAL_REMCAM)
+            s_rc_loaded = 0;                       /* REMEMBER CAMERA: read again at the next frame */
+        else if (id == VAL_HUD)
+            s_hud_stretched = opt_hud_stretched();  /* at once (sub_00018F90 per frame) */
+        else if (id == VAL_BRIGHT)
+            thps_gamma_apply();                    /* at once */
     }
     return 1;
 }
@@ -3589,8 +3756,8 @@ void sub_0013D470(void)
         settings_set("antialiasing", s_aa_val[line < 5 ? line : NV2A_VK_AA_FXAA]);
         nv2a_vk_set_antialiasing(opt_aa_index());
         GUEST32(0x00306250u) = opt_parent_line(OPT_AA);
-        s_opt_list = OPT_RECOMP;
-        opt_build(OPT_RECOMP);
+        s_opt_list = OPT_PICTURE;                  /* its parent since v1.2.2 */
+        opt_build(OPT_PICTURE);
         g_eax = OPT_STAY;
     } else if (s_opt_list == OPT_BOOT) {           /* ON / OFF picked (with the file): saved, back */
         if ((line == 1 || line == 2) && s_boot_text[0] == 'B') {
@@ -3801,6 +3968,8 @@ static int opt_val_default(int id)                /* 1 when it changed */
     if (!s_val[id].key || !strcmp(settings_get(s_val[id].key, s_val[id].def), s_val[id].def))
         return 0;
     settings_set(s_val[id].key, s_val[id].def);
+    if (id == VAL_REMCAM)
+        s_rc_loaded = 0;                           /* REMEMBER CAMERA: read again at the next frame */
     return 1;
 }
 
@@ -5430,8 +5599,26 @@ void sub_000A5970(void)
     }
 }
 
+/* THPS_TEST_SCORE_X=<n> (test only, never a menu line; v1.2.2 2026-11-10): every
+ * trick's base points (stack arg 2 of sub_000A4C30, as score_th1_trick reads it)
+ * times n, so a scripted run makes the high-score list and reaches the ENTER NAME
+ * screen (tests/input/session_end_hud.txt). Unset or <= 1: no change. */
+static int32_t test_score_x(void)
+{
+    static int32_t x = -1;
+    if (x < 0) {
+        const char *e = getenv("THPS_TEST_SCORE_X");
+        x = e ? atoi(e) : 0;
+        if (x > 1)
+            fprintf(stderr, "  test: trick points x%d (THPS_TEST_SCORE_X)\n", (int)x);
+    }
+    return x;
+}
+
 void sub_000A4C30(void)
 {
+    if (test_score_x() > 1 && (int32_t)GUEST32(g_esp + 8) > 0)
+        GUEST32(g_esp + 8) = (uint32_t)((int32_t)GUEST32(g_esp + 8) * test_score_x());
     if (GUEST32(g_esp) == 0x000A7027u && big_drop_mode() == 2) {
         g_esp += 4 + 16;                          /* no BIG DROP award */
         fprintf(stderr, "[BIGDROP] award -> nothing\n");
@@ -5443,6 +5630,350 @@ void sub_000A4C30(void)
         return;
     }
     sub_000A4C30_gen();
+}
+
+/* ── RAIL CUT UNDER THE SKATER (GitHub #11, Philadelphia cable; v1.2.2) ──────
+ * Why: in Philadelphia the cable from the pole to the stair is cut by grinding
+ * it (TRG: script 788 waits 5, command point 719 kills the cable's railpoints
+ * 1185-1187, 406, 409-413 and platforms 387-389 / 699). In THPS 2 (PS1) you
+ * fall as the cable goes; in 2X the skater keeps grinding the now invisible
+ * cable (invisxp 2026-11-09/10; xemu: the cable stays too, per the issue).
+ * The kill does reach the rail - SendKillFromNode (sub_000CB990) sends node
+ * types 10 / 11 to sub_000BAC90(node, 0), which clears the active byte +4 of
+ * the rail holding that node in the rail list [0x00306BB4] (next +0x24, start
+ * node s16 +6) - and the rail search (sub_000BB5E0) skips inactive rails, but
+ * the two on-rail physics routines (sub_000A9270, sub_000B5260; cdecl, arg =
+ * skater) never look at it again: a skater already on the rail stays on it.
+ * Fix (an original bug: always on, no menu line - maintainer 2026-11-09): before
+ * each on-rail step, if the skater's rail (start node at skater +0x5748, set by
+ * sub_000BB5E0 when it attaches) is inactive, leave it through the game's own
+ * off-rail exit sub_000A91D0 (esi = skater: state to air, +0x5740 stick-to-rail
+ * 0, trick / anim reset - what both routines call at a rail's end) and skip the
+ * step. THPS_RAIL_CUT=0 = the 2X behaviour (A/B). THPS_TEST_RAIL_CUT=<n> (test
+ * only): after n on-rail steps the port switches the rail under the skater off
+ * itself, as the Philadelphia trigger does, so any grind shows it.
+ * Verified: docs/status.md (rail cut runs). */
+extern THPS_TLS uint32_t g_esi;
+extern void sub_000A9270_gen(void);
+extern void sub_000B5260_gen(void);
+extern void sub_000A91D0(void);
+#define RAIL_LIST 0x00306BB4u
+
+static int rail_env(const char *name, int dflt)
+{
+    const char *e = getenv(name);
+    return e && *e ? atoi(e) : dflt;
+}
+
+static int rail_start(uint32_t rail)              /* the rail's start node (s16 at +6) */
+{
+    return *(volatile int16_t *)((uintptr_t)g_xbox_mem_offset + rail + 6u);
+}
+
+static uint32_t rail_of_skater(uint32_t sk)
+{
+    int32_t start = (int32_t)GUEST32(sk + 0x5748u);
+    uint32_t r;
+    int n;
+    for (r = GUEST32(RAIL_LIST), n = 0; r && n < 8192; r = GUEST32(r + 0x24u), n++)
+        if (rail_start(r) == start)
+            return r;
+    return 0;
+}
+
+static int rail_cut_step(void)
+{
+    static int on = -1, test = -1, steps;
+    static uint32_t last_rail;
+    uint32_t sk = GUEST32(g_esp + 4), rail, esi;
+    if (on < 0) {
+        on = rail_env("THPS_RAIL_CUT", 1) != 0;
+        test = rail_env("THPS_TEST_RAIL_CUT", 0);
+        if (!on)
+            fprintf(stderr, "  rail: cut rails keep the skater (THPS_RAIL_CUT=0, the 2X behaviour)\n");
+    }
+    if (!sk || !(rail = rail_of_skater(sk)))
+        return 0;
+    if (test > 0) {
+        if (rail != last_rail) {
+            last_rail = rail;
+            steps = 0;
+            fprintf(stderr, "  rail: test - on rail %08X (start node %d)\n", rail, rail_start(rail));
+        }
+        if (++steps == test && GUEST8(rail + 4u)) {
+            GUEST8(rail + 4u) = 0;
+            fprintf(stderr, "  rail: test - rail %08X switched off under the skater (THPS_TEST_RAIL_CUT)\n", rail);
+        }
+    }
+    if (!on || GUEST8(rail + 4u))
+        return 0;
+    esi = g_esi;
+    g_esi = sk;
+    g_esp -= 4;
+    GUEST32(g_esp) = 0x000A9AAEu;                 /* popped by its ret */
+    sub_000A91D0();
+    g_esi = esi;
+    fprintf(stderr, "  rail: rail %08X (start node %d) is gone -> off the rail\n", rail, rail_start(rail));
+    return 1;
+}
+
+void sub_000A9270(void)
+{
+    if (rail_cut_step()) {
+        g_esp += 4;                               /* ret (cdecl: the caller pops the skater) */
+        return;
+    }
+    sub_000A9270_gen();
+}
+
+void sub_000B5260(void)
+{
+    if (rail_cut_step()) {
+        g_esp += 4;
+        return;
+    }
+    sub_000B5260_gen();
+}
+
+/* ── CRATES ON A CRATE THAT IS KNOCKED AWAY (GitHub #11, Warehouse; v1.2.2) ─
+ * (the list: [0x00306C40] = the first platform, each one's +0x20 = the next one + 4,
+ * as sub_000B88D0 and sub_000CB990 walk it)
+ * Why: at the start of Warehouse (THPS 1 levels) a crate stands on two others.
+ * Those crates are bouncy platforms (TRG OBJ_PLATFORM, script C_IS_BOUNCY):
+ * the skater's collision sub_000B88D0 Bounce()s every one whose box it touches,
+ * it flies off and breaks into planks. Skating into the stack touches only the
+ * lower crates, so the top one stays where it was - in the air - until an ollie
+ * reaches it (maintainer's play session 2026-11-10; xemu the same per
+ * the issue: an original bug). A 2x2 block goes whole only because the skater
+ * touches both layers at once.
+ * Fix (maintainer 2026-11-10: "fix 1" - the crates on top go with it; an
+ * original bug: always on, no menu line): CPlatform::Bounce sub_000B6AC0 (esi
+ * = platform, arg = the skater, eax = &skater velocity (+0x4C), ret 4; callers
+ * sub_000B88D0 and SendKillFromNode sub_000CB990). After it, every platform of
+ * the list [0x00306C40] (links point at object + 4) that the skater could
+ * bounce - flags (+4) & 0x100, +0x194 & 0x10, not yet +0x194 & 0x20, the tests
+ * of sub_000B88D0 - and whose box sits on the bounced one's top is bounced the
+ * same way (flags |= 0x20, then Bounce(skater)); stacks of three follow. The
+ * box is sub_000B88D0's: position +8 / +0xC / +0x10 (x 4096) plus the model's
+ * Box, s16 pairs at model +0xC / +0x10 / +0x14 (x 4096), models
+ * [region (+0x1F) * 0x44 + 0x002F7EF8][model (+0x1A)]; y grows downwards.
+ * THPS_CRATE_STACK=0 = the original. THPS_CRATE_TRACE=1 (test): every bounce,
+ * its box and the platforms near it.
+ * Verified: docs/status.md (crate runs). */
+extern void sub_000B6AC0_gen(void);
+#define PLATFORM_LIST 0x00306C40u
+
+typedef struct { int64_t x0, y0, z0, x1, y1, z1; } CrateBox;
+
+static int crate_env(const char *name, int dflt)
+{
+    const char *e = getenv(name);
+    return e && *e ? atoi(e) : dflt;
+}
+
+static int crate_s16(uint32_t va)
+{
+    return *(volatile int16_t *)((uintptr_t)g_xbox_mem_offset + va);
+}
+
+static int platform_box(uint32_t p, CrateBox *b)
+{
+    uint32_t models = GUEST32((uint32_t)GUEST8(p + 0x1Fu) * 0x44u + 0x002F7EF8u), model, m;
+    int64_t a, c;
+    m = *(volatile uint16_t *)((uintptr_t)g_xbox_mem_offset + p + 0x1Au);
+    if (!models || !m || !(model = GUEST32(models + m * 4u)))
+        return 0;
+    a = (int64_t)crate_s16(model + 0x0Cu) * 4096; c = (int64_t)crate_s16(model + 0x0Eu) * 4096;
+    b->x0 = (a < c ? a : c) + (int32_t)GUEST32(p + 0x08u); b->x1 = (a < c ? c : a) + (int32_t)GUEST32(p + 0x08u);
+    a = (int64_t)crate_s16(model + 0x10u) * 4096; c = (int64_t)crate_s16(model + 0x12u) * 4096;
+    b->y0 = (a < c ? a : c) + (int32_t)GUEST32(p + 0x0Cu); b->y1 = (a < c ? c : a) + (int32_t)GUEST32(p + 0x0Cu);
+    a = (int64_t)crate_s16(model + 0x14u) * 4096; c = (int64_t)crate_s16(model + 0x16u) * 4096;
+    b->z0 = (a < c ? a : c) + (int32_t)GUEST32(p + 0x10u); b->z1 = (a < c ? c : a) + (int32_t)GUEST32(p + 0x10u);
+    return b->x1 > b->x0 && b->y1 > b->y0 && b->z1 > b->z0;
+}
+
+/* o stands on a: o's bottom (largest y) at a's top (smallest y) within tol, their
+ * x/z boxes overlapping by more than a quarter of o's smaller side */
+static int crate_on(const CrateBox *o, const CrateBox *a, int64_t tol)
+{
+    int64_t ox = (o->x1 < a->x1 ? o->x1 : a->x1) - (o->x0 > a->x0 ? o->x0 : a->x0);
+    int64_t oz = (o->z1 < a->z1 ? o->z1 : a->z1) - (o->z0 > a->z0 ? o->z0 : a->z0);
+    int64_t side = (o->x1 - o->x0) < (o->z1 - o->z0) ? (o->x1 - o->x0) : (o->z1 - o->z0);
+    int64_t gap = a->y0 - o->y1;
+    return gap <= tol && gap >= -tol && ox > side / 4 && oz > side / 4 && side > 0;
+}
+
+static int platform_can_bounce(uint32_t p)
+{
+    return (*(volatile uint16_t *)((uintptr_t)g_xbox_mem_offset + p + 4u) & 0x100u) && (GUEST8(p + 0x194u) & 0x10u) &&
+           !(GUEST8(p + 0x194u) & 0x20u);
+}
+
+static void crate_trace(uint32_t p, const CrateBox *a, int64_t tol)
+{
+    uint32_t l, o;
+    int n = 0;
+    CrateBox b;
+    fprintf(stderr, "  crate: bounced %08X box x %lld..%lld y %lld..%lld z %lld..%lld (/4096)\n", p,
+            (long long)(a->x0 >> 12), (long long)(a->x1 >> 12), (long long)(a->y0 >> 12), (long long)(a->y1 >> 12),
+            (long long)(a->z0 >> 12), (long long)(a->z1 >> 12));
+    for (o = GUEST32(PLATFORM_LIST); o && n < 4096; l = GUEST32(o + 0x20u), o = l ? l - 4u : 0, n++) {
+        if (o == p || !platform_box(o, &b) || b.x1 < a->x0 - (300 << 12) || b.x0 > a->x1 + (300 << 12) ||
+            b.z1 < a->z0 - (300 << 12) || b.z0 > a->z1 + (300 << 12) || b.y1 < a->y0 - (300 << 12) ||
+            b.y0 > a->y1 + (300 << 12))
+            continue;
+        fprintf(stderr, "  crate:   near %08X box x %lld..%lld y %lld..%lld z %lld..%lld can %d%s\n", o,
+                (long long)(b.x0 >> 12), (long long)(b.x1 >> 12), (long long)(b.y0 >> 12), (long long)(b.y1 >> 12),
+                (long long)(b.z0 >> 12), (long long)(b.z1 >> 12), platform_can_bounce(o), crate_on(&b, a, tol) ? " ON IT" : "");
+    }
+}
+
+void sub_000B6AC0(void)
+{
+    static int on = -1, trace, depth;
+    static int64_t tol;
+    uint32_t p = g_esi, skater = GUEST32(g_esp + 4), l, o;
+    int n = 0, have;
+    CrateBox a, b;
+    if (on < 0) {
+        on = crate_env("THPS_CRATE_STACK", 1) != 0;
+        trace = crate_env("THPS_CRATE_TRACE", 0);
+        tol = (int64_t)crate_env("THPS_CRATE_TOL", 12) * 4096;   /* world units between the two faces */
+        if (!on)
+            fprintf(stderr, "  crate: crates on a knocked crate stay (THPS_CRATE_STACK=0, the original)\n");
+    }
+    have = p && platform_box(p, &a);              /* its box before it flies off */
+    sub_000B6AC0_gen();
+    if (!have)
+        return;
+    if (trace)
+        crate_trace(p, &a, tol);
+    if (!on || depth >= 8 || !skater)
+        return;
+    {
+        uint32_t s_eax = g_eax, s_ecx = g_ecx, s_edx = g_edx, s_ebx = g_ebx, s_esi = g_esi, s_edi = g_edi;
+        for (o = GUEST32(PLATFORM_LIST); o && n < 4096; l = GUEST32(o + 0x20u), o = l ? l - 4u : 0, n++) {
+            if (o == p || !platform_can_bounce(o) || !platform_box(o, &b) || !crate_on(&b, &a, tol))
+                continue;
+            fprintf(stderr, "  crate: %08X stood on %08X -> knocked off with it\n", o, p);
+            *(volatile uint16_t *)((uintptr_t)g_xbox_mem_offset + o + 4u) |= 0x20u;   /* as sub_000B88D0 */
+            depth++;
+            g_esi = o;
+            g_eax = skater + 0x4Cu;
+            g_esp -= 8;
+            GUEST32(g_esp + 4) = skater;
+            GUEST32(g_esp) = 0x000B8A28u;         /* popped by its ret 4 */
+            sub_000B6AC0();
+            depth--;
+        }
+        g_eax = s_eax; g_ecx = s_ecx; g_edx = s_edx; g_ebx = s_ebx; g_esi = s_esi; g_edi = s_edi;
+    }
+}
+
+/* ── On-screen messages at 120 fps (issue #16; maintainer, 2026-11-11) ───────
+ * Why: GOAL COMPLETE and the other pop-up messages vanished twice as fast at
+ * 120 fps. Mess_Update sub_0009C2A0 (= THPS 1 PS1 Mess_Update 0x8001D6BC)
+ * counts every message one tick per call - Timer u16 at message +4, TotalTime
+ * +6, program +0x10 (32-byte steps: Duration u16 at +0, Next s8 at +0x1E, 0x7F
+ * holds, 0 deletes; list [0x00306C4C], next at +0x14) - and the main frame
+ * sub_001AF860 calls it once per game frame (0x001AFBDB). At 120 fps there are
+ * two game frames per 60 Hz vblank.
+ * How: the update runs only when the 60 Hz vblank counter byte [0x0030697C]
+ * changed since its last call (as the ollie charge fix) - at 60 fps that is
+ * every frame (unchanged), at 120 every second one; a drop below 60 fps counts
+ * one tick per frame as the original. Drawing (sub_0009C380) is untouched.
+ * THPS_MESS_60=0 = the original (test). At 60 fps the messages last as long as
+ * on the Xbox (the PS1 at 30 fps showed them twice as long - not changed).
+ * THPS_MESS_TRACE=1 (test): every message's life in ms and game frames.
+ * THPS_TEST_MESS=<s> (test): every <s> seconds of ticks a "GOALS CLEARED"
+ * message with the goal program 0x00289208 (the one the tape / goal messages
+ * use, caller 0x000A4153) through Mess_Message sub_0009C230 (stdcall: text,
+ * program, stacked, x, y; ret 0x14).
+ * Verified: docs/status.md (message runs at 60 / 120). */
+extern void sub_0009C2A0_gen(void);
+extern void sub_0009C230(void);
+#define MESS_LIST 0x00306C4Cu
+
+static void mess_test_message(void)
+{
+    uint32_t s_eax = g_eax, s_ecx = g_ecx, s_edx = g_edx, s_ebx = g_ebx, s_esi = g_esi, s_edi = g_edi;
+    g_esp -= 0x18;
+    GUEST32(g_esp + 0x14) = 0;                    /* y */
+    GUEST32(g_esp + 0x10) = 0;                    /* x */
+    GUEST32(g_esp + 0x0C) = 1;                    /* stacked */
+    GUEST32(g_esp + 0x08) = 0x00289208u;          /* the goal program */
+    GUEST32(g_esp + 0x04) = 0x00237A08u;          /* "GOALS CLEARED" */
+    GUEST32(g_esp) = 0x001AFBE0u;                 /* popped by its ret 0x14 */
+    sub_0009C230();
+    fprintf(stderr, "  mess: test message %08X\n", g_eax);
+    g_eax = s_eax; g_ecx = s_ecx; g_edx = s_edx; g_ebx = s_ebx; g_esi = s_esi; g_edi = s_edi;
+}
+
+static void mess_trace(void)
+{
+    static uint32_t who[64];
+    static uint64_t born[64];
+    static uint32_t frames[64];
+    uint32_t now_list[64], m;
+    int n = 0, i, j;
+    uint64_t now = host_time_ns();
+    for (m = GUEST32(MESS_LIST); m && n < 64; m = GUEST32(m + 0x14u))
+        now_list[n++] = m;
+    for (i = 0; i < 64; i++) {                    /* gone since the last update */
+        int alive = 0;
+        if (!who[i])
+            continue;
+        for (j = 0; j < n; j++)
+            if (now_list[j] == who[i]) { alive = 1; break; }
+        if (alive) {
+            frames[i]++;
+            continue;
+        }
+        fprintf(stderr, "  mess: %08X gone after %llu ms, %u updates\n", who[i],
+                (unsigned long long)((now - born[i]) / 1000000ull), frames[i]);
+        who[i] = 0;
+    }
+    for (j = 0; j < n; j++) {                     /* new ones */
+        int known = 0, free_i = -1;
+        for (i = 0; i < 64; i++) {
+            if (who[i] == now_list[j]) { known = 1; break; }
+            if (!who[i] && free_i < 0) free_i = i;
+        }
+        if (!known && free_i >= 0) {
+            who[free_i] = now_list[j];
+            born[free_i] = now;
+            frames[free_i] = 0;
+            fprintf(stderr, "  mess: %08X new (duration of step 0: %u)\n", now_list[j],
+                    (unsigned)*(volatile uint16_t *)((uintptr_t)g_xbox_mem_offset + GUEST32(now_list[j] + 0x10u)));
+        }
+    }
+}
+
+void sub_0009C2A0(void)
+{
+    static int on = -1, trace, test;
+    static int have;
+    static uint32_t ticks;
+    static uint8_t last;
+    uint8_t v = *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + 0x0030697Cu);
+    if (on < 0) {
+        on = crate_env("THPS_MESS_60", 1) != 0;
+        trace = crate_env("THPS_MESS_TRACE", 0);
+        test = crate_env("THPS_TEST_MESS", 0);
+        if (!on)
+            fprintf(stderr, "  mess: messages tick every game frame (THPS_MESS_60=0, the original)\n");
+    }
+    if (on && have && v == last) {
+        g_esp += 4;                                   /* ret: the same vblank, already counted */
+        return;
+    }
+    have = 1;
+    last = v;
+    if (test > 0 && ++ticks % ((uint32_t)test * 60u) == 0)
+        mess_test_message();                      /* counted from its first update on */
+    sub_0009C2A0_gen();
+    if (trace)
+        mess_trace();
 }
 
 /* ── PHYSICS: 2X / ORIGINAL THPS 2 (maintainer, 2026-11-05) ──────────────────
@@ -5562,11 +6093,14 @@ uint32_t xbox_HeapAlloc(uint32_t size, uint32_t alignment);
 static uint32_t s_pq_text;                        /* guest "QUIT GAME" */
 static int s_pq_open;                             /* our question is open (state 3) */
 
+static void pause_camera_line(uint32_t menu);     /* CAMERA OPTIONS, below */
+
 void pause_quit_line(uint32_t menu)              /* soundtracks.c sub_000FF600 */
 {
     uint32_t n, last;
     if (GUEST32(g_esp) != 0x0010471Cu || !menu || menu != GUEST32(PQ_LIST))
         return;
+    pause_camera_line(menu);
     if (!s_pq_text) {
         if (!(s_pq_text = xbox_HeapAlloc(16, 4)))
             return;
@@ -5583,10 +6117,178 @@ void pause_quit_line(uint32_t menu)              /* soundtracks.c sub_000FF600 *
     s_pq_open = 0;
 }
 
+/* ── CAMERA OPTIONS in the pause menu (maintainer, 2026-11-08: a user's wish -
+ * the camera and the field of view changed inside the level) ────────────────
+ *
+ * Why: FIELD OF VIEW (RECOMP OPTIONS), REMEMBER CAMERA (GENERAL OPTIONS) and
+ * the pausing player's FREE CAMERA, CAMERA SENSITIVITY X / Y and INVERT
+ * CAMERA (CONTROLS -> RECOMP CONTROL OPTIONS) also from the pause menu, live.
+ * Address: the pause list as for QUIT GAME above; SOUND OPTIONS is the line
+ * with the text [0x00289A60]: A on it is FF880 returning to 0x00104DD9, then
+ * the game plays its sound and goes to state 0x2F, the SOUND OPTIONS screen
+ * (menu [0x00306914], soundtracks.c), whose lines it tells apart by their
+ * text - lines it does not know it draws and leaves alone, BACK / B go back to
+ * state 1 with the pause list kept.
+ * How: a CAMERA OPTIONS line right after SOUND OPTIONS; A on it answers FF880
+ * "match", so the game opens its SOUND OPTIONS screen, and at once that
+ * menu's line records are swapped for ours (BACK's record as the template,
+ * relaid out by sub_000FF600); left / right (or A) step a value through
+ * opt_val_step, like the options menus, saved at once. When the state leaves
+ * 0x2F the game's own records go back. The values are the player's whose pad
+ * pressed A on CAMERA OPTIONS (player 1 by default).
+ * Verified: input script tests/input/pause_camera.txt (docs/status.md). */
+#define PC_SND_MENU 0x00306914u
+#define PC_LINES 6                                 /* the value lines; BACK after them */
+#define PC_PAD_A(k)     (0x00305369u + (uint32_t)(k) * 0x18Cu)
+#define PC_PAD_LEFT(k)  (0x003053B9u + (uint32_t)(k) * 0x18Cu)
+#define PC_PAD_RIGHT(k) (0x003053C9u + (uint32_t)(k) * 0x18Cu)
+static uint32_t s_pc_label, s_pc_text[PC_LINES];   /* guest "CAMERA OPTIONS", the lines (32 bytes each) */
+static int s_pc_on, s_pc_player;                   /* our lines are in the SOUND OPTIONS menu */
+static uint8_t s_pc_saved[15 * 0x18], s_pc_saved_n, s_pc_saved_sel;
+
+static void pause_camera_line(uint32_t menu)
+{
+    uint32_t n = GUEST8(menu + 9), i, snd = GUEST32(0x00289A60u), at;
+    if (!s_pc_label) {
+        if (!(s_pc_label = xbox_HeapAlloc(16, 4)))
+            return;
+        memcpy((char *)(uintptr_t)g_xbox_mem_offset + s_pc_label, "CAMERA OPTIONS", 15);
+    }
+    if (n < 2 || n >= 14)                          /* room for ours and QUIT GAME (15 at most) */
+        return;
+    for (i = 0; i < n && GUEST32(menu + 0x18u + i * 0x18u) != snd; i++)
+        ;
+    if (i >= n - 1)
+        return;                                    /* no SOUND OPTIONS, or it is the last line */
+    at = menu + 0x18u + (i + 1u) * 0x18u;
+    memmove((char *)(uintptr_t)g_xbox_mem_offset + at + 0x18u, (char *)(uintptr_t)g_xbox_mem_offset + at,
+            (n - i - 1u) * 0x18u);
+    memcpy((char *)(uintptr_t)g_xbox_mem_offset + at, (char *)(uintptr_t)g_xbox_mem_offset + at - 0x18u, 0x18);
+    GUEST32(at) = s_pc_label;                      /* SOUND OPTIONS' record as the template */
+    GUEST8(menu + 9) = (uint8_t)(n + 1);
+}
+
+static int pc_id(int line)                         /* line -> option value id */
+{
+    static const int base[PC_LINES] = { VAL_FOV, VAL_REMCAM, VAL_FREECAM1, VAL_CAMSX1, VAL_CAMSY1, VAL_INVCAM1 };
+    return line >= 2 ? base[line] + s_pc_player : base[line];
+}
+
+static void pc_texts(void)
+{
+    static const char *const label[PC_LINES] = { "FIELD OF VIEW", "REMEMBER CAMERA", "FREE CAMERA",
+                                                 "SENSITIVITY X", "SENSITIVITY Y", "INVERT CAMERA" };
+    int i;
+    for (i = 0; i < PC_LINES; i++) {
+        int id = pc_id(i);
+        if (s_pc_text[i])
+            snprintf((char *)(uintptr_t)g_xbox_mem_offset + s_pc_text[i], 32, "%s: %s", label[i],
+                     s_val[id].txt[opt_val_index(id)]);
+    }
+}
+
+static void pc_layout(uint32_t menu)               /* sub_000FF600 (ecx = menu) lays the lines out */
+{
+    extern void sub_000FF600_gen(void);
+    uint32_t esp = g_esp, eax = g_eax, ecx = g_ecx, edx = g_edx;
+    g_ecx = menu;
+    g_esp -= 4;
+    GUEST32(g_esp) = 0;
+    sub_000FF600_gen();
+    g_esp = esp; g_eax = eax; g_ecx = ecx; g_edx = edx;
+}
+
+static void pc_open(void)                           /* our lines into the SOUND OPTIONS menu */
+{
+    uint32_t menu = GUEST32(PC_SND_MENU), n, i;
+    if (!menu || s_pc_on || (n = GUEST8(menu + 9)) < 1 || n > 15)
+        return;
+    for (i = 0; i < PC_LINES; i++)
+        if (!s_pc_text[i] && !(s_pc_text[i] = xbox_HeapAlloc(32, 4)))
+            return;
+    s_pc_saved_n = (uint8_t)n;
+    s_pc_saved_sel = GUEST8(menu + 6);
+    memcpy(s_pc_saved, (char *)(uintptr_t)g_xbox_mem_offset + menu + 0x18u, n * 0x18u);
+    for (i = 0; i <= PC_LINES; i++)                /* every line from BACK's record (the last) */
+        memcpy((char *)(uintptr_t)g_xbox_mem_offset + menu + 0x18u + i * 0x18u, s_pc_saved + (n - 1u) * 0x18u,
+               0x18);
+    for (i = 0; i < PC_LINES; i++)
+        GUEST32(menu + 0x18u + i * 0x18u) = s_pc_text[i];
+    GUEST8(menu + 9) = PC_LINES + 1;
+    GUEST8(menu + 6) = 0;
+    pc_texts();
+    pc_layout(menu);
+    s_pc_on = 1;
+    fprintf(stderr, "  pause: CAMERA OPTIONS (player %d)\n", s_pc_player + 1);
+}
+
+static void pc_close(void)                          /* the game's own SOUND OPTIONS lines back */
+{
+    uint32_t menu = GUEST32(PC_SND_MENU);
+    s_pc_on = 0;
+    if (!menu || !s_pc_saved_n)
+        return;
+    memcpy((char *)(uintptr_t)g_xbox_mem_offset + menu + 0x18u, s_pc_saved, s_pc_saved_n * 0x18u);
+    GUEST8(menu + 9) = s_pc_saved_n;
+    GUEST8(menu + 6) = s_pc_saved_sel;
+    pc_layout(menu);
+    fprintf(stderr, "  pause: CAMERA OPTIONS closed\n");
+}
+
+/* every frame before the pause UI (soundtracks.c sub_00104210); 1 = our lines
+ * are open (the SOUND OPTIONS handling there leaves them alone) */
+int pause_camera_frame(void)
+{
+    uint32_t menu = GUEST32(PC_SND_MENU), sel, k;
+    int dir = 0, a = 0, line;
+    if (!s_pc_on)
+        return 0;
+    if (GUEST32(PQ_STATE) != 0x2Fu || !menu) {
+        pc_close();
+        return 0;
+    }
+    sel = GUEST8(menu + 6);
+    line = sel < PC_LINES ? (int)sel : -1;
+    for (k = 0; k < 4; k++) {
+        if (GUEST8(PC_PAD_LEFT(k)))
+            dir = -1;
+        if (GUEST8(PC_PAD_RIGHT(k)))
+            dir = 1;
+        if (line >= 0 && GUEST8(PC_PAD_A(k)))
+            a = 1;
+    }
+    if (line >= 0 && (dir || a)) {
+        int id = pc_id(line);
+        for (k = 0; k < 4; k++) {                   /* the game's own handling does not see it */
+            GUEST8(PC_PAD_LEFT(k)) = GUEST8(PC_PAD_RIGHT(k)) = 0;
+            GUEST8(PC_PAD_A(k)) = 0;
+        }
+        if (opt_val_step(id, dir ? dir : 1))
+            fprintf(stderr, "  pause: CAMERA OPTIONS %s -> %s\n", s_val[id].label,
+                    s_val[id].txt[opt_val_index(id)]);
+    }
+    pc_texts();
+    return 1;
+}
+
 extern void sub_000FF880_gen(void);
 void sub_000FF880(void)
 {
     uint32_t ret = GUEST32(g_esp), menu = g_ecx;
+    if (ret == 0x00104DD9u && s_pc_label && menu      /* the SOUND OPTIONS test: CAMERA OPTIONS answers it */
+        && GUEST32(menu + 0x18u + GUEST8(menu + 6) * 0x18u) == s_pc_label) {
+        uint32_t k;
+        s_pc_player = 0;
+        for (k = 0; k < 4; k++)
+            if (GUEST8(PC_PAD_A(k))) {
+                s_pc_player = (int)k;
+                break;
+            }
+        pc_open();
+        g_eax = 1;
+        g_esp += 4 + 4;                           /* ret 4 */
+        return;
+    }
     if (ret == 0x00104D8Bu && s_pq_text && menu
         && GUEST32(menu + 0x18u + GUEST8(menu + 6) * 0x18u) == s_pq_text) {
         s_pq_open = 1;
