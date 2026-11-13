@@ -1,0 +1,49 @@
+# classic_th2_save.txt - GitHub #11 (2026-11-12), part 1 of the freeze repro: New Career (classic), first skater,
+# Warehouse, one 2-minute run with RECOMP_CC_PRESET=roswell (the run opens THPS 2), then SAVE CAREER? YES -> Xbox Hard
+# Disk -> empty slot -> name (A presses as career_save.txt) -> saved. Part 2 (classic_th2_load.txt) loads it from the
+# same --save-dir. Separate test save dir only:
+#   THPS2X.exe --max-seconds 260 --save-dir <temp> --data-dir <temp> --input-script tests\input\classic_th2_save.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# Career -> NEW CAREER -> Select Player CONTINUE -> Warehouse -> the goals screen
+21000:a:300
+25000:a:300
+33000:a:300
+40000:shot=01_level_list
+41000:a:300
+48000:shot=02_goals
+49000:a:300
+@include snippets/skate_loop.txt 55000
+@include snippets/skate_loop.txt 75000
+@include snippets/skate_loop.txt 95000
+@include snippets/skate_loop.txt 115000
+@include snippets/skate_loop.txt 135000
+# after the run: the unlock screen (THPS 2 open), then SAVE CAREER? YES and the save dialogs
+172000:shot=03_unlock
+174000:a:300
+177000:shot=04_save_career
+178000:a:300
+181000:shot=05_s181
+183000:a:300
+186000:shot=06_s186
+189000:a:300
+192000:shot=07_s192
+195000:a:300
+198000:shot=08_s198
+201000:a:300
+204000:shot=09_s204
+207000:a:300
+210000:shot=10_s210
+213000:a:300
+216000:shot=11_s216
+219000:a:300
+222000:shot=12_s222
+225000:a:300
+228000:shot=13_s228
+231000:a:300
+234000:shot=14_s234
+240000:shot=15_end

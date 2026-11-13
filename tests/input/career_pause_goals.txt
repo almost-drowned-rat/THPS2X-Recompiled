@@ -1,0 +1,33 @@
+# career_pause_goals.txt - GitHub #10 (2026-11-12): the career pause menu and its LEVEL GOALS screen at a wide aspect
+# (16:10: some lines pulled to the left edge with a faint copy). New Career, first skater, first level, the goals
+# screen, then pause and a shot per menu line, A on the second line, shots. Run with THPS_CAREER_MODE=original and
+# THPS_ASPECT_RATIO=16:10.
+#   THPS2X.exe --max-seconds 80 --save-dir <temp> --data-dir <temp> --input-script tests\input\career_pause_goals.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# Career -> NEW CAREER -> Select Player CONTINUE -> first level -> the goals screen
+21000:a:300
+25000:a:300
+33000:a:300
+41000:a:300
+48000:shot=01_goals
+49000:a:300
+54000:shot=02_level
+56000:start:300
+58000:shot=03_pause
+59000:down:300
+60500:shot=04_pause_down1
+61000:down:300
+62500:shot=05_pause_down2
+63000:up:300
+64500:shot=06_pause_up
+65000:a:300
+67000:shot=07_after_a
+69000:shot=08_after_a_2s
+71000:down:300
+72500:shot=09_down
+75000:shot=10_end

@@ -1,0 +1,66 @@
+# opt_pause_menu.txt - PAUSE MENU (GitHub #18, maintainer 2026-11-12): OPTIONS -> GENERAL OPTIONS -> PAUSE MENU (the
+# last line, 8 downs from CAREER MODE) -> CAMERA OPTIONS right = OFF, down, down: SOUND OPTIONS right = OFF; B, B to
+# the main menu; Free Skate -> first skater -> first level, pause: CONTINUE, RETRY, QUIT GAME, END RUN (log "pause:
+# ... lines (camera off, quit on, sound off)"). Expected saves\settings.ini: pause_camera_options=off,
+# pause_sound_options=off.
+#   THPS2X.exe --max-seconds 150 --save-dir <temp> --data-dir <temp> --input-script tests\input\opt_pause_menu.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+0:p2-connect
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# main menu: OPTIONS is the seventh entry
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: GENERAL OPTIONS is the 9th line
+33000:down:300
+34000:down:300
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+43000:a:300
+47000:shot=01_general
+# 8 downs from CAREER MODE: PAUSE MENU
+48000:down:300
+49000:down:300
+50000:down:300
+51000:down:300
+52000:down:300
+53000:down:300
+54000:down:300
+55000:down:300
+57000:shot=02_general_pause_menu_line
+58000:a:300
+61000:shot=03_pause_menu_defaults
+62000:right:300
+63500:down:300
+64500:down:300
+66000:right:300
+68000:shot=04_pause_menu_changed
+# back: GENERAL OPTIONS, OPTIONS, the main menu (cursor on OPTIONS)
+69000:b:300
+71000:b:300
+73000:b:300
+76000:shot=05_main_menu
+# Free Skate (the third entry: up four times)
+77000:up:300
+78000:up:300
+79000:up:300
+80000:up:300
+82000:a:300
+91000:a:300
+100000:a:300
+# loading, the rules screen (A; 47 s after the first A as in remember_camera.txt), the level, pause
+129000:a:300
+138000:start:300
+141000:shot=06_pause

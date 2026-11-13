@@ -56,6 +56,7 @@ only that line.
 | **Playstyle** | XBOX (original) or PS2: spins on Black / White (on a modern pad the shoulder buttons LB / RB), nollie and switch stay on the triggers. Works on top of your button mapping - if Black / White are not mapped to anything, PS2 has no spins. |
 | **Gameplay ▸** | The gameplay options below, in their own list (Y works there too). |
 | **Remember camera** | OFF (original) or ON: the game puts the camera back to its first view at every level start and retry; with ON the view you picked with Back stays, also after a restart of the game. |
+| **Pause menu ▸** | Which lines the pause menu shows: CAMERA OPTIONS, QUIT GAME and SOUND OPTIONS, each ON (default) or OFF. CONTINUE, RETRY and END RUN always stay. |
 
 **GAMEPLAY:**
 
@@ -87,7 +88,8 @@ Y, X AND Y), **CAMERA SENSITIVITY X / Y** (0-10, 0 locks that axis) and **CAMERA
 10 jumps back at once). **CAMERA RESET** (the right stick click by default, remappable in BUTTON MAPPING) brings the
 camera back behind the skater.
 In a level, **pause → CAMERA OPTIONS** changes FIELD OF VIEW, REMEMBER CAMERA, FREE CAMERA, SENSITIVITY X / Y and
-INVERT CAMERA of the player who paused (a new FIELD OF VIEW applies after a RETRY or at the next level).
+INVERT CAMERA of the player who paused (a new FIELD OF VIEW applies after a RETRY or at the next level). GENERAL
+OPTIONS → PAUSE MENU hides it (and QUIT GAME or SOUND OPTIONS) if you don't need it.
 
 ### RECOMP OPTIONS
 Changes are saved immediately. Settings that need a restart are marked, and leaving the menu asks **RESTART NEEDED**.

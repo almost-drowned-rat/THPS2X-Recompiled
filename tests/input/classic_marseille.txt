@@ -1,0 +1,68 @@
+# classic_marseille.txt - GitHub #11 (2026-11-12): freeze on the level list in a classic career right after the
+# THPS 2 part opened, stepping from School II to Marseille. New Career, first skater, Warehouse, one 2-minute run
+# with RECOMP_CC_PRESET=roswell (the run opens THPS 2: "[CAREER] classic: THPS 2 part open"), then LEVEL SELECT and
+# right through the list (Warehouse .. Roswell, Hangar, School II, Marseille, ...) with a shot per step. Expected: no
+# freeze, every step logs "[CAREER] level list next". Separate test save dir only:
+#   THPS2X.exe --max-seconds 260 --save-dir <temp> --data-dir <temp> --input-script tests\input\classic_marseille.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# Career -> NEW CAREER -> Select Player CONTINUE -> Warehouse -> the goals screen
+21000:a:300
+25000:a:300
+33000:a:300
+40000:shot=01_level_list
+41000:a:300
+48000:shot=02_goals
+49000:a:300
+@include snippets/skate_loop.txt 55000
+@include snippets/skate_loop.txt 75000
+@include snippets/skate_loop.txt 95000
+@include snippets/skate_loop.txt 115000
+@include snippets/skate_loop.txt 135000
+# after the run (see classic_run.txt): the unlock screen, SAVE CAREER? NO, STATISTICS, the end menu
+172000:shot=03_unlock
+174000:a:300
+177000:shot=04_save_career
+178000:down:300
+179500:a:300
+183000:shot=05_statistics
+184000:a:300
+188000:shot=06_end_menu
+# LEVEL SELECT -> the level list
+189000:down:300
+190500:down:300
+192000:shot=07_level_select_cursor
+193000:a:300
+199000:shot=08_level_list
+# right x 13: 11 .. 18, 0 (Hangar), 1 (School II), 2 (Marseille), 3, 4
+200000:right:300
+202500:shot=09_r01
+203000:right:300
+205500:shot=10_r02
+206000:right:300
+208500:shot=11_r03
+209000:right:300
+211500:shot=12_r04
+212000:right:300
+214500:shot=13_r05
+215000:right:300
+217500:shot=14_r06
+218000:right:300
+220500:shot=15_r07
+221000:right:300
+223500:shot=16_r08
+224000:right:300
+226500:shot=17_r09
+227000:right:300
+229500:shot=18_r10
+230000:right:300
+232500:shot=19_r11
+233000:right:300
+235500:shot=20_r12
+236000:right:300
+238500:shot=21_r13
+245000:shot=22_end

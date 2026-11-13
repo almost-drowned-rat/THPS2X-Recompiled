@@ -1,0 +1,38 @@
+# career_level_start_tips.txt - GitHub #11 (2026-11-12): the yellow tips at the start of a career level, misaligned
+# at 16:9 with HUD AT 16:9: ORIGINAL PROPORTIONS. New Career, first skater, the first level of the list, the goals
+# screen, then a shot every 0.5 s for the first 8 s of the run and the pause menu. Run with THPS_ASPECT_RATIO=16:9.
+#   THPS2X.exe --max-seconds 75 --save-dir <temp> --data-dir <temp> --input-script tests\input\career_level_start_tips.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# Career -> NEW CAREER -> Select Player CONTINUE -> first level -> the goals screen
+21000:a:300
+25000:a:300
+33000:a:300
+40000:shot=01_level_list
+41000:a:300
+48000:shot=02_goals
+49000:a:300
+49500:shot=03_t00
+50000:shot=04_t05
+50500:shot=05_t10
+51000:shot=06_t15
+51500:shot=07_t20
+52000:shot=08_t25
+52500:shot=09_t30
+53000:shot=10_t35
+53500:shot=11_t40
+54000:shot=12_t45
+54500:shot=13_t50
+55000:shot=14_t55
+55500:shot=15_t60
+56000:shot=16_t65
+56500:shot=17_t70
+57000:shot=18_t75
+58000:shot=19_t85
+59000:shot=20_t95
+61000:shot=21_t115
+63000:shot=22_t135

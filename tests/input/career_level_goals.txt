@@ -1,0 +1,49 @@
+# career_level_goals.txt - GitHub #10 / #11 (2026-11-12): the career's LEVEL GOALS screen (end-of-run menu) and the
+# level-start tip at a wide aspect. New Career, first skater, first level, pause -> END RUN (up from CONTINUE) -> YES
+# -> STATISTICS -> the end menu (RETRY, LEVEL GOALS, ...) -> LEVEL GOALS (#10: at 16:10 some lines were pulled to the
+# left edge with a faint copy), back, RETRY: with this timing The Hangar then opens with the tip "TIP: / PRESS A AT /
+# IMPACT TO / LAND BIG DROPS" (#11: its long last line was pulled toward the middle at 16:10 / 16:9 - all four lines
+# flush left = right). Run with THPS_CAREER_MODE=original and THPS_ASPECT_RATIO=16:10 (16:9, 4:3 to compare).
+#   THPS2X.exe --max-seconds 115 --save-dir <temp> --data-dir <temp> --input-script tests\input\career_level_goals.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# Career -> NEW CAREER -> Select Player CONTINUE -> first level -> the goals screen -> the run
+21000:a:300
+25000:a:300
+33000:a:300
+41000:a:300
+49000:a:300
+54000:shot=01_level
+# pause -> END RUN -> DO YOU REALLY WANT TO END THIS RUN? NO preselected: up = YES, A
+56000:start:300
+58000:up:300
+59500:shot=02_pause_end_run
+60000:a:300
+62000:shot=03_question
+62500:up:300
+64000:a:300
+67000:shot=04_statistics
+68000:a:300
+71000:shot=05_end_menu
+# the end menu: RETRY, LEVEL GOALS, ...
+72000:down:300
+73500:shot=06_cursor_level_goals
+74000:a:300
+77000:shot=07_level_goals
+79000:shot=08_level_goals_2s
+80000:down:300
+81500:shot=09_level_goals_down
+# back to the end menu, RETRY (up from LEVEL GOALS)
+83000:b:300
+85500:shot=10_back
+86000:up:300
+87500:a:300
+# the level again: the tip
+97000:shot=11_tip_a
+98500:shot=12_tip_b
+100000:shot=13_tip_c
+105000:shot=14_end

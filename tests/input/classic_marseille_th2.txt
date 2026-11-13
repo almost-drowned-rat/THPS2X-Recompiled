@@ -1,0 +1,60 @@
+# classic_marseille_th2.txt - GitHub #11 (2026-11-12): freeze on the level list in a classic career right after the
+# THPS 2 part opened, stepping School II -> Marseille in the THPS 2 part. As classic_marseille.txt up to the level
+# list, then back to Select Player, the part line Modify once (THPS 1 -> THPS 2), CONTINUE, and right through the
+# THPS 2 levels (Hangar, School II, Marseille, ...) with a shot per step. Run with THPS_CAREER_MODE=classic and
+# RECOMP_CC_PRESET=roswell. Expected: no freeze, every step logs "[CAREER] level list next". Separate test save dir:
+#   THPS2X.exe --max-seconds 260 --save-dir <temp> --data-dir <temp> --input-script tests\input\classic_marseille_th2.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+# Career -> NEW CAREER -> Select Player CONTINUE -> Warehouse -> the goals screen
+21000:a:300
+25000:a:300
+33000:a:300
+40000:shot=01_level_list
+41000:a:300
+48000:shot=02_goals
+49000:a:300
+@include snippets/skate_loop.txt 55000
+@include snippets/skate_loop.txt 75000
+@include snippets/skate_loop.txt 95000
+@include snippets/skate_loop.txt 115000
+@include snippets/skate_loop.txt 135000
+# after the run (see classic_run.txt): the unlock screen, SAVE CAREER? NO, STATISTICS, the end menu
+172000:shot=03_unlock
+174000:a:300
+177000:shot=04_save_career
+178000:down:300
+179500:a:300
+183000:shot=05_statistics
+184000:a:300
+188000:shot=06_end_menu
+# LEVEL SELECT -> the level list -> back to Select Player -> the part line, Modify once -> CONTINUE
+189000:down:300
+190500:down:300
+193000:a:300
+199000:shot=07_level_list
+200000:b:300
+205000:shot=08_select_player
+206000:down:300
+207500:a:300
+209500:shot=09_part_th2
+210500:up:300
+212000:shot=10_continue_cursor
+213000:a:300
+219000:shot=11_level_list_th2
+# right x 5: School II, Marseille, NY, Venice, ...
+220000:right:300
+222500:shot=12_r01
+223000:right:300
+225500:shot=13_r02
+226000:right:300
+228500:shot=14_r03
+229000:right:300
+231500:shot=15_r04
+232000:right:300
+234500:shot=16_r05
+240000:shot=17_end

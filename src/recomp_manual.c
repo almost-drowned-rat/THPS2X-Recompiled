@@ -406,12 +406,37 @@ static volatile int s_hud_stretched;          /* HUD AT 16:9 = STRETCHED (GitHub
 void thps_gamma_apply(void);                  /* BRIGHTNESS (GitHub #11, v1.2.2) */
 extern void xbox_GuestSetHz(int hz);
 extern int xbox_GuestHz(void);
+static volatile uint32_t s_swaps;             /* presented frames, for the freeze report */
+static void thps_freeze_watch_start(void);    /* FREEZE REPORT (GitHub #11), below */
+static void thps_freeze_test_hold(uint32_t secs);
 
 void sub_00018F90(void)
 {
     static int every = -1;
     static unsigned calls;
 
+    if (!s_swaps)
+        thps_freeze_watch_start();                /* on the game thread: its g_esp */
+    s_swaps++;
+    {
+        /* THPS_TEST_FREEZE=<frame>:<s> (test only): hold the game thread once,
+         * at that frame, for that long - the freeze report has to name it. */
+        static int init;
+        static uint32_t at, secs;
+        if (!init) {
+            const char *e = getenv("THPS_TEST_FREEZE");
+            char *end;
+            init = 1;
+            if (e && *e) {
+                at = (uint32_t)strtoul(e, &end, 0);
+                secs = *end == ':' ? (uint32_t)strtoul(end + 1, NULL, 0) : 0;
+            }
+        }
+        if (secs && s_swaps == at) {
+            fprintf(stderr, "  test: game thread held %u s at frame %u (THPS_TEST_FREEZE)\n", secs, at);
+            thps_freeze_test_hold(secs);
+        }
+    }
     if (every < 0) {
         const char *e = getenv("RECOMP_FRAME_STACK");
         every = e ? atoi(e) : 0;
@@ -1198,6 +1223,92 @@ void sub_0001F300(void)
 #include "shader_pack.h"                                  /* SHADERS: the pack index, saved presets */
 #include "boot_video.h"                                   /* BOOT ANIMATION: media\boot.mpg */
 #include <SDL3/SDL_stdinc.h>                              /* SDL_strcasecmp (SHADERS browser) */
+#include <SDL3/SDL_thread.h>                              /* the freeze report's watcher */
+#include <SDL3/SDL_timer.h>
+
+/* ── FREEZE REPORT (GitHub #11, 2026-11-12) ──────────────────────────────────
+ * Why: a player's game froze once on the level list (classic career, School
+ * II -> Marseille); the log stopped without a word, and the same steps (also
+ * 96 of them at his 4267x2400) never froze here. A freeze that only a player
+ * meets needs the log to say where the game thread stands.
+ * How: a watcher thread counts the presented frames (sub_00018F90, s_swaps);
+ * when none comes for 10 s (THPS_FREEZE_REPORT=<s>, 0 = off) it writes once
+ * "[FREEZE]" with the game thread's registers, its recent indirect calls and
+ * the code addresses on its guest stack (the RECOMP_FRAME_STACK form, for
+ * tools/stackwalk-style reading), a second sample 20 s later (spinning or
+ * blocked), and "[FREEZE] frames again" if the game recovers. Nothing is
+ * stopped or changed; a long loading screen only costs a few log lines.
+ * Verified: docs/status.md (freeze report run). */
+extern THPS_TLS uint32_t g_ebx, g_edx, g_esi, g_edi, g_ebp;
+extern volatile uint64_t g_icall_count;
+static uint32_t *s_fw_esp, *s_fw_reg[7];
+static int s_fw_secs;
+
+static void thps_freeze_dump(int sample, int secs)
+{
+    uint32_t esp = *s_fw_esp, i, n = 0;
+    int k;
+    fprintf(stderr, "[FREEZE] no frame for %d s (sample %d, frame %u): game thread esp=%08X eax=%08X ecx=%08X"
+            " edx=%08X ebx=%08X esi=%08X edi=%08X ebp=%08X, icalls %llu\n", secs, sample, s_swaps, esp,
+            *s_fw_reg[0], *s_fw_reg[1], *s_fw_reg[2], *s_fw_reg[3], *s_fw_reg[4], *s_fw_reg[5], *s_fw_reg[6],
+            (unsigned long long)g_icall_count);
+    fprintf(stderr, "[FREEZE] recent icalls:");
+    for (k = 0; k < 16; k++)
+        fprintf(stderr, " %08X", g_icall_trace[(g_icall_trace_idx + (uint32_t)k) & 15]);
+    fprintf(stderr, "\n[FREEZE] stack code addresses:");
+    for (i = 0; i < 4096 && n < 48 && esp + 4 * i < 0x00F80000u; i++) {
+        uint32_t v = GUEST32(esp + 4 * i);
+        if (v >= 0x00011000u && v < 0x0021E580u) {   /* the XBE's code sections */
+            fprintf(stderr, " %08X@%u", v, 4 * i);
+            n++;
+        }
+    }
+    fprintf(stderr, "\n");
+    fflush(stderr);
+}
+
+static int SDLCALL thps_freeze_watch(void *unused)
+{
+    uint32_t last = s_swaps;
+    int still = 0;
+    (void)unused;
+    for (;;) {
+        SDL_Delay(1000);
+        if (s_swaps != last) {
+            if (still >= s_fw_secs)
+                fprintf(stderr, "[FREEZE] frames again after %d s\n", still);
+            last = s_swaps;
+            still = 0;
+            continue;
+        }
+        still++;
+        if (still == s_fw_secs || still == s_fw_secs + 20)
+            thps_freeze_dump(still == s_fw_secs ? 1 : 2, still);
+    }
+    return 0;
+}
+
+static void thps_freeze_test_hold(uint32_t secs)
+{
+    SDL_Delay(secs * 1000u);
+}
+
+static void thps_freeze_watch_start(void)
+{
+    const char *e = getenv("THPS_FREEZE_REPORT");
+    SDL_Thread *t;
+    s_fw_secs = e && *e ? atoi(e) : 10;
+    if (s_fw_secs <= 0)
+        return;
+    s_fw_esp = &g_esp;                            /* thread-local: this (the game) thread's */
+    s_fw_reg[0] = &g_eax; s_fw_reg[1] = &g_ecx; s_fw_reg[2] = &g_edx; s_fw_reg[3] = &g_ebx;
+    s_fw_reg[4] = &g_esi; s_fw_reg[5] = &g_edi; s_fw_reg[6] = &g_ebp;
+    t = SDL_CreateThread(thps_freeze_watch, "freeze report", NULL);
+    if (t)
+        SDL_DetachThread(t);
+    fprintf(stderr, "  freeze report: after %d s without a frame (THPS_FREEZE_REPORT)\n", s_fw_secs);
+}
+
 extern void sub_0015AFA0_gen(void);
 /* s_limiter_calls (declared above sub_00018F90): limiter runs since the last swap. */
 
@@ -2215,7 +2326,8 @@ typedef struct {
 } OptList;
 
 enum { OPT_MAIN, OPT_CONTROLS, OPT_RECOMP, OPT_FPS, OPT_AA, OPT_BOOT, OPT_RESTART, OPT_SOUND, OPT_BINDKEYS, OPT_SHADERS, OPT_SHBROWSE, OPT_SHPARAMS, OPT_SHRESET,
-       OPT_GENERAL, OPT_CHEATS, OPT_QUIT, OPT_CTLREC, OPT_CTLPLAYER, OPT_GAMEPLAY, OPT_WIDE, OPT_PICTURE, OPT_LISTS };
+       OPT_GENERAL, OPT_CHEATS, OPT_QUIT, OPT_CTLREC, OPT_CTLPLAYER, OPT_GAMEPLAY, OPT_WIDE, OPT_PICTURE, OPT_PAUSEM,
+       OPT_LISTS };
 
 /* RECOMP CONTROL OPTIONS -> PLAYER n (GitHub issue #6, maintainer
  * 2026-10-31): the player whose page is open, its title */
@@ -2371,6 +2483,15 @@ static const OptList s_opt[OPT_LISTS] = {
           s_val_text[OPT_PICTURE][3] },
         { OPT_STAY },                             /* opt_next */
         OPT_RECOMP, 0 },
+    /* PAUSE MENU (GitHub #18, maintainer 2026-11-12: more options need more
+     * room - the player picks the pause lines he uses instead of the list
+     * being re-fitted every time): CAMERA OPTIONS, QUIT GAME and the game's
+     * SOUND OPTIONS, each ON (default) / OFF; CONTINUE, RETRY and END RUN
+     * always stay. Built by opt_build; see "PAUSE MENU lines" at the pause list. */
+    [OPT_PAUSEM] = { "PAUSE MENU",
+        { s_val_text[OPT_PAUSEM][0], s_val_text[OPT_PAUSEM][1], s_val_text[OPT_PAUSEM][2] },
+        { OPT_STAY },                             /* opt_next */
+        OPT_GENERAL, 0 },                         /* opt_parent_line: s_sub_line */
     /* SOUNDTRACKS: one sub-menu with everything (maintainer, 2026-11-05; was
      * an OPTIONS line with two sub-menus and 8 modes): see ST_LINE_* above;
      * kept in saves\settings.ini (src/soundtracks.c). Its line in GENERAL
@@ -2722,6 +2843,7 @@ enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE
        VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
        VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER, VAL_MANUALS, VAL_PHYSICS, VAL_SCORECALC,
        VAL_REMCAM,                                                /* REMEMBER CAMERA (GitHub #8) */
+       VAL_PM_CAMERA, VAL_PM_QUIT, VAL_PM_SOUND,                  /* PAUSE MENU lines (GitHub #18) */
        VAL_FREECAM1, VAL_FREECAM2, VAL_FREECAM3, VAL_FREECAM4,   /* PLAYER n: FREE CAMERA, INVERT CAMERA */
        VAL_INVCAM1, VAL_INVCAM2, VAL_INVCAM3, VAL_INVCAM4,
        VAL_CAMSX1, VAL_CAMSX2, VAL_CAMSX3, VAL_CAMSX4,           /* PLAYER n: CAMERA SENSITIVITY X, Y */
@@ -3033,6 +3155,10 @@ static const OptVal s_val[VAL_COUNT] = {
     /* GitHub #8 (maintainer, 2026-11-08: a toggle, default OFF = the original
      * reset at every level start); see "REMEMBER CAMERA" below */
     [VAL_REMCAM]    = { "REMEMBER CAMERA", "remember_camera", "off", { "off", "on" }, { "OFF", "ON" }, 2 },
+    /* PAUSE MENU (GitHub #18): which of these lines the pause list shows */
+    [VAL_PM_CAMERA] = { "CAMERA OPTIONS", "pause_camera_options", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
+    [VAL_PM_QUIT]   = { "QUIT GAME", "pause_quit_game", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
+    [VAL_PM_SOUND]  = { "SOUND OPTIONS", "pause_sound_options", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
     [VAL_WALLBAIL]  = { "WALL BAIL", "wall_bail", "original", { "original", "no_bail" },
                         { "ORIGINAL", "NO BAIL" }, 2 },
     /* classic career (maintainer, 2026-10-30: the last GAMEPLAY line):
@@ -3094,7 +3220,7 @@ static uint32_t s_sub_line[OPT_LISTS];            /* a sub-list's line in RECOMP
 static uint32_t opt_next(int list, uint32_t line)
 {
     if (list == OPT_RECOMP || list == OPT_GENERAL || list == OPT_GAMEPLAY || list == OPT_CTLPLAYER
-        || list == OPT_WIDE || list == OPT_PICTURE)
+        || list == OPT_WIDE || list == OPT_PICTURE || list == OPT_PAUSEM)
         return line < 12 ? s_line_next[list][line] : OPT_STAY;
     return s_opt[list].next[line];
 }
@@ -3516,8 +3642,11 @@ static void opt_build(int list)
      * 2026-10-28; CAREER MODE the first value without its own blank line
      * 2026-10-31) */
     /* SOUNDTRACKS the second value, right after CAREER MODE (maintainer, 2026-11-05) */
+    /* PAUSE MENU the last line (GitHub #18, maintainer 2026-11-12) */
     static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_CAREER, OPT_E_SUB + OPT_SOUND, VAL_TIPS, VAL_SCORE,
-                                     VAL_CHAT, VAL_LAYOUT, OPT_E_SUB + OPT_GAMEPLAY, VAL_REMCAM };
+                                     VAL_CHAT, VAL_LAYOUT, OPT_E_SUB + OPT_GAMEPLAY, VAL_REMCAM,
+                                     OPT_E_SUB + OPT_PAUSEM };
+    static const short pausem[] = { VAL_PM_CAMERA, VAL_PM_QUIT, VAL_PM_SOUND };
     /* GAMEPLAY (maintainer, 2026-11-05): the gameplay values from GENERAL OPTIONS plus MANUALS */
     /* PHYSICS and SCORE CALCULATION at the end (maintainer, 2026-11-05) */
     static const short gameplay[] = { OPT_E_HINT, OPT_E_BLANK, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL,
@@ -3548,6 +3677,8 @@ static void opt_build(int list)
         e = wide, n = (int)(sizeof wide / sizeof wide[0]);
     else if (list == OPT_PICTURE)
         e = picture, n = (int)(sizeof picture / sizeof picture[0]);
+    else if (list == OPT_PAUSEM)
+        e = pausem, n = (int)(sizeof pausem / sizeof pausem[0]);
     else if (list == OPT_GENERAL)
         e = general, n = (int)(sizeof general / sizeof general[0]);
     else if (list == OPT_GAMEPLAY)
@@ -6094,27 +6225,69 @@ static uint32_t s_pq_text;                        /* guest "QUIT GAME" */
 static int s_pq_open;                             /* our question is open (state 3) */
 
 static void pause_camera_line(uint32_t menu);     /* CAMERA OPTIONS, below */
+static void pause_drop_line(uint32_t menu, uint32_t text);
 
 void pause_quit_line(uint32_t menu)              /* soundtracks.c sub_000FF600 */
 {
     uint32_t n, last;
     if (GUEST32(g_esp) != 0x0010471Cu || !menu || menu != GUEST32(PQ_LIST))
         return;
-    pause_camera_line(menu);
-    if (!s_pq_text) {
-        if (!(s_pq_text = xbox_HeapAlloc(16, 4)))
-            return;
+    /* PAUSE MENU lines (GitHub #18): GENERAL OPTIONS -> PAUSE MENU picks which
+     * of CAMERA OPTIONS, QUIT GAME and the game's SOUND OPTIONS the list shows
+     * (default all ON). CAMERA OPTIONS goes in after SOUND OPTIONS, so SOUND
+     * OPTIONS leaves only after it (CAMERA OPTIONS then takes its place). */
+    if (opt_val_index(VAL_PM_CAMERA) == 0)
+        pause_camera_line(menu);
+    if (opt_val_index(VAL_PM_SOUND) != 0)
+        pause_drop_line(menu, GUEST32(0x00289A60u));
+    s_pq_open = 0;
+    if (opt_val_index(VAL_PM_QUIT) == 0 && (s_pq_text || (s_pq_text = xbox_HeapAlloc(16, 4)) != 0)) {
         memcpy((char *)(uintptr_t)g_xbox_mem_offset + s_pq_text, "QUIT GAME", 10);
+        n = GUEST8(menu + 9);
+        if (n >= 2 && n < 15) {                   /* 15 entries at most (sub_000FF540) */
+            last = menu + 0x18u + (n - 1) * 0x18u;    /* END RUN / END GAME */
+            memmove((char *)(uintptr_t)g_xbox_mem_offset + last + 0x18u,
+                    (char *)(uintptr_t)g_xbox_mem_offset + last, 0x18);
+            GUEST32(last) = s_pq_text;            /* the rest of its entry as the template */
+            GUEST8(menu + 9) = (uint8_t)(n + 1);
+        }
     }
     n = GUEST8(menu + 9);
-    if (n < 2 || n >= 15)                         /* 15 entries at most (sub_000FF540) */
+    {
+        /* The two lines we add (QUIT GAME, CAMERA OPTIONS) make the list taller;
+         * sub_000FF600 centres it, so its top climbed into the PAUSED logo
+         * (v1.2.3, seen 2026-11-12 at every aspect). The gap between lines
+         * ([menu + 0x14]) shrinks by what keeps the list's top where five lines
+         * had it. THPS_PAUSE_GAP=<n> (test): the gap itself. */
+        static int32_t gap0 = -1;                 /* the game's own gap (the field may be kept) */
+        const char *e = getenv("THPS_PAUSE_GAP");
+        int32_t gap = (int32_t)GUEST32(menu + 0x14u), want;
+        if (gap0 < 0)
+            gap0 = gap;
+        want = gap0;
+        if (e && *e)
+            want = atoi(e);
+        else if (n >= 6u)
+            want = gap0 > 3 ? gap0 - 3 : 0;
+        if (want != gap)
+            GUEST32(menu + 0x14u) = (uint32_t)want;
+        fprintf(stderr, "  pause: %u lines (camera %s, quit %s, sound %s), gap %d -> %d\n", n,
+                opt_val_index(VAL_PM_CAMERA) ? "off" : "on", opt_val_index(VAL_PM_QUIT) ? "off" : "on",
+                opt_val_index(VAL_PM_SOUND) ? "off" : "on", gap, want);
+    }
+}
+
+/* drop the pause list's line whose text pointer is `text` (PAUSE MENU) */
+static void pause_drop_line(uint32_t menu, uint32_t text)
+{
+    uint32_t n = GUEST8(menu + 9), i;
+    for (i = 0; i < n && GUEST32(menu + 0x18u + i * 0x18u) != text; i++)
+        ;
+    if (!text || i >= n || n < 3)
         return;
-    last = menu + 0x18u + (n - 1) * 0x18u;        /* END RUN / END GAME */
-    memmove((char *)(uintptr_t)g_xbox_mem_offset + last + 0x18u,
-            (char *)(uintptr_t)g_xbox_mem_offset + last, 0x18);
-    GUEST32(last) = s_pq_text;                    /* the rest of its entry as the template */
-    GUEST8(menu + 9) = (uint8_t)(n + 1);
-    s_pq_open = 0;
+    memmove((char *)(uintptr_t)g_xbox_mem_offset + menu + 0x18u + i * 0x18u,
+            (char *)(uintptr_t)g_xbox_mem_offset + menu + 0x18u + (i + 1u) * 0x18u, (n - i - 1u) * 0x18u);
+    GUEST8(menu + 9) = (uint8_t)(n - 1);
 }
 
 /* ── CAMERA OPTIONS in the pause menu (maintainer, 2026-11-08: a user's wish -

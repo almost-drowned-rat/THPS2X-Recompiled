@@ -1,0 +1,22 @@
+# pause_layout.txt - the pause list's layout (2026-11-12): with QUIT GAME and CAMERA OPTIONS the career pause list
+# has 6 lines and its top reached into the PAUSED logo. New Career, first skater, first level, pause, shots (log
+# "pause: 6 lines, gap <game> -> <ours>"). Run with THPS_CAREER_MODE=original (THPS_PAUSE_GAP=<n> to try a gap).
+#   THPS2X.exe --max-seconds 70 --save-dir <temp> --data-dir <temp> --input-script tests\input\pause_layout.txt
+# Times count from the first pad read; 300 ms presses (see menu_tour.txt).
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+21000:a:300
+25000:a:300
+33000:a:300
+41000:a:300
+49000:a:300
+56000:start:300
+58500:shot=01_pause
+59000:down:300
+60500:shot=02_pause_retry
+62000:up:300
+62500:up:300
+64000:shot=03_pause_end_run

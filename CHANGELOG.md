@@ -4,6 +4,25 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.2.3 - 2026-11-13
+
+### Fixed
+- **Tips at a level's start at 16:9 / 16:10 / 21:9** (the yellow text, HUD AT 16:9: ORIGINAL PROPORTIONS): a long
+  line of a tip ("LAND BIG DROPS") was pulled toward the middle, away from the others. All lines stay flush left now.
+- **MSAA 2x / 4x at 16:9 / 16:10 / 21:9** (also the Steam Deck): had no effect in a level - the game's 3D scene is
+  drawn into its own (twice as wide) image, which got a new size when the level started and lost its MSAA on the
+  way. It keeps it now. At 4:3 MSAA worked, but shows little, as the game already smooths the picture sideways itself.
+- **Pause menu:** with QUIT GAME and CAMERA OPTIONS the list reached up into the PAUSED logo and down onto the button
+  hints. The lines sit a little closer together now, clear of both.
+
+### Added
+- **PAUSE MENU** (GENERAL OPTIONS, last line): pick which lines the pause menu shows - CAMERA OPTIONS, QUIT GAME
+  and SOUND OPTIONS, each ON (default) or OFF. CONTINUE, RETRY and END RUN always stay. With all three OFF the pause
+  menu is the original one.
+- **Freeze report:** if the game ever stops drawing for 10 seconds, it writes a short report into `thps2x.log`
+  (where the game stands). If the game freezes, wait about 30 seconds before you close it and send the log with
+  the issue.
+
 ## v1.2.2 - 2026-11-12
 
 ### Added
