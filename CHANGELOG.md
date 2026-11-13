@@ -4,6 +4,27 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.2.4 - 2026-11-13
+
+### Fixed
+- **Philadelphia: crash when the cable to the secret area is cut.** v1.2.2 and v1.2.3 tried to throw the skater off
+  the cable the moment it goes; on the real cable that crashed the game. The cable behaves as in the original 2X
+  again: you keep grinding where it was until the grind ends.
+
+### Added
+- **SPECIAL TRICKS INPUT** (GENERAL OPTIONS -> GAMEPLAY, default TIGHT = the original): with LOOSE a trick combo
+  such as a special (for example up, down + B) also comes out when a spin button (LT / RT) is pressed between its
+  steps, or when the thumb rolls over a diagonal on the D-pad on its way from up to down. With TIGHT both end the
+  combo, as in the original, and the plain trick of the button comes instead. One side effect of LOOSE: a diagonal
+  grab you roll into from one of its two directions counts as that direction's grab.
+- **180 SPIN TAPS: SEPARATE BUTTONS** (GENERAL OPTIONS -> GAMEPLAY): the triggers only spin while held, the quick
+  180s come from their own buttons - Black / White with PLAYSTYLE XBOX, LT / RT with PLAYSTYLE PS2. On a keyboard,
+  put Black / White on any keys you like in BUTTON MAPPING. ON (the original) and OFF stay as before.
+
+### Changed
+- **PLAYSTYLE** and **REMEMBER CAMERA** moved from GENERAL OPTIONS into GAMEPLAY (PLAYSTYLE its first line, REMEMBER
+  CAMERA its last), so the settings of how you play are in one place. Your settings are kept.
+
 ## v1.2.3 - 2026-11-13
 
 ### Fixed

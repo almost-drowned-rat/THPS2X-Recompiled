@@ -2842,6 +2842,7 @@ enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE
        VAL_FOV, VAL_HUD, VAL_BRIGHT,                              /* v1.2.2: HUD AT 16:9 (#10), BRIGHTNESS (#11) */
        VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
        VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER, VAL_MANUALS, VAL_PHYSICS, VAL_SCORECALC,
+       VAL_SPECIALIN,                                             /* SPECIAL TRICKS INPUT (GitHub #15) */
        VAL_REMCAM,                                                /* REMEMBER CAMERA (GitHub #8) */
        VAL_PM_CAMERA, VAL_PM_QUIT, VAL_PM_SOUND,                  /* PAUSE MENU lines (GitHub #18) */
        VAL_FREECAM1, VAL_FREECAM2, VAL_FREECAM3, VAL_FREECAM4,   /* PLAYER n: FREE CAMERA, INVERT CAMERA */
@@ -3139,13 +3140,19 @@ static const OptVal s_val[VAL_COUNT] = {
     [VAL_BLUR]      = { "MOTION BLUR", NULL, NULL, { NULL }, { "ON", "OFF" }, 2 },
     /* PLAYSTYLE (maintainer, 2026-10-28; was LAYOUT): the key stays control_layout */
     [VAL_LAYOUT]    = { "PLAYSTYLE", "control_layout", "xbox", { "xbox", "ps2" }, { "XBOX", "PS2" }, 2 },
-    [VAL_SPINTAPS]  = { "180 SPIN TAPS", "spin_taps", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
+    /* SEPARATE BUTTONS (GitHub #15, maintainer 2026-11-13): the 180s on the other shoulder pair, see spin_taps_mode */
+    [VAL_SPINTAPS]  = { "180 SPIN TAPS", "spin_taps", "on", { "on", "off", "separate" },
+                        { "ON", "OFF", "SEPARATE BUTTONS" }, 3 },
     [VAL_BIGDROP]   = { "BIG DROP", "big_drop", "original", { "original", "no_bail", "off" },
                         { "ORIGINAL", "NO BAIL", "OFF" }, 3 },
     /* tester wish 11 (maintainer, 2026-10-31): grind held into a wall at 60 degrees
      * or more - no wallride and, with NO BAIL, no bail either (see WALL TRACE) */
     /* maintainer 2026-11-05: manuals can be switched off (THPS 1 had none); see "MANUALS" below */
     [VAL_MANUALS]   = { "MANUALS", "manuals", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
+    /* GitHub #15 (maintainer, 2026-11-13: an option, not a fix): LOOSE lets a combo through a spin trigger pressed
+     * between its steps and a diagonal rolled over on the D-pad; see "SPECIAL TRICKS INPUT" below */
+    [VAL_SPECIALIN] = { "SPECIAL TRICKS INPUT", "special_input", "tight", { "tight", "loose" },
+                        { "TIGHT", "LOOSE" }, 2 },
     /* maintainer 2026-11-05: THPS 2 (PS1) gravity + flat ollie, see "PHYSICS" below; the label names the PS1 as
      * the model ("Original THPS2 (PS1)" - the panel font has no parentheses, so "ORIGINAL THPS 2 PS1") */
     [VAL_PHYSICS]   = { "PHYSICS", "physics", "2x", { "2x", "thps2" }, { "2X", "ORIGINAL THPS 2 PS1" }, 2 },
@@ -3644,13 +3651,14 @@ static void opt_build(int list)
     /* SOUNDTRACKS the second value, right after CAREER MODE (maintainer, 2026-11-05) */
     /* PAUSE MENU the last line (GitHub #18, maintainer 2026-11-12) */
     static const short general[] = { OPT_E_HINT, OPT_E_BLANK, VAL_CAREER, OPT_E_SUB + OPT_SOUND, VAL_TIPS, VAL_SCORE,
-                                     VAL_CHAT, VAL_LAYOUT, OPT_E_SUB + OPT_GAMEPLAY, VAL_REMCAM,
-                                     OPT_E_SUB + OPT_PAUSEM };
+                                     VAL_CHAT, OPT_E_SUB + OPT_GAMEPLAY, OPT_E_SUB + OPT_PAUSEM };
     static const short pausem[] = { VAL_PM_CAMERA, VAL_PM_QUIT, VAL_PM_SOUND };
     /* GAMEPLAY (maintainer, 2026-11-05): the gameplay values from GENERAL OPTIONS plus MANUALS */
     /* PHYSICS and SCORE CALCULATION at the end (maintainer, 2026-11-05) */
-    static const short gameplay[] = { OPT_E_HINT, OPT_E_BLANK, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL,
-                                      VAL_MANUALS, VAL_PHYSICS, VAL_SCORECALC };
+    /* PLAYSTYLE moved here from GENERAL OPTIONS, the first value: the controls together (maintainer, 2026-11-13) */
+    static const short gameplay[] = { OPT_E_HINT, OPT_E_BLANK, VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL,
+                                      VAL_MANUALS, VAL_SPECIALIN, VAL_PHYSICS, VAL_SCORECALC,
+                                      VAL_REMCAM };    /* REMEMBER CAMERA here too (maintainer, 2026-11-13) */
     /* PLAYER n (issue #6): BUTTON MAPPING, then that player's camera values */
     short player[6];
     const short *e = NULL;
@@ -5341,19 +5349,29 @@ void sub_000AC9D0(void)
  * original clears them there anyway, nothing else reads them in the air. With
  * the PS2 layout the clear comes after the swap, so it hits Black / White.
  * Default on = the original.
- * Verified: v0.9.2 tests (spin taps test). */
-static int spin_taps_off(void)
+ * Verified: v0.9.2 tests (spin taps test).
+ * spin_taps = separate (GitHub #15, maintainer 2026-11-13: the reporter's wish, taps on buttons of their own):
+ * the triggers only spin by hand; the 180s come from the other shoulder pair - Black / White with the XBOX
+ * playstyle, LT / RT with PS2 (after the swap they sit in the Black / White records +0xC0 / +0xD0). In the same
+ * air state a fresh press of those (held byte +0xC0 / +0xD0 going from 0 to 1, seen here per pad) sets the
+ * trigger latch +0x41 / +0x61 instead, the trigger's own latch is cleared first. */
+#define SPIN_TAPS_ON       0
+#define SPIN_TAPS_OFF      1
+#define SPIN_TAPS_SEPARATE 2
+static int spin_taps_mode(void)
 {
-    static int off = -1;
+    static int mode = -1;
     static unsigned calls;
-    if (off < 0 || ++calls % 600u == 0)
-        off = !strcmp(settings_get("spin_taps", "on"), "off");
-    return off;
+    if (mode < 0 || ++calls % 600u == 0) {
+        const char *v = settings_get("spin_taps", "on");
+        mode = !strcmp(v, "off") ? SPIN_TAPS_OFF : !strcmp(v, "separate") ? SPIN_TAPS_SEPARATE : SPIN_TAPS_ON;
+    }
+    return mode;
 }
 
 void sub_000A85E0(void)
 {
-    int ps2 = ps2_layout(), off = spin_taps_off();
+    int ps2 = ps2_layout(), mode = spin_taps_mode(), off = mode != SPIN_TAPS_ON;
     uint32_t sk = GUEST32(g_esp + 4);
     static int tr = -1;
 
@@ -5374,10 +5392,28 @@ void sub_000A85E0(void)
         ps2_swap_shoulders();
     if (off && sk) {
         uint32_t state = GUEST32(sk + 0x5984), pad = GUEST32(sk + 0x556C);
-        if ((state == 1 || state == 2) && GUEST32(sk + 0x5520) == 0 && pad) {
-            volatile uint8_t *p = (volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + pad);
-            p[0x41] = 0;
-            p[0x61] = 0;
+        volatile uint8_t *p = pad ? (volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + pad) : NULL;
+        int fresh_l = 0, fresh_r = 0;
+        if (p && mode == SPIN_TAPS_SEPARATE) {
+            /* the other pair's fresh presses, per pad (4 players) */
+            static uint32_t pads[4];
+            static uint8_t held_l[4], held_r[4];
+            int n;
+            for (n = 0; n < 4 && pads[n] && pads[n] != pad; n++)
+                ;
+            if (n < 4) {
+                pads[n] = pad;
+                /* the record's held byte is 0 / 1 (the game applied the analog threshold already) */
+                uint8_t l = p[0xC0] != 0, r = p[0xD0] != 0;
+                fresh_l = l && !held_l[n];
+                fresh_r = r && !held_r[n];
+                held_l[n] = l;
+                held_r[n] = r;
+            }
+        }
+        if (p && (state == 1 || state == 2) && GUEST32(sk + 0x5520) == 0) {
+            p[0x41] = (uint8_t)fresh_l;
+            p[0x61] = (uint8_t)fresh_r;
         }
     }
     {
@@ -5386,7 +5422,8 @@ void sub_000A85E0(void)
         /* THPS_SPIN_TRACE=1 (test): the 180 queue of the skater whenever it changes */
         if (tr && sk && GUEST32(sk + 0x572C) != q0)
             fprintf(stderr, "[SPINTAP] queue %d -> %d (state %u, taps %s)\n", (int)q0,
-                    (int)GUEST32(sk + 0x572C), GUEST32(sk + 0x5984), off ? "off" : "on");
+                    (int)GUEST32(sk + 0x572C), GUEST32(sk + 0x5984),
+                    mode == SPIN_TAPS_OFF ? "off" : mode == SPIN_TAPS_SEPARATE ? "separate" : "on");
     }
     if (ps2)
         ps2_swap_shoulders();
@@ -5559,13 +5596,129 @@ RING_TRACE(000B1650)
  * answers become -1, every other answer stays. THPS_MANUAL_TRACE=1 logs every answer other than -1. */
 #define MANUAL_ENTRY      1u
 #define NOSE_MANUAL_ENTRY 2u
+/* ── SPECIAL TRICKS INPUT: TIGHT / LOOSE (GitHub #15; maintainer 2026-11-13: an option, not a fix) ──────────────
+ * Why: an air special (e.g. SACKTAP up, down + B) does not come out when the spin trigger is pressed between its
+ * steps, or when the thumb rolls over a diagonal on the D-pad (up -> up-left -> down). Play sessions 2026-11-13 with
+ * THPS_SPECIAL_TRACE=1: the matcher sub_000A7740
+ * (esi = skater) goes back from the trick button through the pad history (ring at skater+0x52FC, 32 x 8 bytes:
+ * code, pressed, -, -, frame; written by sub_000A7300) and wants the PREVIOUS PRESS to be the combo's next step;
+ * releases are skipped, diagonals only for list entries with flag 0x400. A press of LT (code 0xE) / RT (0x10) or a
+ * diagonal (5 up-left, 6 up-right, 7 down-left, 8 down-right) in between ends the combo, and the plain trick of the
+ * button (a grab) comes instead.
+ * How: special_input = loose (saves\settings.ini; THPS_SPECIAL_INPUT) marks those presses as released for the one
+ * matcher call only - a trigger press that is not the newest press, and a diagonal next to a press of one of its own
+ * two directions (the rolled-over one) - and marks them pressed again after it. The matcher starts the trick itself
+ * (sub_000A7400), so there is one pass, no retry. Default tight = the original. Side effect of loose: a diagonal
+ * grab rolled into from one of its directions reads as that direction's grab. */
+static int special_input_loose(void)
+{
+    static int on = -1;
+    static unsigned calls;
+    if (on < 0 || ++calls % 600u == 0)
+        on = !strcmp(settings_get("special_input", "tight"), "loose");
+    return on;
+}
+
+static int diag_has(uint8_t diag, uint8_t dir)    /* dir 1..4 one of the diagonal's two directions */
+{
+    static const uint8_t comp[4][2] = { { 1, 3 }, { 1, 4 }, { 2, 3 }, { 2, 4 } };
+    return diag >= 5 && diag <= 8 && (comp[diag - 5][0] == dir || comp[diag - 5][1] == dir);
+}
+
+/* hides the entries (pressed byte 0), returns how many; slots[] gets their ring slots */
+static int special_loose_hide(uint32_t sk, uint32_t slots[32])
+{
+    volatile uint8_t *ring = (volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + sk + 0x52FCu);
+    uint32_t idx = GUEST32(sk + 0x53FCu) & 31u, press[32];
+    uint8_t code[32];
+    int np = 0, nh = 0, i;
+    for (i = 1; i <= 32; i++) {                   /* the presses, newest first */
+        uint32_t k = (idx + 32u - (uint32_t)i) & 31u;
+        if (ring[8u * k] && ring[8u * k + 1u]) {
+            press[np] = k;
+            code[np++] = ring[8u * k];
+        }
+    }
+    for (i = 0; i < np; i++) {
+        int hide = 0;
+        if (code[i] == 0x0E || code[i] == 0x10)
+            hide = i > 0;                         /* not the newest press: a combo may end on a trigger */
+        else if (code[i] >= 5 && code[i] <= 8) {
+            int j;
+            for (j = i - 1; j >= 0 && (code[j] == 0x0E || code[j] == 0x10); j--)
+                ;                                 /* the newer neighbour, triggers skipped */
+            if (j >= 0 && diag_has(code[i], code[j]))
+                hide = 1;
+            for (j = i + 1; !hide && j < np && (code[j] == 0x0E || code[j] == 0x10); j++)
+                ;                                 /* the older neighbour */
+            if (!hide && j < np && diag_has(code[i], code[j]))
+                hide = 1;
+        }
+        if (hide) {
+            ring[8u * press[i] + 1u] = 0;
+            slots[nh++] = press[i];
+        }
+    }
+    return nh;
+}
+
+static void special_loose_restore(uint32_t sk, const uint32_t slots[32], int n, const uint8_t codes[32])
+{
+    volatile uint8_t *ring = (volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + sk + 0x52FCu);
+    int i;
+    for (i = 0; i < n; i++)                       /* unless the matcher used the slot (code cleared) */
+        if (ring[8u * slots[i]] == codes[i] && !ring[8u * slots[i] + 1u])
+            ring[8u * slots[i] + 1u] = 1;
+}
+
 extern void sub_000A7740_gen(void);
 void sub_000A7740(void)
 {
     uint32_t ret = GUEST32(g_esp), a = g_eax, b = g_ebx, d = g_edx;
+    uint32_t hid_slot[32], hid_sk = g_esi;
+    uint8_t hid_code[32];
+    int hid_n = 0, i;
+    if (hid_sk && special_input_loose()) {
+        hid_n = special_loose_hide(hid_sk, hid_slot);
+        for (i = 0; i < hid_n; i++)
+            hid_code[i] = *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + hid_sk + 0x52FCu + 8u * hid_slot[i]);
+    }
     sub_000A7740_gen();
+    if (hid_n)
+        special_loose_restore(hid_sk, hid_slot, hid_n, hid_code);
     if (manual_research())
         ring_trace("000A7740", ret, a, b, d, g_eax);
+    {   /* THPS_SPECIAL_TRACE=1 (research, GitHub #15: an air special does not come out when the spin trigger is held
+         * from the take-off): at each new ring entry one line - frame, caller, skater state (+0x5984), the answer,
+         * the last 8 ring entries newest first (code/pressed@frame; 1-4 up/down/left/right, 5-8 diagonals, 9-0xC
+         * the face buttons, 0xE LT, 0x10 RT) */
+        static int trs = -1;
+        static uint32_t last_idx[2] = { 0xFFFFFFFFu, 0xFFFFFFFFu }, last_sk[2];
+        if (trs < 0) {
+            const char *e = getenv("THPS_SPECIAL_TRACE");
+            trs = e && *e == '1';
+        }
+        if (trs && g_esi) {
+            uint32_t sk = g_esi, idx = GUEST32(sk + 0x53FCu), slot = ret == 0x000B2B24u ? 0u : 1u;
+            if (idx != last_idx[slot] || sk != last_sk[slot] || (slot && g_eax != 0xFFFFFFFFu)) {
+                char line[512];
+                size_t n = 0;
+                int i;
+                last_idx[slot] = idx;
+                last_sk[slot] = sk;
+                n += (size_t)snprintf(line + n, sizeof line - n, "[SPECIAL] f%u from 0x%08X state %u -> %d | ring:",
+                                      GUEST32(0x2FD504u), ret, GUEST32(sk + 0x5984u), (int)g_eax);
+                for (i = 1; i <= 8 && n < sizeof line - 24; i++) {
+                    uint32_t k = (idx + 32u - (uint32_t)i) & 31u;
+                    n += (size_t)snprintf(line + n, sizeof line - n, " %X/%u@%u",
+                                          *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + sk + 0x52FCu + 8u * k),
+                                          *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + sk + 0x52FDu + 8u * k),
+                                          GUEST32(sk + 0x5300u + 8u * k));
+                }
+                fprintf(stderr, "%s\n", line);
+            }
+        }
+    }
     {   /* THPS_MANUAL_TRACE=3 (research): at the first answers 0, 1 and 2 after frame 100, one line each with the
          * list at edx (0x100 bytes as words) and the skater's ring (+0x52FC, 32 x 8 bytes: code, pressed, frame) */
         static int done[3];
@@ -5783,7 +5936,11 @@ void sub_000A4C30(void)
  * step. THPS_RAIL_CUT=0 = the 2X behaviour (A/B). THPS_TEST_RAIL_CUT=<n> (test
  * only): after n on-rail steps the port switches the rail under the skater off
  * itself, as the Philadelphia trigger does, so any grind shows it.
- * Verified: docs/status.md (rail cut runs). */
+ * Verified: docs/status.md (rail cut runs).
+ * v1.2.4: DEFAULT OFF (THPS_RAIL_CUT=1 = on, research only). The maintainer's play session 2026-11-13 on the real
+ * cable (the one to the secret area; invisxp 2026-11-13) - with it on the game crashed right after "rail ... is
+ * gone": a null object in sub_0009DAE0 (guest read of 0x6A); with it off no crash, the 2X behaviour. invisxp also
+ * asks to keep the 2X behaviour (an original anomaly, harmless). */
 extern THPS_TLS uint32_t g_esi;
 extern void sub_000A9270_gen(void);
 extern void sub_000B5260_gen(void);
@@ -5818,10 +5975,10 @@ static int rail_cut_step(void)
     static uint32_t last_rail;
     uint32_t sk = GUEST32(g_esp + 4), rail, esi;
     if (on < 0) {
-        on = rail_env("THPS_RAIL_CUT", 1) != 0;
+        on = rail_env("THPS_RAIL_CUT", 0) != 0;   /* default OFF since v1.2.4 (it crashed, see above) */
         test = rail_env("THPS_TEST_RAIL_CUT", 0);
-        if (!on)
-            fprintf(stderr, "  rail: cut rails keep the skater (THPS_RAIL_CUT=0, the 2X behaviour)\n");
+        if (on)
+            fprintf(stderr, "  rail: cut rails throw the skater off (THPS_RAIL_CUT=1, research - it crashed in Philadelphia)\n");
     }
     if (!sk || !(rail = rail_of_skater(sk)))
         return 0;

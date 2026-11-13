@@ -1,13 +1,13 @@
 # general_menu.txt - GENERAL OPTIONS as our list (maintainer, 2026-10-28; replaces the game's screen and
-# gameplay_menu.txt): OPTIONS -> GENERAL OPTIONS (the 9th line since 2026-11-05). Lines (2026-11-05): PRESS Y FOR
+# gameplay_menu.txt): OPTIONS -> GENERAL OPTIONS (the 9th line since 2026-11-05). Lines (2026-11-13): PRESS Y FOR
 # DEFAULT SETTINGS, a blank (greyed), CAREER MODE, SOUNDTRACKS (sub-menu, opt_soundtracks.txt), TRICK TIPS, SCORE
 # DISPLAY, QUICK CHAT (the game's own, ON by default; MOTION BLUR moved to RECOMP OPTIONS 2026-11-07,
-# opt_motion_blur.txt), PLAYSTYLE, GAMEPLAY (sub-menu: the Y hint, a
-# blank, 180 SPIN TAPS, BIG DROP, WALL BAIL, MANUALS; it opens on 180 SPIN TAPS); GENERAL OPTIONS opens on CAREER MODE.
-# PLAYSTYLE right = PS2; GAMEPLAY: 180 SPIN TAPS right = OFF; BIG DROP right = NO BAIL,
-# right = OFF; MANUALS right = OFF, Y = back to ON; up, up: BIG DROP, Y: only it back to ORIGINAL; B: GENERAL OPTIONS
-# on GAMEPLAY; up: PLAYSTYLE, Y: only it back to XBOX; B, then GENERAL OPTIONS again: the values kept (in
-# saves\settings.ini).
+# opt_motion_blur.txt), GAMEPLAY (sub-menu: the Y hint, a blank, PLAYSTYLE (moved here from GENERAL OPTIONS
+# 2026-11-13), 180 SPIN TAPS, BIG DROP, WALL BAIL, MANUALS, SPECIAL TRICKS INPUT, PHYSICS, SCORE CALCULATION,
+# REMEMBER CAMERA (moved here too 2026-11-13); it opens on PLAYSTYLE), PAUSE MENU; GENERAL OPTIONS opens on CAREER MODE.
+# GAMEPLAY: PLAYSTYLE right = PS2; 180 SPIN TAPS right = OFF; BIG DROP right = NO BAIL, right = OFF; MANUALS right =
+# OFF, Y = back to ON; up, up: BIG DROP, Y: only it back to ORIGINAL; up, up: PLAYSTYLE, Y: only it back to XBOX;
+# B: GENERAL OPTIONS on GAMEPLAY; B, then GENERAL OPTIONS again: the values kept (in saves\settings.ini).
 # Expected saves\settings.ini afterwards: control_layout=xbox, spin_taps=off, big_drop=original, manuals=on.
 #   THPS2X.exe --max-seconds 105 --save-dir <temp> --data-dir <temp> --input-script tests\input\general_menu.txt
 # Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
@@ -41,42 +41,43 @@
 42000:shot=g01_options_general_line
 43000:a:300
 47000:shot=g02_general_defaults
-# PLAYSTYLE (5 downs from CAREER MODE, SOUNDTRACKS between; MOTION BLUR moved to RECOMP OPTIONS 2026-11-07):
-# right = PS2; down: GAMEPLAY, A
+# GAMEPLAY (5 downs from CAREER MODE: SOUNDTRACKS, TRICK TIPS, SCORE DISPLAY, QUICK CHAT, GAMEPLAY), A
 47400:down:300
 48100:down:300
 48800:down:300
 49500:down:300
 50200:down:300
-52500:shot=g03_playstyle_line
-54500:right:300
-55500:down:300
-56500:shot=g04_gameplay_line
-57000:a:300
-# GAMEPLAY opens on 180 SPIN TAPS: right = OFF; BIG DROP: right = NO BAIL, right = OFF; WALL BAIL; MANUALS: right = OFF
-61000:shot=g05_gameplay_defaults
+52500:shot=g03_gameplay_line
+53500:a:300
+# GAMEPLAY opens on PLAYSTYLE: right = PS2
+57000:shot=g04_gameplay_defaults
+58000:right:300
+# 180 SPIN TAPS: right = OFF; BIG DROP: right = NO BAIL, right = OFF; WALL BAIL; MANUALS: right = OFF
+59000:down:300
+60000:right:300
+61000:down:300
 62000:right:300
-63000:down:300
-64000:right:300
-65000:right:300
-66000:down:300
-67000:down:300
-68000:right:300
-69500:shot=g06_gameplay_changed
+63000:right:300
+64000:down:300
+65000:down:300
+66000:right:300
+67500:shot=g05_gameplay_changed
 # Y on MANUALS: back to ON; up, up: BIG DROP, Y: only it back to ORIGINAL
-70500:y:300
-71500:up:300
-72500:up:300
-73500:y:300
-75000:shot=g07_gameplay_y
-# B: GENERAL OPTIONS on GAMEPLAY; up: PLAYSTYLE, Y: only it back to XBOX
-76000:b:300
-79000:shot=g08_general_back
-80000:up:300
-81000:y:300
-82500:shot=g09_y_layout
+68500:y:300
+69500:up:300
+70500:up:300
+71500:y:300
+73000:shot=g06_gameplay_y
+# up, up: PLAYSTYLE, Y: only it back to XBOX
+74000:up:300
+75000:up:300
+76000:y:300
+77500:shot=g07_y_layout
+# B: GENERAL OPTIONS on GAMEPLAY
+78500:b:300
+81500:shot=g08_general_back
 # B: OPTIONS on GENERAL OPTIONS, A: the list again with the values kept
 83500:b:300
-86500:shot=g10_options_back
+86500:shot=g09_options_back
 87500:a:300
-91500:shot=g11_general_again
+91500:shot=g10_general_again

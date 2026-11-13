@@ -53,21 +53,22 @@ only that line.
 | **Career mode** | ORIGINAL or CLASSIC, for new careers (see *Classic career*). A career keeps the mode it started with. |
 | **Soundtracks ▸** | The music source and the playback mode (see *Custom soundtracks*). |
 | **Trick tips, Score display, Quick chat** | The game's own options, ON (default) or OFF. (Motion blur moved to RECOMP OPTIONS.) |
-| **Playstyle** | XBOX (original) or PS2: spins on Black / White (on a modern pad the shoulder buttons LB / RB), nollie and switch stay on the triggers. Works on top of your button mapping - if Black / White are not mapped to anything, PS2 has no spins. |
 | **Gameplay ▸** | The gameplay options below, in their own list (Y works there too). |
-| **Remember camera** | OFF (original) or ON: the game puts the camera back to its first view at every level start and retry; with ON the view you picked with Back stays, also after a restart of the game. |
 | **Pause menu ▸** | Which lines the pause menu shows: CAMERA OPTIONS, QUIT GAME and SOUND OPTIONS, each ON (default) or OFF. CONTINUE, RETRY and END RUN always stay. |
 
 **GAMEPLAY:**
 
 | Setting | Values |
 |---|---|
-| **180 spin taps** | ON (original) or OFF: tapping a trigger in the air no longer turns 180°; holding it still spins. |
+| **Playstyle** | XBOX (original) or PS2: spins on Black / White (on a modern pad the shoulder buttons LB / RB), nollie and switch stay on the triggers. Works on top of your button mapping - if Black / White are not mapped to anything, PS2 has no spins. |
+| **180 spin taps** | ON (original), OFF: tapping a spin button in the air no longer turns 180°, holding it still spins. SEPARATE BUTTONS: the spin buttons only spin while held, the quick 180s come from the other pair - Black / White with PLAYSTYLE XBOX, LT / RT with PS2 (on a keyboard, map them in BUTTON MAPPING). |
 | **Big drop** | ORIGINAL: a drop from a moderate height scores BIG DROP, from a very great height you bail. NO BAIL: no bail, the drop counts as BIG DROP. OFF: neither - every drop lands like a normal one. |
 | **Wall bail** | ORIGINAL or NO BAIL: holding grind into a wall at an angle too steep for a wallride (60° or more) no longer bails - the skater meets the wall as without grind. Wallrides themselves work as before. |
 | **Manuals** | ON (original) or OFF: no manuals or nose manuals, as in THPS 1. |
+| **Special tricks input** | TIGHT (original) or LOOSE: a trick combo (a special such as up, down + B) also comes out when a spin button is pressed between its steps, or when the thumb rolls over a diagonal on the D-pad between two steps. Side effect: a diagonal grab rolled into from one of its two directions counts as that direction's grab. |
 | **Physics** | 2X (original) or ORIGINAL THPS 2 PS1: the gravity and flat-ground ollie of THPS 2 on the PlayStation. 2X lowered the gravity by about 8 % and made the ollie about 12 % stronger; with ORIGINAL THPS 2 PS1 a flat ollie is about 20 % shorter in the air, as on the PS1. Applies at once. |
 | **Score calculation** | THPS 2 (original) or THPS 1: tricks score their THPS 1 values, the multiplier counts the tricks of the combo plus the last air's spin (as in THPS 1), no switch bonus, no perfect / sloppy landing factor, the repeat penalty 100 / 75 / 50 / 25 / 10 %. Tricks THPS 1 did not have get a value scaled from similar tricks - in doubt the lower one. A grab tapped instead of held counts half. **Always THPS 1 in the classic career's THPS 1 levels.** |
+| **Remember camera** | OFF (original) or ON: the game puts the camera back to its first view at every level start and retry; with ON the view you picked with Back stays, also after a restart of the game. |
 
 ### Classic career
 A new career with **CAREER MODE: CLASSIC** plays the parts in release order, each with its own rules:
