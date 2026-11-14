@@ -1525,10 +1525,39 @@ static void thps_timestep_fix(void)
  * (after them only the fps text, then ret); the physics runs in its caller. */
 extern void sub_0015B080_gen(void);
 
+/* Test only (fps120 loops, 2026-11-14): THPS_TEST_RESTART_SPEED=<v> - 0.5 s
+ * after a test restart (sub_000CABE0 below arms it) player 1's velocity
+ * (skater +0x4C / +0x54) is set to v along the restart node's Y angle, for a
+ * loop entry at a known speed. Off: never armed. */
+static uint64_t s_test_kick_ns;
+static double s_test_kick_sin, s_test_kick_cos;
+static int s_test_kick_v;
+
+/* 60 Hz frames the step clock [0x2FD504] advanced this game frame (the script
+ * waits below count these; 1 at 60 fps, 0 or 1 at 120). */
+static uint32_t s_clock_prev, s_clock_ticks = 1;
+
 void sub_0015B080(void)
 {
+    uint32_t c;
     sub_0015B080_gen();
     thps_timestep_fix();
+    c = GUEST32(0x002FD504u);
+    s_clock_ticks = c >= s_clock_prev ? c - s_clock_prev : 1;    /* a new level resets the clock */
+    if (s_clock_ticks > 8)
+        s_clock_ticks = 1;
+    s_clock_prev = c;
+    if (s_test_kick_ns && host_time_ns() >= s_test_kick_ns) {
+        uint32_t sk = GUEST32(0x002F8D94u);
+        s_test_kick_ns = 0;
+        if (sk) {
+            fprintf(stderr, "  test: kick f%u sk %08X vel %d %d %d -> speed %d\n", GUEST32(0x002FD504u), sk,
+                    (int32_t)GUEST32(sk + 0x4Cu), (int32_t)GUEST32(sk + 0x50u), (int32_t)GUEST32(sk + 0x54u),
+                    s_test_kick_v);
+            GUEST32(sk + 0x4Cu) = (uint32_t)(int32_t)lround(s_test_kick_v * s_test_kick_sin);
+            GUEST32(sk + 0x54u) = (uint32_t)(int32_t)lround(s_test_kick_v * s_test_kick_cos);
+        }
+    }
 }
 
 static uint64_t s_fps_next_ns;                /* next display / setting check; 0 = now (FRAME RATE picked) */
@@ -6346,6 +6375,252 @@ int thps_ollie_charge_tick(void)
     }
     last[slot] = v;
     return 1;
+}
+
+/* ── Traffic cars brake per frame at 120 fps (Discord report, 2026-11-14) ────
+ * Why: "the taxis in NY slow way too much when taking a turn" at 120 fps.
+ * CCar::AI sub_00072B60 (= THPS 1 PS1 AI__4CCar 0x8006bf5c) moves a car along
+ * its road segments with the level step [0x300850] (distance, speed-up, turn
+ * rate: all scaled), but in the last 1/16 of a segment it brakes the car's
+ * velocity (car +0x4C/+0x50/+0x54, v -= v >> 4) once per call - per game frame,
+ * not per step. At 120 fps that is twice per 60 Hz frame: (15/16)^2 instead of
+ * 15/16, and the corners (short segments) became crawls.
+ * Address: config/hooks.toml, at 0x00072E24 (the brake block, entered when the
+ * car is past 15/16 of the segment; eax = this frame's distance, ecx = the car;
+ * edx / ebp are free there), on_true -> 0x00072E5E (after the block).
+ * How: at 60 fps return 0 - the game's block runs, bit for bit. Otherwise the
+ * same block with the velocity factor of one step: (15/16)^(step/128), so the
+ * braking per second is the 60 fps one at any rate; this frame's distance is
+ * cut by 1/16 as before (a per-frame share, it does not add up).
+ * THPS_CAR_BRAKE_60=0 = the original at every rate (test); THPS_CAR_TRACE=1 logs
+ * the first brakes. */
+int thps_car_brake(void)
+{
+    static int on = -1, trace;
+    static unsigned long n;
+    uint32_t car = g_ecx, k;
+    int32_t step = (int32_t)GUEST32(0x00300850u);
+    double keep;
+    if (on < 0) {
+        on = crate_env("THPS_CAR_BRAKE_60", 1) != 0;
+        trace = crate_env("THPS_CAR_TRACE", 0);
+        if (!on)
+            fprintf(stderr, "  car: brake every game frame (THPS_CAR_BRAKE_60=0, the original)\n");
+    }
+    if (!on || thps_fps() == 60 || step <= 0 || step == 128)
+        return 0;                                  /* the game's own block */
+    keep = pow(15.0 / 16.0, (double)step / 128.0);
+    g_eax -= (uint32_t)((int32_t)g_eax >> 4);      /* this frame's distance: as the game */
+    for (k = 0; k < 3; k++) {
+        int32_t v = (int32_t)GUEST32(car + 0x4Cu + k * 4u);
+        GUEST32(car + 0x4Cu + k * 4u) = (uint32_t)(v - (int32_t)floor((double)v * (1.0 - keep)));
+    }
+    if (trace && n++ < 40)
+        fprintf(stderr, "  car: %08X brake step %d keep %.4f vel %d %d %d\n", car, step, keep,
+                (int32_t)GUEST32(car + 0x4Cu), (int32_t)GUEST32(car + 0x50u), (int32_t)GUEST32(car + 0x54u));
+    return 1;
+}
+
+/* CCar::AI itself: THPS_CAR_TRACE=2 (test) logs each car's position (+8/+C/+10)
+ * and host time after every call, for the speed comparison 60 / 120 fps. */
+extern void sub_00072B60_gen(void);
+
+void sub_00072B60(void)
+{
+    static int tr = -1;
+    uint32_t car = g_ecx;
+    if (tr < 0)
+        tr = crate_env("THPS_CAR_TRACE", 0);
+    sub_00072B60_gen();
+    if (tr >= 2)
+        fprintf(stderr, "[CAR] %llu %08X %d %d %d\n", (unsigned long long)(host_time_ns() / 1000ull), car,
+                (int32_t)GUEST32(car + 8u), (int32_t)GUEST32(car + 0xCu), (int32_t)GUEST32(car + 0x10u));
+}
+
+/* ── Loop bail at 120 fps (Discord report, 2026-11-14) ────────────────────────
+ * Why: "the loop in Bullring and Tampa makes you bail" at 120 fps. The skater
+ * code counts in skater+0x59FC the game frames since the target rotation
+ * (+0x80/+0x82/+0x84) last changed (0x000AB999 and the other handlers; reset
+ * on a change). sub_000B1xxx bails (0x000B1C30 .. sub_000A5970 args 0x14, 0)
+ * when the skater is upside down (normal Y [+0x59DC] > 1000, [+0x5984] == 0)
+ * and that counter is above 6 (11 in mode 9: [0x276198] == 9), or when the
+ * step clock [0x2FD504] (60 Hz frames) is less than 6 past [+0x5644]. A loop is
+ * built from flat polygons: the rotation changes when the skater crosses to
+ * the next one. At 120 fps he needs twice as many game frames per polygon, so
+ * the counter passes 6 at a speed that carries him through at 60.
+ * Address: config/hooks.toml, at 0x000B1C30 (the bail block, reached from the
+ * counter test's jg or from the clock test), esi = skater, on_true ->
+ * 0x000B1D3A (the game's no-bail path).
+ * How: at 60 fps (step 128) return 0 - bit for bit. Otherwise the counter is
+ * measured in 60 Hz frames (counter * step / 128 > limit = bail); if that says
+ * no, the game's clock test decides as it does after a passed counter test.
+ * THPS_LOOP_BAIL_60=0 = the original at every rate (test); THPS_LOOP_TRACE=1
+ * logs each decision. */
+int thps_loop_bail(void)
+{
+    static int on = -1, trace;
+    uint32_t sk = g_esi;
+    int32_t step = (int32_t)GUEST32(0x00300850u);
+    int32_t cnt = (int32_t)GUEST32(sk + 0x59FCu);
+    int32_t lim = GUEST32(0x00276198u) == 9 ? 11 : 6;
+    int32_t dt = (int32_t)(GUEST32(0x002FD504u) - GUEST32(sk + 0x5644u));
+    int skip = 0;
+    if (on < 0) {
+        on = crate_env("THPS_LOOP_BAIL_60", 1) != 0;
+        trace = crate_env("THPS_LOOP_TRACE", 0);
+        if (!on)
+            fprintf(stderr, "  loop: bail count in game frames (THPS_LOOP_BAIL_60=0, the original)\n");
+    }
+    if (on && thps_fps() != 60 && step > 0 && step != 128 && cnt > lim)
+        skip = (int64_t)cnt * step <= (int64_t)lim * 128 && dt >= 6;
+    if (trace)
+        fprintf(stderr, "[LOOP] f%u sk %08X count %d lim %d step %d dt %d normY %d vel %d %d %d -> %s\n",
+                GUEST32(0x002FD504u), sk, cnt, lim, step, dt, (int32_t)GUEST32(sk + 0x59DCu),
+                (int32_t)GUEST32(sk + 0x4Cu), (int32_t)GUEST32(sk + 0x50u), (int32_t)GUEST32(sk + 0x54u),
+                skip ? "no bail (60 Hz count)" : "bail");
+    return skip;
+}
+
+/* ── Object script waits at 120 fps (Discord report, 2026-11-14) ──────────────
+ * Why: "the environmental sounds loop too fast" at 120 fps. The level objects
+ * run TRG scripts (sub_00069390 = CBaddy::ExecuteCommand); C_WAIT (0x4280,
+ * "frames": THPS 1 script.h) stores the count in object+0x1DC (0x00069E2E),
+ * and the objects' AI counts it down by 1 per game frame (0x0006AA14 with the
+ * object in edi, 0x000B77A1 with it in ebp) before the script goes on. Sound
+ * loops are such scripts (C_PLAY_SFX 0x00069F42 / C_PLAY_POSITIONAL_SFX
+ * 0x00069F72, C_WAIT, C_GOTO): at 120 fps every wait took half the time.
+ * Address: config/hooks.toml, at those two decrements, on_true -> after them
+ * (0x0006AA34, 0x000B77B8; eax is not read there). The second is in
+ * sub_000B76D0, whose this (= ebp there) its wrapper below keeps.
+ * How: at 60 fps return 0 - the game's decrement, bit for bit. Otherwise the
+ * count goes down by the 60 Hz frames the step clock advanced this frame
+ * (s_clock_ticks: 0 or 1 at 120), not below 0, so a wait lasts as long as at
+ * 60. THPS_SCRIPT_WAIT_60=0 = the original at every rate (test). */
+static int thps_script_wait(uint32_t obj)
+{
+    static int on = -1;
+    uint32_t v;
+    if (on < 0) {
+        on = crate_env("THPS_SCRIPT_WAIT_60", 1) != 0;
+        if (!on)
+            fprintf(stderr, "  script: waits count game frames (THPS_SCRIPT_WAIT_60=0, the original)\n");
+    }
+    if (!on || thps_fps() == 60)
+        return 0;
+    v = GUEST32(obj + 0x1DCu) & 0xFFFFu;
+    v = v > s_clock_ticks ? v - s_clock_ticks : 0;
+    GUEST32(obj + 0x1DCu) = (GUEST32(obj + 0x1DCu) & 0xFFFF0000u) | v;
+    return 1;
+}
+
+/* Site 2's object is in ebp, a local of the lifted function (the hook cannot
+ * read it): sub_000B76D0 sets ebp = ecx (this) at entry, so its wrapper keeps
+ * this for the hook (saved and restored, in case an AI runs inside another). */
+static uint32_t s_wait_this;
+extern void sub_000B76D0_gen(void);
+
+void sub_000B76D0(void)
+{
+    uint32_t prev = s_wait_this;
+    s_wait_this = g_ecx;
+    sub_000B76D0_gen();
+    s_wait_this = prev;
+}
+
+int thps_script_wait_edi(void) { return thps_script_wait(g_edi); }
+int thps_script_wait_this(void) { return s_wait_this ? thps_script_wait(s_wait_this) : 0; }
+
+/* ── Sound starts by caller (test, fps120 ambient sounds, 2026-11-14) ────────
+ * Why: the ambient sounds of a level repeat too fast at 120 fps; every new
+ * sound goes through sub_001B3D30 (Play / SetBufferData there), reached only
+ * from sub_001B3210 (973 call sites) and sub_001B3590. To find which game code
+ * starts more sounds at 120 than at 60, THPS_SFX_TRACE=1 logs each call of the
+ * two with the game's return address and the first two arguments.
+ * Off (default): straight through. */
+extern void sub_001B3210_gen(void);
+extern void sub_001B3590_gen(void);
+
+static int sfx_trace(void)
+{
+    static int on = -1;
+    if (on < 0)
+        on = crate_env("THPS_SFX_TRACE", 0);
+    return on;
+}
+
+void sub_001B3210(void)
+{
+    if (sfx_trace())
+        fprintf(stderr, "[SFX] 3210 ret=%08X a0=%08X a1=%08X tick=%u\n", GUEST32(g_esp), GUEST32(g_esp + 4),
+                GUEST32(g_esp + 8), GUEST32(0x0030697Cu));
+    sub_001B3210_gen();
+}
+
+void sub_001B3590(void)
+{
+    if (sfx_trace())
+        fprintf(stderr, "[SFX] 3590 ret=%08X a0=%08X a1=%08X tick=%u\n", GUEST32(g_esp), GUEST32(g_esp + 4),
+                GUEST32(g_esp + 8), GUEST32(0x0030697Cu));
+    sub_001B3590_gen();
+}
+
+/* ── Test start point (test, fps120 loops, 2026-11-14) ───────────────────────
+ * Why: the 120 fps loop bail (Bullring, Tampa) needs runs that start at the
+ * loop. The TRG restart nodes (type 8) include the HORSE start points next to
+ * them: Tampa (SkFlor_T.TRG) node 634 "Ho_Start_loop", 625 "Loop Begins Here";
+ * Bullring (SkBul_T.trg) node 1314 "Ho_Loop". sub_000CABE0 (= THPS 1
+ * Trig_ExecuteRestart 0x80044c84) puts every skater on the restart node
+ * [0x283030] (set by name in sub_000CAA00).
+ * How: THPS_TEST_RESTART_NODE=<index> (test only) writes that index before each
+ * restart, so the level start and RETRY put the skater there.
+ * THPS_TEST_RESTART_BACK=<units> moves the node's position (node: u16 type,
+ * u16 link count, the links, then 3 x int32 position and 3 x int16 angles,
+ * 4096 = 360 degrees, at the next 4-byte boundary) by that distance along its
+ * Y angle for the restart (sin -> X, cos -> Z; negative = the other way), for a
+ * run-up; restored afterwards. Off: unchanged. */
+extern void sub_000CABE0_gen(void);
+
+void sub_000CABE0(void)
+{
+    static int node = -2, back, speed;
+    uint32_t pos = 0, x = 0, z = 0;
+    if (node == -2) {
+        const char *e = getenv("THPS_TEST_RESTART_NODE");
+        node = e && *e ? atoi(e) : -1;
+        back = crate_env("THPS_TEST_RESTART_BACK", 0);
+        speed = crate_env("THPS_TEST_RESTART_SPEED", 0);
+        if (node >= 0)
+            fprintf(stderr, "  test: every restart at TRG node %d, moved %d, speed %d (THPS_TEST_RESTART_*)\n",
+                    node, back, speed);
+    }
+    if (node >= 0 && (uint32_t)node < GUEST32(0x00306A44u)) {
+        uint32_t p = GUEST32(GUEST32(0x00306A40u) + (uint32_t)node * 4u);
+        uint32_t np = (p + 4u + 2u * (uint32_t)(uint16_t)GUEST32(p + 2u) + 3u) & ~3u;
+        int16_t ay = (int16_t)(uint16_t)GUEST32(np + 14u);
+        double a = (double)ay * (2.0 * 3.14159265358979 / 4096.0);
+        fprintf(stderr, "  test: restart node %u -> %d\n", GUEST32(0x00283030u), node);
+        GUEST32(0x00283030u) = (uint32_t)node;
+        if (speed) {
+            s_test_kick_v = speed;
+            s_test_kick_sin = sin(a);
+            s_test_kick_cos = cos(a);
+            s_test_kick_ns = host_time_ns() + 500000000ull;
+        }
+        if (back) {
+            pos = np;
+            x = GUEST32(pos);
+            z = GUEST32(pos + 8u);
+            GUEST32(pos) = (uint32_t)((int32_t)x + (int32_t)lround(back * sin(a)));
+            GUEST32(pos + 8u) = (uint32_t)((int32_t)z + (int32_t)lround(back * cos(a)));
+            fprintf(stderr, "  test: start %d %d -> %d %d (angle %d)\n", (int32_t)x, (int32_t)z,
+                    (int32_t)GUEST32(pos), (int32_t)GUEST32(pos + 8u), ay);
+        }
+    }
+    sub_000CABE0_gen();
+    if (pos) {
+        GUEST32(pos) = x;
+        GUEST32(pos + 8u) = z;
+    }
 }
 
 /* ── QUIT GAME in the pause menu (issue #5; maintainer, 2026-10-31) ──────────

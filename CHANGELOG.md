@@ -4,6 +4,19 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.2.5 - 2026-11-14
+
+### Fixed (FRAME RATE 120 only; at 60 nothing changes)
+- **New York: the taxis slowed down far too much in every turn.** The game brakes a car at the end of each piece of
+  its road once per frame; at 120 fps that was twice per 1/60 s. The brake now follows the game's time step, so the
+  taxis drive as at 60 fps.
+- **Ambient sounds repeated too fast.** The level objects' scripts (for example a sound, a pause, the sound again)
+  counted their pauses in frames, so every pause was half as long at 120 fps. They count in 1/60 s now. This also
+  gives every other scripted object its original timing.
+- **Loops (Bullring, Tampa) made you bail.** Upside down, the game lets you fall when your angle has not changed for
+  more than 6 frames; at 120 fps a loop needs twice as many frames per piece, so that limit came too early. It is
+  counted in 1/60 s now.
+
 ## v1.2.4 - 2026-11-13
 
 ### Fixed

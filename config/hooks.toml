@@ -195,3 +195,40 @@ at = 0x000AEFB3
 call = "thps_ollie_charge_tick"
 on_true = 0x000AEFBC
 on_false = 0x000AEFC2
+
+# Traffic cars at 120 fps (Discord report, 2026-11-14): CCar::AI sub_00072B60
+# brakes the car's velocity by 1/16 per game frame in the last 1/16 of a road
+# segment (block 0x00072E24 .. 0x00072E5E), not per level step - at 120 fps the
+# taxis crawled through the corners. Nonzero = the block was done per step in
+# C (not at 60 fps), zero = the game's block runs. See thps_car_brake in
+# recomp_manual.c.
+[[hook]]
+at = 0x00072E24
+call = "thps_car_brake"
+on_true = 0x00072E5E
+
+# Loop bail at 120 fps (Discord report, 2026-11-14): upside down, the skater
+# bails when skater+0x59FC (game frames since the rotation changed) is above
+# 6 - at 120 fps a loop polygon takes twice as many frames. The hook counts in
+# 60 Hz frames: nonzero = no bail (0x000B1D3A), zero = the game's bail block.
+# See thps_loop_bail in recomp_manual.c.
+[[hook]]
+at = 0x000B1C30
+call = "thps_loop_bail"
+on_true = 0x000B1D3A
+
+# Object script waits at 120 fps (Discord report, 2026-11-14): C_WAIT counts
+# object+0x1DC down by 1 per game frame; the ambient sound loops (play, wait,
+# goto) ran twice as fast. The hooks count it in 60 Hz frames of the step
+# clock: nonzero = done (after the decrement), zero = the game's decrement.
+# The object is edi at the first, sub_000B76D0's this at the second. See
+# thps_script_wait in recomp_manual.c.
+[[hook]]
+at = 0x0006AA14
+call = "thps_script_wait_edi"
+on_true = 0x0006AA34
+
+[[hook]]
+at = 0x000B77A1
+call = "thps_script_wait_this"
+on_true = 0x000B77B8
