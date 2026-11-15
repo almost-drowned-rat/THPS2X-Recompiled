@@ -4,6 +4,14 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.2.6 - 2026-11-15
+
+### Fixed
+- **Park Editor froze right after you picked it** (#19; the window then showed "not responding"). The tips screen
+  before the editor waits for A without drawing a new picture, and the port only read the controller, the keyboard
+  and the window while new pictures came - so the press never arrived. They are read while the game waits like
+  this now, too. This also keeps the window responsive (moving it, closing it) on any screen that waits.
+
 ## v1.2.5 - 2026-11-14
 
 ### Fixed (FRAME RATE 120 only; at 60 nothing changes)
