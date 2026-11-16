@@ -441,12 +441,41 @@ void sub_001A9CE0(void)
     }
 }
 
-/* 0x001A98B0 starts the next song: a choice made in Options goes in first. */
+/* Club London (level 0x13) has its own music: the 16th level song, spit8, which
+ * the game plays there in a loop -- also after Retry (GitHub #20; run with
+ * RECOMP_SOUNDTRACK_HLE=0, 2026-11-16: songs\spit8.wma at the level start and
+ * after Retry). Since the playlists of 2026-11-05 every source and mode took
+ * the song from the playlist instead, so the club played the normal music.
+ * Maintainer, 2026-11-16: the club music has priority over every source and
+ * mode; it plays through the game's own decoder, which loops it as before. */
+#define CLUB_LEVEL   0x13u
+#define CLUB_SONG    15                     /* spit8, the 16th name of songs\songs.txt */
+#define SONG_NOW     0x00305AACu
+#define MUSIC_LEVEL  0x002FFD34u
+static int club_music(void) { return on() && GUEST32(LEVEL) == CLUB_LEVEL && (int)GUEST32(GAME_COUNT) > CLUB_SONG; }
+
+/* 0x001A98B0(step) starts the next song: a choice made in Options goes in
+ * first. In the club the game's own code picks spit8 -- the song it opens is
+ * (count + step + song) % count of the game music, set to CLUB_SONG -- and the
+ * soundtrack state is put back after it. MUSIC LEVEL 0 takes the game's own
+ * path (no song). */
 extern void sub_001A98B0_gen(void);
 void sub_001A98B0(void)
 {
     if (on())
         apply_choice();
+    if (club_music() && GUEST32(MUSIC_LEVEL)) {
+        uint32_t chosen = GUEST32(ST_CHOSEN), count = GUEST32(SONG_COUNT), song = GUEST32(SONG_NOW);
+        uint32_t n = GUEST32(GAME_COUNT), step = ARG(0) % n;
+        GUEST32(ST_CHOSEN) = 0;
+        GUEST32(SONG_COUNT) = n;
+        GUEST32(SONG_NOW) = ((uint32_t)CLUB_SONG + n - step) % n;
+        sub_001A98B0_gen();
+        GUEST32(ST_CHOSEN) = chosen;
+        GUEST32(SONG_COUNT) = count;
+        GUEST32(SONG_NOW) = song;
+        return;
+    }
     sub_001A98B0_gen();
 }
 
@@ -495,6 +524,12 @@ void sub_00067740(void)
     uint32_t pwfx = ARG(6), pp = ARG(7), obj = 0;
     MediaPlaylist pl;
     const MediaSong *c;
+    if (on() && club_music() && s_req_game == CLUB_SONG) {
+        s_req_game = -1;                        /* the club music: the game's own decoder, it loops (#20) */
+        fprintf(stderr, "[MUSIC] Club London: the club music (game track %d)\n", CLUB_SONG + 1);
+        sub_00067740_gen();
+        return;
+    }
     if (on()) {
         custom = xdk_soundtrack_song_of_handle(ARG(1), &req);
         if (!custom && s_req_game >= 0) {

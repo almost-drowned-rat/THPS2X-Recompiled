@@ -4,6 +4,14 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.2.7 - 2026-11-16
+
+### Fixed
+- **Club London played the normal soundtrack instead of the club music** (#20). The club has its own song, which
+  the game plays there on a loop. Since the soundtrack options were rebuilt (v1.0.1), the chosen playlist picked
+  the song in every level, the club too. The club music now plays again with every soundtrack and playback mode,
+  also after RETRY; every other level keeps your choice.
+
 ## v1.2.6 - 2026-11-15
 
 ### Fixed

@@ -1,0 +1,60 @@
+# club_music.txt - GitHub #20 (2026-11-16): Club London plays its own music (spit8, the 16th level song) with every
+# soundtrack source and mode, as the game does: about 4 minutes in the level (spit8 must stay, no other song may
+# start), then RETRY from the pause list once (spit8 again). The log: "[MUSIC] Club London: the club music" and
+# songs\spit8.wma, no other song. Source / mode from the environment, e.g. THPS_SOUNDTRACK_ALBUM=combined,
+# THPS_SOUNDTRACK_MODE=shuffle. Unlock-all cheat (fresh save dir only), Free Skate, first skater, Select Level:
+# 19 x right = Club, A; A every 3 s while the level loads (rules screen).
+#   THPS2X.exe --max-seconds 400 --save-dir <temp> --data-dir <temp> --input-script tests\input\club_music.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# the cheat (left trigger held), 21.0 .. 28.0 s
+@include snippets/unlock_all.txt 21000
+
+# Free Skate (third entry), first skater, Select Level: 19 x right = Club
+30000:down:300
+32000:down:300
+35000:a:300
+44000:a:300
+52000:right:300
+53600:right:300
+55200:right:300
+56800:right:300
+58400:right:300
+60000:right:300
+61600:right:300
+63200:right:300
+64800:right:300
+66400:right:300
+68000:right:300
+69600:right:300
+71200:right:300
+72800:right:300
+74400:right:300
+76000:right:300
+77600:right:300
+79200:right:300
+80800:right:300
+82400:shot=00_select
+83400:a:300
+# the level loads; the rules screen takes A
+108400:a:300
+111400:a:300
+114400:a:300
+125000:shot=01_level
+# about 4 minutes in the level (Free Skate has no timer)
+240000:shot=02_level_2min
+360000:shot=03_level_4min
+# Start: the pause list on CONTINUE; down: RETRY, A; "DO YOU REALLY WANT TO RETRY?" opens on NO: up = YES, A
+365000:start:300
+367000:down:300
+368000:a:300
+369500:up:300
+370500:a:300
+385000:shot=04_retry
