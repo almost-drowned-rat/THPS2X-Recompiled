@@ -232,3 +232,27 @@ on_true = 0x0006AA34
 at = 0x000B77A1
 call = "thps_script_wait_this"
 on_true = 0x000B77B8
+
+# Rail bends (GitHub #21, v1.2.8): both on-rail routines test a segment's end
+# with the full Speed (one PS1 30 fps step) but move by Speed x [0x300850] >> 8
+# (half of it at 60 fps), so every node of a multi-segment rail gave a jump.
+# At "add edi, ecx" (no flag live before it) the step becomes the real
+# distance; at the move of a pass after a node only the rest is moved
+# (on_true: after the game's move). See thps_rail_step in recomp_manual.c.
+[[hook]]
+at = 0x000A971B
+call = "thps_rail_step"
+
+[[hook]]
+at = 0x000A9A28
+call = "thps_rail_move"
+on_true = 0x000A9AAE
+
+[[hook]]
+at = 0x000B56FD
+call = "thps_rail_step"
+
+[[hook]]
+at = 0x000B5A04
+call = "thps_rail_move"
+on_true = 0x000B5A8A

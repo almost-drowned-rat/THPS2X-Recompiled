@@ -4,6 +4,24 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download.
 
+## v1.2.8 - 2026-11-18
+
+### Fixed
+- **The game crashed right after the intro movies on some PCs** (#22). The port opened the game files for
+  "unbuffered" reads, as the Xbox does; Windows then accepts only reads that fit the drive's sector size. On a drive
+  with 4096-byte sectors nearly every read failed (shaders, sounds, textures). The files are now read normally, on
+  any drive.
+- **Park Editor: the "Layout Tips" screen did not appear** (#19; the main menu stayed until you pressed A). The
+  window always showed the picture before the one the game had just finished. The game draws the tips screen once
+  and then waits, so it never came. The window now shows each picture as soon as the game swaps it - everywhere, so
+  every picture also comes one frame earlier than before.
+- **Grinding: a jump at every bend of a rail or ledge** (#21; a bug in the original game, also on the Xbox). A rail
+  is made of short pieces. The game checked whether you had reached the next piece with the step of a 30 fps frame
+  (the PS1 code), but moved you by a 60 fps step: you were put onto the bend early and then moved a whole step
+  further, two to three times as far as in the other frames (four to five times at FRAME RATE 120). Over a bend you
+  now move exactly as far as your speed gives you. Straight rails, the balance and falling off at sharp bends or at
+  the end of a rail are unchanged.
+
 ## v1.2.7 - 2026-11-16
 
 ### Fixed

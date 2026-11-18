@@ -6034,13 +6034,176 @@ static int rail_cut_step(void)
     return 1;
 }
 
+/* ── RAIL BENDS: NO JUMP AT A NODE (GitHub #21, v1.2.8) ──────────────────────
+ * Why: "on almost every bend you get a choppy, laggy boost" grinding a rail or
+ * ledge made of several segments (best seen on the Club London counter; also in
+ * the original Xbox game, per the reporter's video). Both on-rail routines
+ * (sub_000A9270, sub_000B5260 = DoOnRailPhysics, THPS 1 PS1 0x800331e4) walk
+ * the skater along the segments in a loop: t = position on the segment, then
+ * t += Speed, and only if t stays inside the segment the skater moves by its
+ * velocity times the level step, vel * [0x300850] >> 8. The test adds the FULL
+ * Speed, the move only Speed * step / 256 - the same on the PS1 at 30 fps (step
+ * 256), but 2X runs at 60 fps (step 128). So the node "is reached" one PS1
+ * frame early: the skater is put on the node (the rest of the way, up to a full
+ * PS1 step) and the loop runs again from there, moving a whole frame's step on
+ * the next segment as well. The frame over a node moved 2-3x as far as the
+ * others at 60 fps, 4-5x at 120 fps - the jump at every bend, and over many
+ * nodes a real gain in speed.
+ * Address: config/hooks.toml. At the "add edi, ecx" of each loop pass (0x000A971B
+ * / 0x000B56FD; edi = t << 12 along the segment, ecx = Speed, esi = the
+ * segment's length; the add sets the flags the js / jle after it test, so none
+ * is live before it): ecx = this frame's real distance, Speed * step >> 8; in a
+ * pass after a node only what was left over at the node. At the move of a pass
+ * that stays on the segment (0x000A9A28 / 0x000B5A04, on_true -> after the move,
+ * 0x000A9AAE / 0x000B5A8A): after a node the skater moves only that rest along
+ * the velocity, without a second whole step.
+ * How: an original bug, always fixed, no menu line (maintainer, 2026-11-18);
+ * THPS_RAIL_NODES=original (test only) = the game's behaviour. The frame's distance is the one the game moves on a
+ * plain segment, so plain rails ride exactly as before; the balance, the speed
+ * and the fall-off at sharp bends (dot < 2633) and rail ends stay the game's.
+ * THPS_RAIL_TRACE=1 sums the step distances up (plain vs over a node, rail_nodes_end), =2 also logs every
+ * loop pass (Speed, distance, node crossings). */
+static struct {
+    int carry;          /* rest of this frame's way after a node; -1 = none */
+    int in_carry;       /* this pass starts at a node */
+    int32_t speed;      /* this pass's Speed (velocity units) */
+    int32_t use;        /* this pass's distance (signed) */
+    uint32_t sk;
+} s_rn;
+
+static int rail_nodes_on(void)
+{
+    static int on = -1;
+    if (on < 0) {
+        const char *e = getenv("THPS_RAIL_NODES");
+        on = !(e && !strcmp(e, "original"));
+        if (!on)
+            fprintf(stderr, "  rail: bends as in the original (THPS_RAIL_NODES=original, test only)\n");
+    }
+    return on;
+}
+
+static int rail_trace(void)
+{
+    static int t = -1;
+    if (t < 0)
+        t = rail_env("THPS_RAIL_TRACE", 0);
+    return t;
+}
+
+static int32_t s_rn_pos[3];
+
+static void rail_nodes_begin(void)
+{
+    int k;
+    s_rn.carry = -1;
+    s_rn.in_carry = 0;
+    s_rn.sk = GUEST32(g_esp + 4);
+    for (k = 0; k < 3; k++)
+        s_rn_pos[k] = (int32_t)GUEST32(s_rn.sk + 8u + k * 4u);
+}
+
+/* THPS_RAIL_TRACE=1 (test, both modes): each on-rail step's distance against the step before on the same
+ * rail, split into plain steps and steps onto another node (the jump); a cumulative [RAILSUM] line every
+ * 5 node steps (the log keeps the last of a run of such lines). Ratio bins of 0.05 up to 10. */
+static void rail_sum_line(const uint32_t *h, uint32_t n, char *out, size_t cap)
+{
+    uint32_t acc = 0, i, med = 0, p90 = 0, mx = 0;
+    for (i = 0; i < 200; i++) {
+        acc += h[i];
+        if (!med && acc * 2 >= n) med = i + 1;
+        if (!p90 && acc * 10 >= n * 9u) p90 = i + 1;
+        if (h[i]) mx = i + 1;
+    }
+    snprintf(out, cap, "n %u median %.2f p90 %.2f max %.2f", n, med * 0.05, p90 * 0.05, mx * 0.05);
+}
+
+static void rail_nodes_end(void)
+{
+    static uint32_t h_plain[200], h_node[200], n_plain, n_node, last_sk, last_fr;
+    static int last_node;
+    static double last_d;
+    double d2 = 0.0, d;
+    int k, node;
+    uint32_t fr = GUEST32(0x002FD504u);          /* game frame counter: consecutive steps only */
+    if (!rail_trace() || !s_rn.sk)
+        return;
+    if (fr - last_fr > 2u)
+        last_sk = 0;
+    last_fr = fr;
+    for (k = 0; k < 3; k++) {
+        double dk = (double)((int32_t)GUEST32(s_rn.sk + 8u + k * 4u) - s_rn_pos[k]);
+        d2 += dk * dk;
+    }
+    d = sqrt(d2);
+    node = (int16_t)GUEST32(s_rn.sk + 0x574Cu);
+    if (s_rn.sk == last_sk && last_d > 0.0 && d > 0.0) {
+        uint32_t b = (uint32_t)(d / last_d / 0.05);
+        if (b > 199) b = 199;
+        if (node != last_node) {
+            h_node[b]++;
+            if (++n_node % 5 == 0) {
+                char a[96], c[96];
+                rail_sum_line(h_plain, n_plain, a, sizeof a);
+                rail_sum_line(h_node, n_node, c, sizeof c);
+                fprintf(stderr, "[RAILSUM] step %d plain: %s | over a node: %s\n", (int32_t)GUEST32(0x00300850u), a, c);
+            }
+        } else {
+            h_plain[b]++;
+            n_plain++;
+        }
+    }
+    last_sk = s_rn.sk;
+    last_node = node;
+    last_d = d;
+}
+
+/* at "add edi, ecx": g_edi = t << 12, g_ecx = Speed, g_esi = the segment's length */
+void thps_rail_step(void)
+{
+    int32_t speed = (int32_t)g_ecx, t = (int32_t)g_edi, len = (int32_t)g_esi, step, use, end;
+    int32_t ts = (int32_t)GUEST32(0x00300850u);
+    if (!rail_nodes_on())
+        return;
+    step = (int32_t)(((int64_t)speed * ts) >> 8);
+    if (speed < 0 && step == 0)
+        step = -1;                                 /* keep the direction (LastSpeed's sign) */
+    s_rn.in_carry = s_rn.carry >= 0;
+    use = s_rn.in_carry ? (speed < 0 ? -s_rn.carry : s_rn.carry) : step;
+    s_rn.speed = speed;
+    s_rn.use = use;
+    end = t + use;
+    s_rn.carry = end > len ? end - len : end < 0 ? -end : -1;
+    if (rail_trace() >= 2)
+        fprintf(stderr, "[RAIL] %08X speed %d step %d use %d t %d len %d%s%s\n", s_rn.sk, speed, step, use,
+                t, len, s_rn.in_carry ? " (after a node)" : "", s_rn.carry >= 0 ? " -> node" : "");
+    g_ecx = (uint32_t)use;
+}
+
+/* at the move of a pass that stays on its segment (ebp = the skater, +8 = position, +0x4C = velocity) */
+int thps_rail_move(void)
+{
+    int k;
+    if (!rail_nodes_on() || !s_rn.in_carry || !s_rn.speed)
+        return 0;                                  /* the game's own move */
+    for (k = 0; k < 3; k++) {
+        int32_t v = (int32_t)GUEST32(g_ebp + 0x4Cu + k * 4u);
+        int32_t p = (int32_t)GUEST32(g_ebp + 8u + k * 4u);
+        GUEST32(g_ebp + 8u + k * 4u) = (uint32_t)(p + (int32_t)((int64_t)v * s_rn.use / s_rn.speed));
+    }
+    s_rn.in_carry = 0;
+    return 1;
+}
+
 void sub_000A9270(void)
 {
     if (rail_cut_step()) {
         g_esp += 4;                               /* ret (cdecl: the caller pops the skater) */
         return;
     }
+    rail_nodes_begin();
     sub_000A9270_gen();
+    rail_nodes_end();
 }
 
 void sub_000B5260(void)
@@ -6049,7 +6212,9 @@ void sub_000B5260(void)
         g_esp += 4;
         return;
     }
+    rail_nodes_begin();
     sub_000B5260_gen();
+    rail_nodes_end();
 }
 
 /* ── CRATES ON A CRATE THAT IS KNOCKED AWAY (GitHub #11, Warehouse; v1.2.2) ─
