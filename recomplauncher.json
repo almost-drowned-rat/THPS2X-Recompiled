@@ -1,0 +1,116 @@
+{
+  "$schema": "https://raw.githubusercontent.com/elripalda/RecompLauncher-SDK/main/schema/recomplauncher.json",
+  "format": 1,
+  "name": "THPS 2X Recompiled",
+  "repo": "almost-drowned-rat/THPS2X-Recompiled",
+  "inputs": [
+    {
+      "id": "game",
+      "label": "Your disc image (.iso) of Tony Hawk's Pro Skater 2X for the original Xbox, USA release.",
+      "formats": [{ "type": "file" }],
+      "check": { "xdvdfs": "default.xbe" }
+    }
+  ],
+  "prepare": {
+    "program": ["thps2x_launcher.exe", "THPS2X_Recompiled-x86_64.AppImage", "thps2x_launcher"],
+    "args": ["--image", "{input:game}", "--no-start"],
+    "label": "Translating and compiling the game for your PC (a few minutes, only once)",
+    "keeps_copy": true,
+    "done": ["{install}/data/build/stamp.txt", "{install}/game/default.xbe"]
+  },
+  "start": {
+    "program": ["thps2x_launcher.exe", "THPS2X_Recompiled-x86_64.AppImage", "thps2x_launcher"]
+  },
+  "config": [
+    {
+      "id": "main",
+      "format": "ini",
+      "file": [{ "path": "{install}/saves/settings.ini" }]
+    }
+  ],
+  "folders": {
+    "saves": [{ "path": "{install}/saves" }],
+    "logs": [{ "path": "{install}/data" }],
+    "media": [{ "path": "{install}/media" }]
+  },
+  "system": {
+    "windows": { "version": "10", "graphics": { "vulkan": "1.3" } },
+    "linux": { "glibc": "2.35", "graphics": { "vulkan": "1.3" } }
+  },
+  "settings": [
+    {
+      "id": "display_mode", "label": "Display mode",
+      "help": "Borderless fills your screen and lets you switch apps quickly. Fullscreen gives the game the screen to itself. Windowed remembers its size and place.",
+      "choices": [
+        { "label": "Borderless", "set": { "display_mode": "borderless" } },
+        { "label": "Fullscreen", "set": { "display_mode": "fullscreen" } },
+        { "label": "Windowed", "set": { "display_mode": "windowed" } }
+      ],
+      "defaults": { "display_mode": "borderless" }
+    },
+    {
+      "id": "aspect_ratio", "label": "Aspect ratio",
+      "help": "Real widescreen: you see more to the sides, nothing is stretched. 4:3 is the original.",
+      "choices": [
+        { "label": "4:3", "set": { "aspect_ratio": "4:3" } },
+        { "label": "16:9", "set": { "aspect_ratio": "16:9" } },
+        { "label": "16:10", "set": { "aspect_ratio": "16:10" } },
+        { "label": "21:9", "set": { "aspect_ratio": "21:9" } }
+      ],
+      "defaults": { "aspect_ratio": "4:3" }
+    },
+    {
+      "id": "frame_rate", "label": "Frame rate",
+      "help": "120 fps needs a display with 120 Hz or more, or VSync off. The game never runs faster either way.",
+      "choices": [
+        { "label": "60 (original)", "set": { "frame_rate": "original" } },
+        { "label": "120", "set": { "frame_rate": "120" } }
+      ],
+      "defaults": { "frame_rate": "original" }
+    },
+    {
+      "id": "vsync", "label": "VSync",
+      "choices": [
+        { "label": "On", "set": { "vsync": "on" } },
+        { "label": "Off", "set": { "vsync": "off" } }
+      ],
+      "defaults": { "vsync": "on" }
+    },
+    {
+      "id": "upscaling", "label": "Upscaling",
+      "help": "AMD FSR 1.0 sharpens the picture as it is fitted to your screen.",
+      "choices": [
+        { "label": "Bilinear", "set": { "upscaling": "bilinear" } },
+        { "label": "FSR", "set": { "upscaling": "fsr" } }
+      ],
+      "defaults": { "upscaling": "bilinear" }
+    },
+    {
+      "id": "anisotropic_filter", "label": "Texture filtering",
+      "help": "Keeps the ground and ramps sharp at shallow angles.",
+      "choices": [
+        { "label": "Off", "set": { "anisotropic_filter": "off" } },
+        { "label": "2x", "set": { "anisotropic_filter": "2" } },
+        { "label": "4x", "set": { "anisotropic_filter": "4" } },
+        { "label": "8x", "set": { "anisotropic_filter": "8" } },
+        { "label": "16x", "set": { "anisotropic_filter": "16" } }
+      ],
+      "defaults": { "anisotropic_filter": "16" }
+    },
+    {
+      "id": "shader_compile", "label": "Shader compile", "advanced": true,
+      "help": "Hybrid draws with a general shader until the exact one is built: no waiting, nothing missing. Off waits for each shader, as before 2.0.",
+      "choices": [
+        { "label": "Hybrid", "set": { "shader_compile": "hybrid" } },
+        { "label": "Wait", "set": { "shader_compile": "wait" } },
+        { "label": "Skip", "set": { "shader_compile": "skip" } },
+        { "label": "Off", "set": { "shader_compile": "off" } }
+      ],
+      "defaults": { "shader_compile": "hybrid" }
+    }
+  ],
+  "actions": [
+    { "id": "saves", "label": "Saves", "help": "Your career, skaters, parks and the port's settings.", "open": "saves" },
+    { "id": "media", "label": "Music and boot video", "help": "Your own soundtracks and boot animation (see README.txt there).", "open": "media" }
+  ]
+}

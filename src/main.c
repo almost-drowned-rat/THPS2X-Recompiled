@@ -37,7 +37,6 @@
 #include "xdk_dsound.h"
 #if defined(THPS_VULKAN)
 #include "nv2a_vk.h"
-#include "shader_pack.h"
 #include "vk_check.h"
 #endif
 #if defined(THPS_INSTALLER)
@@ -48,7 +47,7 @@
 
 #define THPS_ENTRY_POINT 0x001B9FD3u
 
-extern RECOMP_TLS uint32_t g_esp;
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
 extern ptrdiff_t g_xbox_mem_offset;
 
 #if defined(THPS_LLE)
@@ -59,8 +58,12 @@ extern MCPXAPUState *g_apu_state;
 extern void xbox_OhciInit(void);         /* toolkit src/usb/ohci.c */
 #endif
 
-extern void xbe_entry_point(void);       /* generated */
+extern void xbe_entry_point(RECOMP_PARAMS);   /* generated */
 extern int recomp_dispatch_init(void);   /* generated */
+
+/* The main thread's guest register set (option C, as Orta's main.c): the title's first thread runs on it.
+ * Static, so the watchdog and the crash handler can still read it (xbox_diag_ctx_set below). */
+static X86Ctx s_main_ctx = X86CTX_INIT;
 
 #if defined(THPS_INSTALLER)
 /* First start (M5 item 5, CLAUDE.md "Installer / launcher"): game/ holds the
@@ -121,6 +124,8 @@ static int thps_game_setup(const char *game_dir)
 
 int main(int argc, char **argv)
 {
+    /* ctx_rewrite: keep (the C entry point; its ctx is the main thread's set) */
+    X86Ctx *ctx = &s_main_ctx;
     HostOptions opt;
     char xbe_path[HOST_PATH_MAX];
     void *xbe = NULL;
@@ -211,6 +216,23 @@ int main(int argc, char **argv)
     host_setenv_default("RECOMP_PB_EXEC", "1");
 #endif
 
+    /* THPS 2X 2.0 on option-c, M4 (maintainer's order 2026-11-18, point 5: build -> start with OLD behaviour ->
+     * regress -> option-c features one at a time, each measured before / after): the option-c runtime features
+     * 1.x did not have start OFF here, as env defaults (a test can still set them). M6 removes one line at a time
+     * with its own measurement (docs/milestones_2.0.md).
+     * Removed in M6 (2026-11-23): RECOMP_SPIN_BACKOFF=0 and RECOMP_TICK_THREAD=1 + RECOMP_NV2A_PUT_WAKE=0 (G3 set 1
+     * neutral-or-better -> the option-c behaviour ON, measurement 2026-11-21); RECOMP_VK_ASYNC=off
+     * (the RENDERING page's SHADER COMPILE line now: unset = option-c's default HYBRID, option-c 04ab677; measured in
+     * the combined final G3); RECOMP_GUEST_PRIORITY=0 and RECOMP_FLIP_INTERVAL=0 (G3 set 2 at 60 Hz neutral-or-better:
+     * fps / p99 unchanged, priority mapping -17 % CPU in the menu, measurement 2026-11-24; the flip hold at 120 Hz
+     * checked by the combined final G3: p99 -3 %, 0 frames > 25 ms). */
+    /* Left ON (2026-11-19: fixes / base behaviour of option-c, not timing features): RECOMP_DPC_GATE (the
+     * one-CPU gate against DPC races), RECOMP_PHYS_BIAS, RECOMP_VK_SHADOW, RECOMP_VK_MSAA_SCENE. */
+    /* RECOMP_VK_RT_ALPHA_ONE stays at option-c's default (on) since option-c 53518ae/7e54f65: no alpha-one view
+     * for a surface sampled with a BORDER address mode + the stage's border colour. That keeps THPS's skater
+     * shadow targets (256x256 R5G6B5, cleared part transparent) right and Orta #12 too. The interim port
+     * default RECOMP_VK_RT_ALPHA_ONE=0 of 2026-11-19 is gone. */
+
     /* Audio: DirectSound at API level (toolkit src/xdk, stage 3 B1), mixed
      * with SDL3. The CDirectSoundStream vtables (DSOUND 3925, from the stream
      * constructor at 0x00049DE2) let the HLE hand out stream objects the game
@@ -256,12 +278,17 @@ int main(int argc, char **argv)
     }
     if (!strcmp(settings_get("vsync", "on"), "off"))
         host_setenv_default("RECOMP_VSYNC", "0");
-    /* FRAME PACING (maintainer, 2026-11-05): DISPLAY (default) = on a 120 / 180
-     * / 240 Hz display the guest vblank follows the display's own vblank, each
-     * frame exactly 2 / 3 / 4 refreshes; 60 HZ TIMER = the old clock. Read by
-     * the toolkit once at start. */
-    if (!strcmp(settings_get("frame_pacing", "display"), "timer"))
-        host_setenv_default("RECOMP_FRAME_PACING", "timer");
+    /* FRAME PACING (maintainer, 2026-11-05; out of the menu 2026-11-22, option-c
+     * porting guide "Frame pacing"): the settings file's frame_pacing, edited by hand only
+     * (timer+paced / timer+immediate / display+paced / display+immediate /
+     * auto; the old timer / display still read), handed over as
+     * RECOMP_FRAME_PACING; unset = the toolkit's auto (display+paced, the timer
+     * where the display cannot pace). Nothing is written into the file. */
+    {
+        const char *fp = settings_get("frame_pacing", NULL);
+        if (fp && *fp)
+            host_setenv_default("RECOMP_FRAME_PACING", fp);
+    }
     /* Widescreen (M5 item 3): THPS_WIDESCREEN=1 is the one switch -- the
      * toolkit's square-pixel 16:9 rendering plus THPS's wider projection and
      * the per-frame 16:9 / 4:3 choice (recomp_manual.c). 4:3 is the default. */
@@ -296,7 +323,7 @@ int main(int argc, char **argv)
         xbox_ft_set_dir(opt.data_dir);   /* RECOMP_FRAME_TIME=1 -> data/frametime.csv */
         {
             /* media\ sits next to game\ (CLAUDE.md, install layout): the boot
-             * animation (media\boot.mpg), soundtracks and shader packs. */
+             * animation (media\boot.mpg) and the soundtracks. */
             extern char g_thps_media_dir[512];
             size_t n = strlen(opt.game_dir);
             while (n && (opt.game_dir[n - 1] == '/' || opt.game_dir[n - 1] == '\\'))
@@ -304,11 +331,6 @@ int main(int argc, char **argv)
             while (n && opt.game_dir[n - 1] != '/' && opt.game_dir[n - 1] != '\\')
                 n--;
             snprintf(g_thps_media_dir, sizeof g_thps_media_dir, "%.*smedia", (int)n, opt.game_dir);
-        }
-        {
-            /* saves\ (RECOMP OPTIONS -> SHADERS: saves\shaders\My Presets) */
-            extern char g_thps_save_dir[512];
-            snprintf(g_thps_save_dir, sizeof g_thps_save_dir, "%s", opt.save_dir);
         }
         {
             /* the custom soundtracks of media/ (src/soundtracks.c: catalog,
@@ -322,19 +344,8 @@ int main(int argc, char **argv)
              * THPS_BIND_RESET=1 ignores the stored ones (docs/input.md). */
             xbox_InputBindSetStore(settings_get, settings_set, "THPS_BIND");
         }
-#if defined(THPS_VULKAN)
-        {
-            /* Shader packs (docs/shader_module.md phase 3): zips in
-             * media\shaders extracted once to data\shaders, the preset
-             * index; on a low-priority thread of its own, so the start is
-             * not held up (the first start with the stock pack writes ~72 MB). */
-            extern char g_thps_media_dir[512];
-            char ms[600], ds[600];
-            snprintf(ms, sizeof ms, "%s\\shaders", g_thps_media_dir);
-            snprintf(ds, sizeof ds, "%s\\shaders", opt.data_dir);
-            shader_pack_start(ms, ds);
-        }
-#endif
+        /* no shader pack extraction any more (RetroArch shaders removed from
+         * THPS 2.0, maintainer 2026-11-19; still in option-c) */
     }
     xbox_kernel_bridge_init();
 #if defined(THPS_VULKAN)
@@ -390,6 +401,7 @@ int main(int argc, char **argv)
     xbox_Nv2aMirrorFlipQueue(0x00028030u, 0x2308, 0x1DC, 0x1B4, 8, 5);
 
     g_esp = XBOX_STACK_TOP;
+    xbox_diag_ctx_set(ctx);   /* the crash handler and the watchdog read this set */
 
     if (!recomp_dispatch_init())
         fprintf(stderr, "[BOOT] flat dispatch unavailable; indirect calls use the binary search\n");
@@ -399,7 +411,7 @@ int main(int argc, char **argv)
 
     printf("Entry point 0x%08X, ESP 0x%08X - starting game\n", THPS_ENTRY_POINT, g_esp);
     fflush(stdout);
-    xbe_entry_point();
+    RECOMP_CALL_GUEST(xbe_entry_point);
 
     printf("Game returned. Cleaning up...\n");
     xbox_kernel_shutdown();

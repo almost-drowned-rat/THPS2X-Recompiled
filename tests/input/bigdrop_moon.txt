@@ -1,0 +1,91 @@
+# bigdrop_moon.txt - GitHub #25 (2.0): the big drop icon (s2icon10.bmp beside a falling skater, sub_000A0C90) with
+# MOON JUMP (RADBLAST, 0x306BCC). The icon test of the original game skips only MOON PHYSICS (0x306BC8), so with moon
+# jump every high ollie shows it. Run with THPS_CHEATS_ON=RADBLAST THPS_TEST_BIGDROP_ICON=5 and
+#   THPS_BIG_DROP=original: the log has "[BIGDROP] icon drawn (...)" lines (the icon's own test met; on Windows
+#     2026-11-24 the sign was also caught in 1 of 15 air shots, 06_air_fall - shots depend on timing, the log does not)
+#   THPS_BIG_DROP=off: "[BIGDROP] icon check skipped (...)" lines and no "icon drawn"
+# OPTIONS -> RECOMP OPTIONS -> BUTTON CHEATS (opening it enters THPS_CHEATS_ON), back, Free Skate -> first skater ->
+# the first level (Hangar in the original order), the RULES screen's A, then ollies with shots in the air. Separate
+# test save dir only.
+#   THPS2X.exe --max-seconds 175 --save-dir <temp> --data-dir <temp> --input-script tests\input\bigdrop_moon.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses.
+# NOTE: the RECOMP OPTIONS line count below is the 2.0 layout of 2026-11-23 (BUTTON CHEATS = 5th line: four downs).
+
+0:p2-connect
+
+# movies (ATVISION, TREYARCH, NEVRSOFT, intro) and the title screen
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+26000:down:300
+28000:a:300
+# OPTIONS: RECOMP OPTIONS is the 10th line
+33000:down:300
+34000:down:300
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+43000:a:300
+# RECOMP OPTIONS (2.0): DISPLAY, PICTURE, PERFORMANCE, RENDERING, BUTTON CHEATS - four downs; opening it enters the
+# test cheats
+48000:down:300
+49000:down:300
+50000:down:300
+51000:down:300
+54000:a:300
+60000:shot=01_cheats_page1
+# back: RECOMP OPTIONS, OPTIONS, the main menu (on OPTIONS, the 7th entry)
+64000:b:300
+66000:b:300
+68000:b:300
+73000:shot=02_main_menu
+# Free Skate is the third entry: four up from OPTIONS
+74000:up:300
+75000:up:300
+76000:up:300
+77000:up:300
+79000:a:300
+87000:a:300
+96000:a:300
+# the Free Skate RULES screen waits for A
+102000:a:300
+110000:shot=03_level
+
+# high ollies: roll, a SHORT A tap (maintainer 2026-11-24: holding A with moon jump climbs into the level's invisible
+# ceiling and the skater falls); shots while he falls back down (moon jump: long air time)
+111000:lup:3000
+114000:a:200
+115500:shot=04_air_up
+117000:shot=05_air_fall
+118500:shot=06_air_fall
+120000:shot=07_air_low
+122000:lup:2000
+124000:a:200
+125500:shot=08_air_up
+127000:shot=09_air_fall
+128500:shot=10_air_fall
+130000:shot=11_air_low
+132000:lright:400
+133000:a:200
+134500:shot=12_air_up
+136000:shot=13_air_fall
+137500:shot=14_air_fall
+139000:shot=15_air_low
+141000:lup:2000
+143000:a:200
+145000:shot=16_air_fall
+146500:shot=17_air_fall
+148000:shot=18_air_low

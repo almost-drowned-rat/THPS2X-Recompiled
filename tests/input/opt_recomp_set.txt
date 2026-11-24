@@ -97,10 +97,9 @@
 115500:b:300
 120500:shot=44_back_on_frame_rate
 
-# BOOT ANIMATION (last line, after SHADERS (2026-10-27) and BUTTON CHEATS (2026-10-28)): no boot file, right
-# changes nothing
+# BOOT ANIMATION (last line, after BUTTON CHEATS (2026-10-28); SHADERS before it removed 2026-11-19, so two downs
+# from FRAME RATE): no boot file, right changes nothing
 121000:down:300
 121600:down:300
-122200:down:300
 122800:right:300
 124500:shot=50_boot

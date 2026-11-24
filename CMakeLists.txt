@@ -14,7 +14,8 @@ if(MINGW)
     add_compile_definitions(_WIN32_WINNT=0x0A00 WINVER=0x0A00)
 endif()
 
-# Toolkit: the fork next to this repo, branch vulkan-backend (docs/toolkit.md).
+# Toolkit: option-c (THPS 2X 2.0, maintainer 2026-11-18); tools/build.ps1 passes the pinned worktree
+# (-Variant <name> -> tools/xboxrecomp_<name>). Up to 1.x: branch vulkan-backend (docs/toolkit.md).
 set(XBOXRECOMP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../xboxrecomp" CACHE PATH
     "Path to the xboxrecomp toolkit root directory")
 
@@ -23,21 +24,17 @@ set(RECOMP_GEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../private/thps2x/gen" CACHE PAT
     "Directory holding the generated C (recomp_*.c, recomp_types.h, ...)")
 
 # Record every indirect-branch target at runtime (icall_targets.dump) for the
-# seeds feedback loop. Must be set before add_subdirectory (icall_feedback.c).
-# Remove once function detection has converged (hot-path store).
-add_compile_definitions(RECOMP_ICALL_FEEDBACK)
+# seeds feedback loop. option-c: a toolkit option for development builds only,
+# never a release (hot-path store; a bare RECOMP_ICALL_FEEDBACK definition draws
+# a warning). 1.x shipped with it on - note for the 1.x vs 2.0 comparison.
+option(THPS_ICALL_FEEDBACK "Record indirect-call targets (development builds only)" OFF)
+set(XBOXRECOMP_ICALL_FEEDBACK ${THPS_ICALL_FEEDBACK} CACHE BOOL "" FORCE)
 
-# Vulkan renderer (toolkit nv2a_vk, M2): glslang + SDL3 from tools/deps.ps1
-# (CMAKE_PREFIX_PATH). OFF = the toolkit's CPU executor path, nothing drawn.
-option(THPS_VULKAN "Render through the toolkit's Vulkan back end (nv2a_vk)" ON)
-set(XBOXRECOMP_VULKAN ${THPS_VULKAN} CACHE BOOL "" FORCE)
-# Vulkan only: no D3D11 libraries in the toolkit build (xbox_d3d8, xbox_nv2a,
-# the D3D8 movie player) -- CLAUDE.md, M2 stage 5.
-if(THPS_VULKAN)
-    set(XBOXRECOMP_D3D11 OFF CACHE BOOL "" FORCE)
-else()
-    set(XBOXRECOMP_D3D11 ON CACHE BOOL "" FORCE)
-endif()
+# Vulkan renderer (toolkit nv2a_vk): glslang + SDL3 from tools/deps.ps1
+# (CMAKE_PREFIX_PATH). option-c has no D3D11 / CPU-executor path any more:
+# THPS_VULKAN stays ON (kept as a variable for the parts below), no XBOXRECOMP_D3D11.
+set(THPS_VULKAN ON)
+set(XBOXRECOMP_VULKAN ON CACHE BOOL "" FORCE)
 
 # LLE fallbacks (M3.5 step 2, A10): the MCPX APU and the OHCI/USB model are
 # not in the default build -- DirectSound and XInput run at API level
@@ -68,9 +65,15 @@ add_executable(${PROJECT_NAME}
     src/settings.c
     src/soundtracks.c
     src/vk_check.c
-    src/platform/host_win32.c
     ${RECOMP_GEN_SOURCES}
 )
+# The host layer (src/platform/host.h): Windows, or Linux (2.0, AppImage; model Panzer Dragoon Orta Recompiled).
+if(WIN32)
+    target_sources(${PROJECT_NAME} PRIVATE src/platform/host_win32.c)
+else()
+    target_sources(${PROJECT_NAME} PRIVATE src/platform/host_linux.c)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS} pthread)
+endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME THPS2X)
 # The port's icon (assets/README.md): the exe's icon in Explorer as a resource; the window / taskbar icon as the
 # BMP's bytes in a generated header (main.c -> xbox_set_window_icon).
@@ -94,17 +97,8 @@ endif()
 # Only the game goes into the portable install layout, not the toolkit's tests.
 if(THPS_OUTPUT_DIR)
     set_target_properties(${PROJECT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${THPS_OUTPUT_DIR}")
-    # Shader module: librashader, built from source by tools\deps.ps1 (Vulkan
-    # runtime only, docs/toolkit.md) - copied next to the exe when it is
-    # there. Without it (no Rust toolchain) the shader module is unavailable
-    # and the game runs as before. Never committed.
-    find_file(THPS_LIBRASHADER librashader.dll PATHS ${CMAKE_PREFIX_PATH} PATH_SUFFIXES bin NO_DEFAULT_PATH)
-    if(THPS_LIBRASHADER)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different "${THPS_LIBRASHADER}" "${THPS_OUTPUT_DIR}/librashader.dll")
-    else()
-        message(STATUS "librashader.dll not built (tools/deps.ps1 -InstallRust) - shader module unavailable")
-    endif()
+    # (no librashader copy any more: RetroArch shaders removed from THPS 2.0,
+    # maintainer 2026-11-19; still in option-c)
 endif()
 
 # The toolkit libraries the game uses, named one by one instead of the
@@ -120,7 +114,10 @@ if(THPS_LLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME THPS2X_lle)
 endif()
 if(THPS_VULKAN)
-    target_link_libraries(${PROJECT_NAME} PRIVATE xbox_nv2a_vk xbox_shaderpack xbox_bootvideo)
+    # (xbox_shaderpack no longer linked into the game: RetroArch shaders
+    # removed from THPS 2.0, maintainer 2026-11-19; the launcher still gets it
+    # through xbox_launcher)
+    target_link_libraries(${PROJECT_NAME} PRIVATE xbox_nv2a_vk xbox_bootvideo)
     target_compile_definitions(${PROJECT_NAME} PRIVATE THPS_VULKAN=1)
     # The first-start installer (toolkit src/install, M5 item 5) once the toolkit has it.
     if(TARGET xbox_install_ui)
@@ -138,12 +135,17 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 # System libraries the toolkit's Windows runtime still needs. No D3D: the
 # renderer is Vulkan (M2 stage 5 removed d3d11/dxgi/dxguid).
-target_link_libraries(${PROJECT_NAME} PRIVATE
-    $<IF:$<BOOL:${MINGW}>,xinput1_4,xinput>
-    winmm
-    dbghelp   # crash handler: host RIP -> generated sub_XXXXXXXX
-    shell32   # CommandLineToArgvW: the command line as UTF-16
-)
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        $<IF:$<BOOL:${MINGW}>,xinput1_4,xinput>
+        winmm
+        dbghelp   # crash handler: host RIP -> generated sub_XXXXXXXX
+        shell32   # CommandLineToArgvW: the command line as UTF-16
+    )
+else()
+    # Linux: dladdr names the generated function in a crash report when the symbols are exported
+    target_link_options(${PROJECT_NAME} PRIVATE -rdynamic)
+endif()
 
 if(MINGW)
     # CodeView + .pdb (llvm-mingw/lld) so dbghelp in the crash handler can
@@ -159,22 +161,29 @@ if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /bigobj $<$<CONFIG:Release>:/Zi>)
 endif()
 
-# The release launcher "THPS 2X Recomp.exe" (docs/release_plan.md): the toolkit's launcher with THPS 2X's names and
-# icon - no game code. Built into the build folder (not the layout); tools/release.ps1 appends the payload to it.
+# The release launcher thps2x_launcher.exe (until v1.2.8 "THPS 2X Recomp.exe"; docs/release_plan.md): the toolkit's
+# launcher with THPS 2X's names and icon - no game code. Built into the build folder (not the layout);
+# tools/release.ps1 appends the payload to it.
 if(TARGET xbox_launcher)
-    # setup_win32.c: the setup window in the NG2 launcher's look (maintainer 2026-11-05, taken over from Panzer
-    # Dragoon Orta Recompiled) and the toolkit's progress UI (game_setup_ui.h) in the same look - its six functions
-    # replace game_setup_ui.c's at link time. src/vk_check.c: the Vulkan 1.3 check with the apology box (THPS2X.exe
-    # uses the same file). The setup window is Windows-only, as the release.
-    add_executable(thps2x_launcher launcher/main.c launcher/setup_win32.c src/vk_check.c)
+    # From 2.0 (maintainer 2026-11-23: every port's launcher in the designs of option-p's launcher; model Panzer
+    # Dragoon Orta Recompiled 4a99345): Windows and Linux link the toolkit's port launcher xbox_launcher_port
+    # (launcher_port.h: Windows 95's look on Windows, Windows 2000's on Linux; it brings its own xr_setup_ui_* and the
+    # launcher's Vulkan check). THPS 2X's own setup_win32.c / setup_ui_sdl.c are gone; src/vk_check.c stays the
+    # game's own Vulkan check (THPS2X.exe).
+    add_executable(thps2x_launcher launcher/main.c)
     target_include_directories(thps2x_launcher PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_link_libraries(thps2x_launcher PRIVATE xbox_launcher_port)
+    # Release layout (maintainer 2026-11-21): only thps2x_launcher on top, the game data\thps2x.exe (launcher/main.c
+    # game_exe; the dev build's own THPS2X.exe in the install layout keeps its name). Linux: the AppImage's internal
+    # usr/bin/thps2x-recomp stays (the user-data folder follows the slug).
     if(WIN32)
-        target_sources(thps2x_launcher PRIVATE assets/thps2x.rc)
+        target_sources(thps2x_launcher PRIVATE assets/thps2x.rc)   # the exe's icon = resource 1, the window loads it
         set_target_properties(thps2x_launcher PROPERTIES WIN32_EXECUTABLE ON)
-        target_link_libraries(thps2x_launcher PRIVATE comdlg32 shell32 ole32 gdi32 user32)
+        set_target_properties(thps2x_launcher PROPERTIES OUTPUT_NAME "thps2x_launcher")
+    else()
+        set_target_properties(thps2x_launcher PROPERTIES OUTPUT_NAME "thps2x-recomp")
     endif()
-    set_target_properties(thps2x_launcher PROPERTIES OUTPUT_NAME "THPS 2X Recomp"
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/launcher")
+    set_target_properties(thps2x_launcher PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/launcher")
     target_include_directories(thps2x_launcher PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(thps2x_launcher PRIVATE xbox_launcher)
     if(MINGW)

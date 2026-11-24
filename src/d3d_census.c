@@ -142,11 +142,11 @@ static void hit(int i)
 #else
 #  define CENSUS_TLS __thread
 #endif
-extern CENSUS_TLS uint32_t g_esp;
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
 extern ptrdiff_t g_xbox_mem_offset;
 extern int nv2a_vk_render_target_at(uint32_t va);
 static uint32_t g32(uint32_t va) { return *(volatile uint32_t *)((uintptr_t)va + g_xbox_mem_offset); }
-static void lock_log(uint32_t fn, int *n)
+static void lock_log(RECOMP_PARAMS, uint32_t fn, int *n)
 {
     uint32_t a0 = g32(g_esp + 4), data;
     if (*n >= 32 || !a0)
@@ -158,519 +158,519 @@ static void lock_log(uint32_t fn, int *n)
             nv2a_vk_render_target_at(data) ? " RENDER TARGET" : "", g32(g_esp));
 }
 
-extern void sub_000146A0_gen(void);
-void sub_000146A0(void)
+extern void sub_000146A0_gen(RECOMP_PARAMS);
+void sub_000146A0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(0);
-    sub_000146A0_gen();
+    sub_000146A0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[0] += now_ns() - t0;
 }
-extern void sub_000116F0_gen(void);
-void sub_000116F0(void)
+extern void sub_000116F0_gen(RECOMP_PARAMS);
+void sub_000116F0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(1);
-    sub_000116F0_gen();
+    sub_000116F0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[1] += now_ns() - t0;
 }
-extern void sub_000145E0_gen(void);
-void sub_000145E0(void)
+extern void sub_000145E0_gen(RECOMP_PARAMS);
+void sub_000145E0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(2);
-    sub_000145E0_gen();
+    sub_000145E0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[2] += now_ns() - t0;
 }
-extern void sub_00014610_gen(void);
-void sub_00014610(void)
+extern void sub_00014610_gen(RECOMP_PARAMS);
+void sub_00014610(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(3);
-    sub_00014610_gen();
+    sub_00014610_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[3] += now_ns() - t0;
 }
-extern void sub_000116B0_gen(void);
-void sub_000116B0(void)
+extern void sub_000116B0_gen(RECOMP_PARAMS);
+void sub_000116B0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(4);
-    sub_000116B0_gen();
+    sub_000116B0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[4] += now_ns() - t0;
 }
-extern void sub_00011BF0_gen(void);
-void sub_00011BF0(void)
+extern void sub_00011BF0_gen(RECOMP_PARAMS);
+void sub_00011BF0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(5);
-    sub_00011BF0_gen();
+    sub_00011BF0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[5] += now_ns() - t0;
 }
-extern void sub_000171F0_gen(void);
-void sub_000171F0(void)
+extern void sub_000171F0_gen(RECOMP_PARAMS);
+void sub_000171F0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(6);
-    sub_000171F0_gen();
+    sub_000171F0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[6] += now_ns() - t0;
 }
-extern void sub_000131F0_gen(void);
-void sub_000131F0(void)
+extern void sub_000131F0_gen(RECOMP_PARAMS);
+void sub_000131F0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(7);
-    sub_000131F0_gen();
+    sub_000131F0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[7] += now_ns() - t0;
 }
-extern void sub_00013650_gen(void);
-void sub_00013650(void)
+extern void sub_00013650_gen(RECOMP_PARAMS);
+void sub_00013650(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(8);
-    sub_00013650_gen();
+    sub_00013650_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[8] += now_ns() - t0;
 }
-extern void sub_00014B70_gen(void);
-void sub_00014B70(void)
+extern void sub_00014B70_gen(RECOMP_PARAMS);
+void sub_00014B70(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(9);
-    sub_00014B70_gen();
+    sub_00014B70_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[9] += now_ns() - t0;
 }
-extern void sub_000111B0_gen(void);
-void sub_000111B0(void)
+extern void sub_000111B0_gen(RECOMP_PARAMS);
+void sub_000111B0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
-    { static int n_; lock_log(0x000111B0u, &n_); }
+    { static int n_; lock_log(RECOMP_ARGS, 0x000111B0u, &n_); }
     hit(10);
-    sub_000111B0_gen();
+    sub_000111B0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[10] += now_ns() - t0;
 }
-extern void sub_00014A40_gen(void);
-void sub_00014A40(void)
+extern void sub_00014A40_gen(RECOMP_PARAMS);
+void sub_00014A40(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(11);
-    sub_00014A40_gen();
+    sub_00014A40_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[11] += now_ns() - t0;
 }
-extern void sub_00017A40_gen(void);
-void sub_00017A40(void)
+extern void sub_00017A40_gen(RECOMP_PARAMS);
+void sub_00017A40(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(12);
-    sub_00017A40_gen();
+    sub_00017A40_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[12] += now_ns() - t0;
 }
-extern void sub_00011150_gen(void);
-void sub_00011150(void)
+extern void sub_00011150_gen(RECOMP_PARAMS);
+void sub_00011150(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
-    { static int n_; lock_log(0x00011150u, &n_); }
+    { static int n_; lock_log(RECOMP_ARGS, 0x00011150u, &n_); }
     hit(13);
-    sub_00011150_gen();
+    sub_00011150_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[13] += now_ns() - t0;
 }
-extern void sub_00014D70_gen(void);
-void sub_00014D70(void)
+extern void sub_00014D70_gen(RECOMP_PARAMS);
+void sub_00014D70(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(14);
-    sub_00014D70_gen();
+    sub_00014D70_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[14] += now_ns() - t0;
 }
-extern void sub_00017110_gen(void);
-void sub_00017110(void)
+extern void sub_00017110_gen(RECOMP_PARAMS);
+void sub_00017110(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(15);
-    sub_00017110_gen();
+    sub_00017110_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[15] += now_ns() - t0;
 }
-extern void sub_00011000_gen(void);
-void sub_00011000(void)
+extern void sub_00011000_gen(RECOMP_PARAMS);
+void sub_00011000(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
-    { static int n_; lock_log(0x00011000u, &n_); }
+    { static int n_; lock_log(RECOMP_ARGS, 0x00011000u, &n_); }
     hit(16);
-    sub_00011000_gen();
+    sub_00011000_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[16] += now_ns() - t0;
 }
-extern void sub_00015520_gen(void);
-void sub_00015520(void)
+extern void sub_00015520_gen(RECOMP_PARAMS);
+void sub_00015520(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(17);
-    sub_00015520_gen();
+    sub_00015520_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[17] += now_ns() - t0;
 }
-extern void sub_00014580_gen(void);
-void sub_00014580(void)
+extern void sub_00014580_gen(RECOMP_PARAMS);
+void sub_00014580(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(18);
-    sub_00014580_gen();
+    sub_00014580_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[18] += now_ns() - t0;
 }
-extern void sub_00014960_gen(void);
-void sub_00014960(void)
+extern void sub_00014960_gen(RECOMP_PARAMS);
+void sub_00014960(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(19);
-    sub_00014960_gen();
+    sub_00014960_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[19] += now_ns() - t0;
 }
-extern void sub_00013870_gen(void);
-void sub_00013870(void)
+extern void sub_00013870_gen(RECOMP_PARAMS);
+void sub_00013870(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(20);
-    sub_00013870_gen();
+    sub_00013870_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[20] += now_ns() - t0;
 }
-extern void sub_00013530_gen(void);
-void sub_00013530(void)
+extern void sub_00013530_gen(RECOMP_PARAMS);
+void sub_00013530(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(21);
-    sub_00013530_gen();
+    sub_00013530_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[21] += now_ns() - t0;
 }
-extern void sub_00016BF0_gen(void);
-void sub_00016BF0(void)
+extern void sub_00016BF0_gen(RECOMP_PARAMS);
+void sub_00016BF0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(22);
-    sub_00016BF0_gen();
+    sub_00016BF0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[22] += now_ns() - t0;
 }
-extern void sub_00014EB0_gen(void);
-void sub_00014EB0(void)
+extern void sub_00014EB0_gen(RECOMP_PARAMS);
+void sub_00014EB0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(23);
-    sub_00014EB0_gen();
+    sub_00014EB0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[23] += now_ns() - t0;
 }
-extern void sub_00016890_gen(void);
-void sub_00016890(void)
+extern void sub_00016890_gen(RECOMP_PARAMS);
+void sub_00016890(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(24);
-    sub_00016890_gen();
+    sub_00016890_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[24] += now_ns() - t0;
 }
-extern void sub_00018090_gen(void);
-void sub_00018090(void)
+extern void sub_00018090_gen(RECOMP_PARAMS);
+void sub_00018090(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(25);
-    sub_00018090_gen();
+    sub_00018090_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[25] += now_ns() - t0;
 }
-extern void sub_00017E10_gen(void);
-void sub_00017E10(void)
+extern void sub_00017E10_gen(RECOMP_PARAMS);
+void sub_00017E10(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(26);
-    sub_00017E10_gen();
+    sub_00017E10_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[26] += now_ns() - t0;
 }
-extern void sub_00017E70_gen(void);
-void sub_00017E70(void)
+extern void sub_00017E70_gen(RECOMP_PARAMS);
+void sub_00017E70(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(27);
-    sub_00017E70_gen();
+    sub_00017E70_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[27] += now_ns() - t0;
 }
-extern void sub_00015AD0_gen(void);
-void sub_00015AD0(void)
+extern void sub_00015AD0_gen(RECOMP_PARAMS);
+void sub_00015AD0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(28);
-    sub_00015AD0_gen();
+    sub_00015AD0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[28] += now_ns() - t0;
 }
-extern void sub_00011F70_gen(void);
-void sub_00011F70(void)
+extern void sub_00011F70_gen(RECOMP_PARAMS);
+void sub_00011F70(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(29);
-    sub_00011F70_gen();
+    sub_00011F70_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[29] += now_ns() - t0;
 }
-extern void sub_00014C40_gen(void);
-void sub_00014C40(void)
+extern void sub_00014C40_gen(RECOMP_PARAMS);
+void sub_00014C40(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(30);
-    sub_00014C40_gen();
+    sub_00014C40_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[30] += now_ns() - t0;
 }
-extern void sub_00016FF0_gen(void);
-void sub_00016FF0(void)
+extern void sub_00016FF0_gen(RECOMP_PARAMS);
+void sub_00016FF0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(31);
-    sub_00016FF0_gen();
+    sub_00016FF0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[31] += now_ns() - t0;
 }
-extern void sub_000128F0_gen(void);
-void sub_000128F0(void)
+extern void sub_000128F0_gen(RECOMP_PARAMS);
+void sub_000128F0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(32);
-    sub_000128F0_gen();
+    sub_000128F0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[32] += now_ns() - t0;
 }
-extern void sub_00014D30_gen(void);
-void sub_00014D30(void)
+extern void sub_00014D30_gen(RECOMP_PARAMS);
+void sub_00014D30(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(33);
-    sub_00014D30_gen();
+    sub_00014D30_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[33] += now_ns() - t0;
 }
-extern void sub_00013350_gen(void);
-void sub_00013350(void)
+extern void sub_00013350_gen(RECOMP_PARAMS);
+void sub_00013350(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(34);
-    sub_00013350_gen();
+    sub_00013350_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[34] += now_ns() - t0;
 }
-extern void sub_000129B0_gen(void);
-void sub_000129B0(void)
+extern void sub_000129B0_gen(RECOMP_PARAMS);
+void sub_000129B0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(35);
-    sub_000129B0_gen();
+    sub_000129B0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[35] += now_ns() - t0;
 }
-extern void sub_00018490_gen(void);
-void sub_00018490(void)
+extern void sub_00018490_gen(RECOMP_PARAMS);
+void sub_00018490(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(36);
-    sub_00018490_gen();
+    sub_00018490_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[36] += now_ns() - t0;
 }
-extern void sub_00011B00_gen(void);
-void sub_00011B00(void)
+extern void sub_00011B00_gen(RECOMP_PARAMS);
+void sub_00011B00(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(37);
-    sub_00011B00_gen();
+    sub_00011B00_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[37] += now_ns() - t0;
 }
-extern void sub_00014240_gen(void);
-void sub_00014240(void)
+extern void sub_00014240_gen(RECOMP_PARAMS);
+void sub_00014240(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(38);
-    sub_00014240_gen();
+    sub_00014240_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[38] += now_ns() - t0;
 }
-extern void sub_00012CA0_gen(void);
-void sub_00012CA0(void)
+extern void sub_00012CA0_gen(RECOMP_PARAMS);
+void sub_00012CA0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(39);
-    sub_00012CA0_gen();
+    sub_00012CA0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[39] += now_ns() - t0;
 }
-extern void sub_00014260_gen(void);
-void sub_00014260(void)
+extern void sub_00014260_gen(RECOMP_PARAMS);
+void sub_00014260(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(40);
-    sub_00014260_gen();
+    sub_00014260_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[40] += now_ns() - t0;
 }
-extern void sub_00013990_gen(void);
-void sub_00013990(void)
+extern void sub_00013990_gen(RECOMP_PARAMS);
+void sub_00013990(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(41);
-    sub_00013990_gen();
+    sub_00013990_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[41] += now_ns() - t0;
 }
-extern void sub_000139C0_gen(void);
-void sub_000139C0(void)
+extern void sub_000139C0_gen(RECOMP_PARAMS);
+void sub_000139C0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(42);
-    sub_000139C0_gen();
+    sub_000139C0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[42] += now_ns() - t0;
 }
-extern void sub_00012050_gen(void);
-void sub_00012050(void)
+extern void sub_00012050_gen(RECOMP_PARAMS);
+void sub_00012050(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(43);
-    sub_00012050_gen();
+    sub_00012050_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[43] += now_ns() - t0;
 }
-extern void sub_00015DF0_gen(void);
-void sub_00015DF0(void)
+extern void sub_00015DF0_gen(RECOMP_PARAMS);
+void sub_00015DF0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(44);
-    sub_00015DF0_gen();
+    sub_00015DF0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[44] += now_ns() - t0;
 }
-extern void sub_00015D50_gen(void);
-void sub_00015D50(void)
+extern void sub_00015D50_gen(RECOMP_PARAMS);
+void sub_00015D50(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(45);
-    sub_00015D50_gen();
+    sub_00015D50_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[45] += now_ns() - t0;
 }
-extern void sub_00013A20_gen(void);
-void sub_00013A20(void)
+extern void sub_00013A20_gen(RECOMP_PARAMS);
+void sub_00013A20(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(46);
-    sub_00013A20_gen();
+    sub_00013A20_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[46] += now_ns() - t0;
 }
-extern void sub_00013A60_gen(void);
-void sub_00013A60(void)
+extern void sub_00013A60_gen(RECOMP_PARAMS);
+void sub_00013A60(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(47);
-    sub_00013A60_gen();
+    sub_00013A60_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[47] += now_ns() - t0;
 }
-extern void sub_00017E20_gen(void);
-void sub_00017E20(void)
+extern void sub_00017E20_gen(RECOMP_PARAMS);
+void sub_00017E20(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(48);
-    sub_00017E20_gen();
+    sub_00017E20_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[48] += now_ns() - t0;
 }
-extern void sub_00014910_gen(void);
-void sub_00014910(void)
+extern void sub_00014910_gen(RECOMP_PARAMS);
+void sub_00014910(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(49);
-    sub_00014910_gen();
+    sub_00014910_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[49] += now_ns() - t0;
 }
-extern void sub_000180A0_gen(void);
-void sub_000180A0(void)
+extern void sub_000180A0_gen(RECOMP_PARAMS);
+void sub_000180A0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(50);
-    sub_000180A0_gen();
+    sub_000180A0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[50] += now_ns() - t0;
 }
-extern void sub_00018330_gen(void);
-void sub_00018330(void)
+extern void sub_00018330_gen(RECOMP_PARAMS);
+void sub_00018330(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(51);
-    sub_00018330_gen();
+    sub_00018330_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[51] += now_ns() - t0;
 }
-extern void sub_00018590_gen(void);
-void sub_00018590(void)
+extern void sub_00018590_gen(RECOMP_PARAMS);
+void sub_00018590(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(52);
-    sub_00018590_gen();
+    sub_00018590_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[52] += now_ns() - t0;
 }
-extern void sub_00012240_gen(void);
-void sub_00012240(void)
+extern void sub_00012240_gen(RECOMP_PARAMS);
+void sub_00012240(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(53);
-    sub_00012240_gen();
+    sub_00012240_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[53] += now_ns() - t0;
 }
-extern void sub_00012260_gen(void);
-void sub_00012260(void)
+extern void sub_00012260_gen(RECOMP_PARAMS);
+void sub_00012260(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(54);
-    sub_00012260_gen();
+    sub_00012260_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[54] += now_ns() - t0;
 }
-extern void sub_000131A0_gen(void);
-void sub_000131A0(void)
+extern void sub_000131A0_gen(RECOMP_PARAMS);
+void sub_000131A0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(55);
-    sub_000131A0_gen();
+    sub_000131A0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[55] += now_ns() - t0;
 }
-extern void sub_000131C0_gen(void);
-void sub_000131C0(void)
+extern void sub_000131C0_gen(RECOMP_PARAMS);
+void sub_000131C0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(56);
-    sub_000131C0_gen();
+    sub_000131C0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[56] += now_ns() - t0;
 }
-extern void sub_00011DA0_gen(void);
-void sub_00011DA0(void)
+extern void sub_00011DA0_gen(RECOMP_PARAMS);
+void sub_00011DA0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(57);
-    sub_00011DA0_gen();
+    sub_00011DA0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[57] += now_ns() - t0;
 }
-extern void sub_00014A10_gen(void);
-void sub_00014A10(void)
+extern void sub_00014A10_gen(RECOMP_PARAMS);
+void sub_00014A10(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(58);
-    sub_00014A10_gen();
+    sub_00014A10_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[58] += now_ns() - t0;
 }
-extern void sub_00011F50_gen(void);
-void sub_00011F50(void)
+extern void sub_00011F50_gen(RECOMP_PARAMS);
+void sub_00011F50(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(59);
-    sub_00011F50_gen();
+    sub_00011F50_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[59] += now_ns() - t0;
 }
-extern void sub_00011BB0_gen(void);
-void sub_00011BB0(void)
+extern void sub_00011BB0_gen(RECOMP_PARAMS);
+void sub_00011BB0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(60);
-    sub_00011BB0_gen();
+    sub_00011BB0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[60] += now_ns() - t0;
 }
-extern void sub_00017EB0_gen(void);
-void sub_00017EB0(void)
+extern void sub_00017EB0_gen(RECOMP_PARAMS);
+void sub_00017EB0(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(61);
-    sub_00017EB0_gen();
+    sub_00017EB0_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[61] += now_ns() - t0;
 }
-extern void sub_00019630_gen(void);
-void sub_00019630(void)
+extern void sub_00019630_gen(RECOMP_PARAMS);
+void sub_00019630(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(62);
-    sub_00019630_gen();
+    sub_00019630_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[62] += now_ns() - t0;
 }
-extern void sub_00015590_gen(void);
-void sub_00015590(void)
+extern void sub_00015590_gen(RECOMP_PARAMS);
+void sub_00015590(RECOMP_PARAMS)
 {
     unsigned long long t0 = s_depth++ ? 0 : now_ns();
     hit(63);
-    sub_00015590_gen();
+    sub_00015590_gen(RECOMP_ARGS);
     if (!--s_depth) s_ns[63] += now_ns() - t0;
 }
 
@@ -681,8 +681,8 @@ void sub_00015590(void)
 #define QPC_SLOTS 64
 static uint32_t s_qpc_ra[QPC_SLOTS], s_qpc_n[QPC_SLOTS];
 static unsigned long s_qpc_t0;
-extern void sub_001B9DB6_gen(void);
-void sub_001B9DB6(void)
+extern void sub_001B9DB6_gen(RECOMP_PARAMS);
+void sub_001B9DB6(RECOMP_PARAMS)
 {
     uint32_t ra = g32(g_esp);
     unsigned i = (ra * 2654435761u) >> 26, k;
@@ -708,7 +708,7 @@ void sub_001B9DB6(void)
             s_qpc_t0 = now;
         }
     }
-    sub_001B9DB6_gen();
+    sub_001B9DB6_gen(RECOMP_ARGS);
 }
 
 /* The spinning caller: 0x0015AFA0, the level loop's frame limiter (spins on
@@ -717,12 +717,12 @@ void sub_001B9DB6(void)
 static unsigned long long s_lim_ns;
 static unsigned s_lim_n;
 static unsigned long s_lim_t0;
-extern void sub_0015AFA0_gen(void);
-void sub_0015AFA0(void)
+extern void sub_0015AFA0_gen(RECOMP_PARAMS);
+void sub_0015AFA0(RECOMP_PARAMS)
 {
     unsigned long long t0 = now_ns();
     unsigned long now;
-    sub_0015AFA0_gen();
+    sub_0015AFA0_gen(RECOMP_ARGS);
     s_lim_ns += now_ns() - t0;
     s_lim_n++;
     now = now_ms();

@@ -25,13 +25,14 @@ call = "thps_hook_mp_check"
 # runtime's flush acknowledge -- ends the spin at once, instead of waiting for
 # a register thread to poll it (with those threads no longer spinning, boot
 # took minutes: thousands of kickoffs).
+# option-c (2.0): hooks are called as name(ctx, base) - recomp_spin_wake_hook is the hook form of recomp_spin_wake().
 [[hook]]
 at = 0x00019DE0
-call = "recomp_spin_wake"
+call = "recomp_spin_wake_hook"
 
 [[hook]]
 at = 0x00019ED0
-call = "recomp_spin_wake"
+call = "recomp_spin_wake_hook"
 
 # Movie loop pacing (M5 hardening, point 6). The Bink loop sub_001B05E0 asks
 # BinkWait (sub_001C00A0) whether the next frame is due; while it is not it

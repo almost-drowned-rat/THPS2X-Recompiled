@@ -1,0 +1,15 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "Tony Hawk's Pro Skater 2x",
+  "wikidata": "Q21772565",
+  "system": "Xbox",
+  "type": "recomp",
+  "original": [
+    { "region": "USA" }
+  ],
+  "project": "THPS 2X Recompiled",
+  "status": "released",
+  "targets": ["Windows", "Linux"],
+  "toolchain": "xboxrecomp-option-c",
+  "approach": "Static recompilation of the player's own disc on the first start, Vulkan renderer"
+}

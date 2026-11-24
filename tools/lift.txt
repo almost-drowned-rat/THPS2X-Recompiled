@@ -1,0 +1,10 @@
+# lift.txt - THPS 2X's lift for the player's machine (option-c tools/release/port_release.ps1 + port_release_linux.sh,
+# config key LiftFile / LIFT_FILE): the same steps as tools\lift.ps1. One line per step: a name, then python's arguments,
+# TAB-separated; placeholders {XBE} {PIPE} {GEN} {TOOLS}. The seeds + hooks are copied to lifter\port\ (LifterFiles).
+# A new seeds\*_seeds.json file must be added here too (tools\lift.ps1 takes every file in seeds\).
+mkdir	{PIPE}/disasm	{PIPE}/func_id	{PIPE}/abi	{PIPE}/recomp	{GEN}
+xbe_parser	-m	tools.xbe_parser	{XBE}	--json	{PIPE}/xbe.json
+disasm	-m	tools.disasm	{XBE}	-o	{PIPE}/disasm	--analysis-json	{PIPE}/xbe.json	--force	--seed-functions	{TOOLS}/lifter/port/seeds/icall_seeds.json	--seed-functions	{TOOLS}/lifter/port/seeds/misc_seeds.json	--seed-functions	{TOOLS}/lifter/port/seeds/table_seeds.json
+func_id	-m	tools.func_id	{XBE}	--functions	{PIPE}/disasm/functions.json	--strings	{PIPE}/disasm/strings.json	--xrefs	{PIPE}/disasm/xrefs.json	-o	{PIPE}/func_id
+abi_analysis	-m	tools.abi_analysis	{XBE}	--disasm-dir	{PIPE}/disasm	--func-id-dir	{PIPE}/func_id	--output-dir	{PIPE}/abi
+recomp	-m	tools.recomp	{XBE}	--all	--split	1000	--game-name	THPS2X	--gen-dir	{GEN}	--exclude-manual	{TOOLS}/src/recomp_manual.c	--weak-functions	--hooks	{TOOLS}/lifter/port/hooks.toml	--disasm-dir	{PIPE}/disasm	--func-id-dir	{PIPE}/func_id	--abi-dir	{PIPE}/abi	-o	{PIPE}/recomp

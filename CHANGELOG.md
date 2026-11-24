@@ -2,7 +2,41 @@
 
 All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
-its download.
+its download - and v1.2.8, which stays as the fallback for 2.0.
+
+## v2.0.0 - 2026-11-24
+
+### New
+- **Native Linux version** next to Windows.
+- **The port runs on the xboxrecomp option-c toolkit** (until 1.2.8: xboxrecomp-vulkan). In my measurements it plays
+  at the same 60 and 120 fps as 1.2.8, with slightly steadier frame times and less CPU load in the menus.
+- **New launcher `thps2x_launcher.exe`** (was `THPS 2X Recomp.exe`): disc image and folder on one page, then Go; the
+  game starts after the build (no Play button). Nothing is downloaded - the compiler ships in the zip (`tools\bundle\`).
+  Quitting during the installation asks *"Are you sure?"* and stops cleanly. Only the launcher sits on top of the
+  install folder; the game is `data\thps2x.exe`. An update from 1.2.x removes the old `THPS 2X Recomp.exe`.
+- **RECOMP OPTIONS in pages**, in the same layout as my other recomps: DISPLAY (display mode, render resolution,
+  aspect ratio, the three 16:9 lines with a wide aspect, field of view), POST PROCESSING (antialiasing, texture filter,
+  motion blur, brightness, UPSCALING), PERFORMANCE (frame rate, VSync, the on-screen numbers), RENDERING (SHADER
+  COMPILE, SHADER NOTICE), BUTTON CHEATS, BOOT ANIMATION. **Y puts a line back to its default** on every page.
+  ANTIALIASING is one line now (was its own list); the WIDESCREEN list is gone (its lines are on DISPLAY).
+- **UPSCALING:** bilinear or AMD FSR 1.0, with FSR PRESET (quality / balanced / performance) and FSR SHARPNESS.
+- **SHADER COMPILE: HYBRID** (the new default): a general shader draws until the exact one is built - no waiting,
+  nothing missing. WAIT, SKIP and OFF (the 1.2.8 behaviour) stay selectable.
+- **PERFORMANCE:** FPS, FRAME TIME and GAME SPEED on screen, each switched on its own (replaces FPS COUNTER).
+- **STRETCH CUTSCENES** (DISPLAY, with a wide aspect): movies pillarboxed or stretched, on their own (before: always
+  4:3).
+- **SHADER NOTICE:** a small note on screen while shaders are built.
+
+### Changed
+- **Frame pacing** on 120 / 180 / 240 Hz displays is automatic; the FRAME PACING line is gone (the settings file's
+  `frame_pacing` still works).
+
+### Fixed
+- **BIG DROP OFF still showed the BIG DROP warning sign** above a skater falling from high up (#25; with MOON JUMP on
+  every high ollie). With BIG DROP OFF the sign is gone now; ORIGINAL and NO BAIL keep it.
+
+### Removed
+- The RetroArch slang shader option (SHADERS in RECOMP OPTIONS, librashader) - it added little; the toolkit keeps it.
 
 ## v1.2.8 - 2026-11-18
 

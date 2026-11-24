@@ -137,3 +137,15 @@ void settings_set(const char *key, const char *value)
     write_file();
     fprintf(stderr, "[SETTINGS] %s=%s\n", key, value);
 }
+
+void settings_unset(const char *key)
+{
+    int k = find(key);
+    if (k < 0)
+        return;
+    free(s_line[k]);
+    memmove(&s_line[k], &s_line[k + 1], (size_t)(s_n - k - 1) * sizeof s_line[0]);
+    s_n--;
+    write_file();
+    fprintf(stderr, "[SETTINGS] %s removed\n", key);
+}

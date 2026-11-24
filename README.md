@@ -1,12 +1,7 @@
-<p align="center">
-  <img src="assets/logo.png" alt="THPS 2X Recompiled" width="600">
-</p>
-
 # THPS 2X Recompiled
 
 A static recompilation of *Tony Hawk's Pro Skater 2X* (Xbox, USA) into native PC code, with a Vulkan renderer and a
-set of modern extras: higher resolutions, widescreen, 120 fps, custom soundtracks, RetroArch shader support, button
-remapping and a full settings menu inside the game.
+set of modern extras: higher resolutions, widescreen, 120 fps, custom soundtracks, button remapping and a full settings menu inside the game.
 
 > This project contains **no game data, no game code and no keys**. You need your own copy of the game (USA disc).
 
@@ -93,19 +88,15 @@ INVERT CAMERA of the player who paused (a new FIELD OF VIEW applies after a RETR
 OPTIONS → PAUSE MENU hides it (and QUIT GAME or SOUND OPTIONS) if you don't need it.
 
 ### RECOMP OPTIONS
-Changes are saved immediately. Settings that need a restart are marked, and leaving the menu asks **RESTART NEEDED**.
+Changes are saved immediately. **Y puts the selected line back to its default.** Settings that need a restart are
+marked, and leaving the menu asks **RESTART NEEDED**.
 
 | Setting | Values |
 |---|---|
-| **Display mode** | Borderless (default), Fullscreen (exclusive), Windowed – window size and position are remembered |
-| **Render resolution** | From the original 640X480 up to about 5 times the lines (e.g. 1920X1080, 2560X1440, 3840X2160) – the sizes of the chosen aspect ratio, independent of the window size |
-| **Aspect ratio** | 4:3 (original), 16:9, 16:10 or 21:9 – real widescreen (wider view), not stretched; after a restart |
-| **Field of view** | ORIGINAL or +5 up to +30 degrees on the game's own camera – at once, every aspect ratio and split screen |
-| **Widescreen ▸** | Only shown with a wide aspect ratio. **Menus at 16:9 / 16:10 / 21:9:** pillarboxed (default) or stretched; movies always stay 4:3. **HUD at 16:9 / 16:10 / 21:9:** original proportions (default: SCORE and SPECIAL at the left edge, SWITCH at the right, nothing stretched) or stretched across the screen as before v1.2.0 – at once |
-| **Picture ▸** | **Anisotropic filter:** off up to 16x. **Antialiasing:** off, FXAA (default), SMAA, MSAA 2x, MSAA 4x. **Motion blur:** the game's own effect while skating fast, ON (default) or OFF. **Brightness:** ORIGINAL (as on the Xbox), +1 to +5 brighter or -1 to -3 darker – at once, menus and movies too |
-| **Frame rate** | Original (60 fps) or 120 fps (needs a display with 120 Hz or more, or V-Sync OFF), Frame pacing, V-Sync, FPS counter (FPS, frame time or both) |
-| **Frame pacing** | DISPLAY (default) or 60 HZ TIMER: on a 120 / 180 / 240 Hz display the game's 60 Hz clock follows the display's own refresh, so every frame stays on screen equally long (no judder). Other displays (60, 144, 165 Hz, VRR) keep the timer either way. Applies after a restart. |
-| **Shaders** | RetroArch slang shaders with preset browser, live parameters and your own presets |
+| **Display ▸** | **Display mode:** Borderless (default), Fullscreen (exclusive), Windowed – window size and position are remembered. **Render resolution:** from the original 640X480 up to about 5 times the lines (e.g. 1920X1080, 2560X1440, 3840X2160) – the sizes of the chosen aspect ratio, independent of the window size (with UPSCALING FSR the FSR preset sets it). **Aspect ratio:** 4:3 (original), 16:9, 16:10 or 21:9 – real widescreen (wider view), not stretched; after a restart. Only with a wide aspect ratio: **Stretch cutscenes** OFF (pillarboxed, default) or ON; **Menus at 16:9 / 16:10 / 21:9** pillarboxed (default) or stretched; **HUD at 16:9 / 16:10 / 21:9** in its original proportions (default: SCORE and SPECIAL at the left edge, SWITCH at the right, nothing stretched) or stretched across the screen as before v1.2.0 – at once. **Field of view:** ORIGINAL or +5 up to +30 degrees on the game's own camera – at once, every aspect ratio and split screen |
+| **Post processing ▸** | **Antialiasing:** off, FXAA (default), SMAA, MSAA 2x, MSAA 4x. **Anisotropic filter:** off up to 16x. **Motion blur:** the game's own effect while skating fast, ON (default) or OFF. **Brightness:** ORIGINAL (as on the Xbox), +1 to +5 brighter or -1 to -3 darker – at once, menus and movies too. **Upscaling:** BILINEAR (default) or AMD FSR 1.0 with **FSR preset** (quality, balanced, performance) and **FSR sharpness** (low to max) |
+| **Performance ▸** | **Frame rate:** original (60 fps) or 120 fps (needs a display with 120 Hz or more, or VSync OFF). **VSync** (after a restart). On screen: **FPS**, **frame time** and **game speed**, each ON or OFF. On a 120 / 180 / 240 Hz display the game's 60 Hz clock follows the display's own refresh by itself, so every frame stays on screen equally long (no judder) |
+| **Rendering ▸** | **Shader compile:** HYBRID (default), WAIT, SKIP or OFF – how a new shader is built while you play (HYBRID: a ready-made general shader draws until the exact one is built – no waiting, no missing objects; WAIT: waits a moment, then skips; SKIP: skips the object until its shader is ready; OFF: as before 2.0, the game waits for each one). **Shader notice:** a small note on screen while shaders are built, ON (default) or OFF |
 | **Button cheats** | The game's button cheats as a list of 30 - no typing codes with LT held. Each line says what the cheat does and its code, and shows ON / OFF; A switches it, any combination works, Y switches the selected one off. One-time ones (unlock everything, 5000 cash, all gaps) say DO IT / DONE and cannot be undone. Only in the main menu's Options. |
 | **Boot animation** | Plays your own intro video before the game for example a video of original xbox boot animation ;) |
 
@@ -114,7 +105,8 @@ Changes are saved immediately. Settings that need a restart are marked, and leav
   21:9 takes the exact ratio of the monitor the game starts on (2560x1080, 3440x1440 and others), so no bars remain.
 - The gameplay HUD keeps its original proportions: SCORE and the SPECIAL bar at the left edge, SWITCH at the right
   (or stretched as before, with WIDESCREEN → HUD AT 16:9: STRETCHED).
-- Menus, loading screens and movies stay 4:3 with black side bars (or optionally stretched for menus).
+- Menus, loading screens and movies stay 4:3 with black side bars (or optionally stretched: MENUS AT 16:9 and
+  STRETCH CUTSCENES, each on its own).
 - Split screen is handled as well.
 
 ### Small comforts
@@ -136,13 +128,6 @@ Put your own music into the `media` folder and choose it in **Options → GENERA
 - Your choice is remembered (the original game forgets it at every start). The in-game picker in the pause menu
   keeps working.
 
-### RetroArch shader support
-- CRT, LCD/handheld, scaling and many more effects from the official
-  [libretro slang-shaders](https://github.com/libretro/slang-shaders) pack.
-- Browse presets by folder (the pass count is shown as a cost hint), change parameters live, reset them, and save
-  your own presets.
-- The shader only affects the game picture, never the black side bars. Off = no cost at all.
-
 ### Button remapping
 - Keyboard and every gamepad (Xbox, PlayStation, Switch, generic) can be remapped per device; identical pads share
   one mapping.
@@ -154,8 +139,8 @@ Put your own music into the `media` folder and choose it in **Options → GENERA
 
 ### Installer built in
 - A small setup window asks for your disc image and the folder to install into, then **Go**: it checks, extracts
-  and verifies the image, builds the game on your PC and shows the progress until **Play**. Your disc image is only
-  read, never changed or deleted.
+  and verifies the image, builds the game on your PC and shows the progress; then the game starts. Your disc image
+  is only read, never changed or deleted. Quitting during the installation asks first and stops cleanly.
 - A wrong game or an unsupported version is refused with a clear message, and the image is kept.
 - No Vulkan 1.3 graphics card: the setup and the game say so in a message instead of crashing.
 
@@ -164,11 +149,11 @@ Put your own music into the `media` folder and choose it in **Options → GENERA
 ## Getting started
 
 ### Requirements
-- Windows 10/11, 64-bit, or Linux with Proton / Wine (best effort, see *Linux via Proton / Wine*)
+- Windows 10/11, 64-bit, or Linux, 64-bit (native build, see *Linux*)
 - **A graphics card with at least Vulkan 1.3 is required** (its driver must offer Vulkan 1.3 with dynamic rendering
   and `VK_KHR_push_descriptor`: NVIDIA GTX 900 and newer, AMD RX 400 and newer, Intel HD 500 / UHD 600 and newer,
   Intel Arc, Steam Deck). I am sorry, but older devices with only Vulkan 1.1 / 1.2 are not supported. On a PC
-  without such a device, `THPS 2X Recomp.exe` and `THPS2X.exe` show a message saying so and naming the graphics
+  without such a device, the launcher and the game show a message saying so and naming the graphics
   devices found - a driver update often adds Vulkan 1.3.
 - Your own copy of *Tony Hawk's Pro Skater 2X* (USA)
 - About **2 GB** of free disk space (no internet needed: the compiler ships inside the release zip)
@@ -185,26 +170,28 @@ a supported version."*
 ### First start
 1. Download `THPS2X-Recompiled-v<version>-win64.zip` (about 210 MB, the compiler included) from the release page
    and unpack it (keep the `tools\` folder next to the exe).
-2. Start `THPS 2X Recomp.exe`. The setup window asks for two things: your disc image (`.iso`, XISO or full redump
-   image) and the folder to install into (a new folder next to the exe is suggested; spaces in the path are fine).
-   Press **Go**.
+2. Start `thps2x_launcher.exe`. The setup window asks for two things: your disc image (`.iso`, XISO or full redump
+   image) and the folder to install into (spaces in the path are fine). Press **Go**.
 3. The setup copies itself and the compiler into that folder and sets everything up there, with the progress in the
    same window:
    - the image is checked, extracted and verified (the image itself is only read),
    - the compiler ([llvm-mingw](https://github.com/mstorsjo/llvm-mingw), a fixed release, in the zip's
-     `tools\download\`) is checked by its SHA-256 and unpacked – only if that file is missing is it downloaded
-     (about 190 MB); if the download fails you get the real reason (name lookup, connection, secure connection or
-     the server's answer) with **Retry**, and the link to download it by hand,
+     `tools\bundle\`) is checked by its SHA-256 and unpacked – nothing is ever downloaded; if `tools\bundle\` is
+     missing or damaged, the setup says so: download the release zip again,
    - the game's code is translated and compiled on your PC (a few minutes, only once).
-4. Press **Play**. Later, start `THPS 2X Recomp.exe` in the install folder – it goes straight into the game.
-5. Optional: add your music, shader pack and boot video (see next section).
+   Closing the window during the installation asks *"Are you sure?"* first and then stops cleanly.
+4. Then the game starts. Later, start `thps2x_launcher.exe` in the install folder – it goes straight into the game
+   (the game itself is `data\thps2x.exe`).
+5. Optional: add your music and boot video (see next section).
 
-Putting the disc image or the extracted disc files into `game\` by hand and starting `THPS 2X Recomp.exe` there
+Putting the disc image or the extracted disc files into `game\` by hand and starting `thps2x_launcher.exe` there
 still works as before (an image in `game\` is deleted after a verified install).
 
 ### Updating from an earlier version
-Unpack the new zip over the old install folder (the one with `THPS 2X Recomp.exe`, `game\` and `saves\`). The game
-is built once more at the next start (a few minutes); your `saves\` and `media\` stay.
+Run the new setup (`thps2x_launcher.exe` from the new zip) and pick your old install folder (the one with
+`game\` and `saves\`). The game is built once more (a few minutes); the old `THPS 2X Recomp.exe` there is
+removed, your `saves\` and `media\` stay. Saves work in both directions between 2.0 and 1.2.8.
+v1.2.8 stays on the release page as a fallback.
 
 > **Windows warning:** the exe is not signed. **SmartScreen** shows "Windows protected your PC" – click
 > **More info → Run anyway**. **Smart App Control** (Windows 11) blocks unsigned apps completely; the port can only
@@ -216,20 +203,16 @@ is built once more at the next start (a few minutes); your `saves\` and `media\`
 
 ```
 THPS 2X Recomp/
-├── THPS 2X Recomp.exe      start this (sets everything up on the first start, then starts the game)
-├── THPS2X.exe              the port – built on your PC on the first start
+├── thps2x_launcher.exe     start this (sets everything up on the first start, then starts the game)
 ├── game/                   YOUR GAME: put the disc image or extracted files here
 ├── media/                  YOUR MEDIA (read only – the port never changes it)
 │   ├── boot.mpg            optional boot animation
-│   ├── shaders/
-│   │   └── shaders_slang.zip   optional RetroArch shader pack
 │   ├── Punk/               every folder with music = one soundtrack
 │   └── Artist/Album/       folders can be nested
 ├── saves/                  your saves and settings – never deleted
 │   ├── UDATA/41560001/     career, skater and park saves
-│   ├── settings.ini        all port settings
-│   └── shaders/            your own shader presets ("My Presets")
-├── data/                   caches and logs – safe to delete at any time
+│   └── settings.ini        all port settings
+├── data/                   the port (thps2x.exe, built on your PC on the first start), caches and logs
 └── tools/                  translator, compiler and licences (used on the first start and for a repair)
 ```
 
@@ -243,16 +226,6 @@ THPS 2X Recomp/
 - Formats: **MP3, FLAC, Ogg Vorbis, WAV**. (`.m4a`/AAC is not supported – convert it to MP3 or Ogg.)
 - Track order: an `.m3u`/`.m3u8` playlist in the folder sets it; otherwise the files are sorted by name.
 - Up to 500 tracks per soundtrack. Two folders with the same name get their parent folder in front.
-
-### Shaders → `media\shaders\`
-1. Download the shader pack from [libretro/slang-shaders](https://github.com/libretro/slang-shaders)
-   (green **Code** button → **Download ZIP**) and save it as `media\shaders\shaders_slang.zip`.
-   An already extracted folder works too.
-2. Start the game. The pack is unpacked once in the background into `data\shaders` (a few seconds).
-3. **Options → RECOMP OPTIONS → SHADERS:** switch the shader on, pick a preset, adjust parameters, save your own
-   preset.
-- Good first presets: `crt\crt-easymode`, `crt\crt-guest-advanced`, `handheld\…` (LCD/Game Boy looks).
-- Presets that draw a frame (bezel/border) are hidden, because the shader only covers the game picture.
 
 ### Boot animation → `media\boot.mpg`
 - Your own intro video, played before the game starts. It cannot be skipped – keep it short. It can be switched
@@ -294,7 +267,7 @@ delete the `bind.` lines from `saves\settings.ini`.
   `THPS_DISPLAY_MODE=windowed`).
 - **Logs:** `data\thps2x.log` (the previous run is kept as `.previous.log`); the first-start setup logs to
   `data\launcher.log`.
-- **Repair:** `"THPS 2X Recomp.exe" --repair` unpacks, translates and compiles everything again; `saves\` and
+- **Repair:** `thps2x_launcher.exe --repair` unpacks, translates and compiles everything again; `saves\` and
   `media\` are never touched.
 
 ---
@@ -302,7 +275,12 @@ delete the `bind.` lines from `saves\settings.ini`.
 ## Portability
 
 - Written in portable C with SDL3 and Vulkan only; platform code is kept in one thin layer.
-- Linux and Android are planned but **paused** for now. The code is kept ready for them.
+- Windows and Linux since 2.0; Android is planned for a later 2.0.x.
+
+### Linux
+A native Linux build follows on the release page shortly after the Windows one, with the same launcher flow: start
+`thps2x_launcher`, pick your disc image and an install folder (for example `~/Games/THPS2X`), **Go**.
+<!-- LINUX-DETAILS: the package format, requirements and tested distributions follow with the Linux download -->
 
 ### Linux via Proton / Wine: best effort
 The Windows build runs under Proton and Wine too (from v0.9.1.1: the first start uses no Windows system tools any
@@ -323,17 +301,15 @@ Known limits:
 - **The recomp's FPS counter and the Steam overlay can show different numbers:** the recomp's counter counts the frames the game itself
   renders; the Steam overlay measures further down the chain, after Gamescope.
 
-**Reporting frame rate or stutter problems (from v0.9.2):** turn on **FPS COUNTER** (RECOMP OPTIONS -> FRAME RATE),
+**Reporting frame rate or stutter problems (from v0.9.2):** turn on **FPS** (RECOMP OPTIONS -> PERFORMANCE),
 or start with the launch option `RECOMP_FPS_LOG=1 %command%`. `data\thps2x.log` then gets an `[fps]` line every
 5 seconds - frames per second and how a frame's time splits into the game, its own wait for the display ("vblank
 wait"), translating the graphics, the GPU and presenting - and a `[hitch]` line for every frame over 50 ms that
 names what took the time (shader compiles, textures, file reads, sleeps). Please attach that log to a report.
-- Only a compiler download (when `tools\download\` is missing) needs the host's CA certificates (package
-  `ca-certificates`) and 64-bit GnuTLS – a missing certificate store shows up as a *secure connection* error.
 - The first start (translate + compile) is slower than on Windows.
 - *Open folder* and the file picker depend on your Wine desktop integration.
 - Controllers go through Wine's input layer; report what does not work.
-- Native Linux builds are still paused.
+- Since 2.0 there is a native Linux build (see *Linux*); Proton / Wine stays possible with the Windows zip.
 
 ---
 
@@ -352,7 +328,9 @@ names what took the time (shader compiles, textures, file reads, sleeps). Please
 
 - **v1.0.0:** the game with all extras listed above, including the classic career and the free camera.
 - **v1.1.0:** SCORE CALCULATION THPS 1, PHYSICS ORIGINAL THPS 2 PS1, frame pacing on 120 / 180 / 240 Hz displays.
-- **maybe Later:** Linux and Android.
+- **v2.0.0:** on the xboxrecomp option-c toolkit: native Linux, AMD FSR 1.0 upscaling, SHADER COMPILE HYBRID
+  (no waiting for shaders), on-screen FPS / frame time / game speed, a new launcher.
+- **Later (2.0.x):** Android.
 
 ### Non-goals
 - Online play.
@@ -362,7 +340,8 @@ names what took the time (shader compiles, textures, file reads, sleeps). Please
 ## Building from source
 
 The release exe is built from this repository and the toolkit
-[xboxrecomp-vulkan](https://github.com/almost-drowned-rat/xboxrecomp-vulkan) (branch `vulkan-backend` state); Windows 10/11 x64.
+[xboxrecomp-option-c](https://github.com/almost-drowned-rat/xboxrecomp-option-c) (the tag `thps2x-v<version>` of
+each release); Windows 10/11 x64.
 Folder layout (`tools\paths.ps1`; every path **without spaces**, the compiler and Ninja use them directly):
 
 ```
@@ -373,11 +352,14 @@ Folder layout (`tools\paths.ps1`; every path **without spaces**, the compiler an
 
 1. `powershell -ExecutionPolicy Bypass -File tools\setup.ps1` – installs Python 3.12, CMake, Ninja, LLVM-MinGW (UCRT)
    and the Vulkan SDK with winget, and `capstone` for Python.
-2. `tools\deps.ps1` – builds glslang, SDL3 and librashader from source with the same compiler.
+2. `tools\deps.ps1` – builds glslang and SDL3 from source with the same compiler.
 3. `tools\lift.ps1 -Iso "<path to your USA .iso>"` – extracts the disc into the install folder and generates the C
    code (into a `private\` folder next to the repo, never into it).
-4. `tools\build.ps1` – builds into the portable install folder `THPS 2X Recomp\`.
-5. Optional: `tools\release.ps1 -Version <name>` – the single release exe (the launcher with its payload).
+4. `tools\build.ps1` – builds into the portable install folder `THPS 2X Recomp\` (a development build with the
+   toolkit's F9 debug menu; `-ForRelease` builds without it).
+5. Optional: `tools\release.ps1 -Version <name>` – the release launcher `thps2x_launcher.exe` with its payload
+   (the toolkit's `tools\release\port_release.ps1` with this repo's `tools\release.psd1` and `tools\lift.txt`;
+   needs a `-ForRelease` build), then `tools\release_zip.ps1` for the player's zip.
 
 ---
 
@@ -400,16 +382,15 @@ all related names and trademarks belong to their respective owners.
 | [xemu-project/xemu](https://github.com/xemu-project/xemu) | MCPX APU core, ADPCM decoder, NV2A definitions, fixed-function vertex shader | LGPL-2.1-or-later (these files) |
 | [comoria08/defjam_recomp](https://github.com/comoria08/defjam_recomp) | lift pipeline and seeds workflow | MIT |
 | takedawn-xboxrecomp | XDVDFS disc reader | MIT |
-| [librashader](https://github.com/SnowflakePowered/librashader) | RetroArch shader runtime (self-built, Vulkan only) | MPL-2.0 |
 | [iryoku/smaa](https://github.com/iryoku/smaa) | SMAA antialiasing | MIT |
-| [miniz](https://github.com/richgel999/miniz) (tinfl) | unpacking the shader pack | MIT |
+| [AMD FidelityFX Super Resolution 1.0](https://github.com/GPUOpen-Effects/FidelityFX-FSR) | UPSCALING: FSR | MIT |
+| DejaVu Sans Mono Bold | the on-screen FPS / frame time / shader notice text | Bitstream Vera / Arev licence |
+| [miniz](https://github.com/richgel999/miniz) (tinfl) | the launcher's zip reader (release payload) | MIT |
 | [dr_libs](https://github.com/mackron/dr_libs), [stb_vorbis](https://github.com/nothings/stb) | MP3, FLAC, WAV, Ogg decoding | Public domain / MIT |
 | [phoboslab/pl_mpeg](https://github.com/phoboslab/pl_mpeg) | boot animation (MPEG-1 video, MP2 audio) | MIT |
 | [SDL3](https://github.com/libsdl-org/SDL), [glslang](https://github.com/KhronosGroup/glslang) | window, input, audio; shader compiler | zlib; BSD/MIT |
 | [Python](https://www.python.org) 3.12 (embeddable), [capstone](https://github.com/capstone-engine/capstone) | the translator on the first start (shipped in `tools\`) | PSF; BSD |
-| [mstorsjo/llvm-mingw](https://github.com/mstorsjo/llvm-mingw) | the compiler (downloaded on the first start) and its runtime | Apache-2.0 with LLVM exception; MinGW-w64 runtime licences |
-
-Logo/banner artwork: [@GectorNathan](https://github.com/GectorNathan).
+| [mstorsjo/llvm-mingw](https://github.com/mstorsjo/llvm-mingw) | the compiler (shipped in the release zip, unpacked on the first start) and its runtime | Apache-2.0 with LLVM exception; MinGW-w64 runtime licences |
 
 Design references (no code taken): Cxbx-Reloaded, XboxXBE-Recomp, SCDA-XBERecomp, doa3-recomp, doaxvb-re,
 ARMSX2 (shader menu logic), black-pc, CoD3Recomp, pinyon-shift, xboxdevwiki,

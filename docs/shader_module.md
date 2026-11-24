@@ -1,5 +1,10 @@
 # Shader module – RetroArch slang shader support (M6, planned)
 
+> **Removed from THPS 2.0 on 2026-11-19** (the maintainer: the RetroArch shader options added little to this game;
+> they stay part of the option-c toolkit): no SHADERS line in RECOMP OPTIONS, no librashader, no shader pack
+> extraction. The toolkit (option-c: `src/shaderpack`, `nv2a_vk_set_shader_preset`) keeps it. This file stays as
+> history of the 1.x module.
+
 Spec by the maintainer, recorded 2026-10-24. **Done (2026-10-27):** phases 1-5 below are built, tested and in
 the release; each phase was reported before the next.
 **Phase 1 done (2026-10-27):** [shader_module_phase1.md](shader_module_phase1.md) – plan, risks, effort, and five

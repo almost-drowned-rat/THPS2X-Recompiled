@@ -62,14 +62,14 @@
 #else
 #  define THPS_TLS __thread
 #endif
-extern THPS_TLS uint32_t g_eax, g_ecx, g_edx, g_esp;
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
 extern ptrdiff_t g_xbox_mem_offset;
 #define GUEST32(va) (*(volatile uint32_t *)((uintptr_t)g_xbox_mem_offset + (uint32_t)(va)))
 #define GUEST16(va) (*(volatile uint16_t *)((uintptr_t)g_xbox_mem_offset + (uint32_t)(va)))
 #define GPTR(va)    ((uint8_t *)((uintptr_t)g_xbox_mem_offset + (uint32_t)(va)))
 #define ARG(n)      GUEST32(g_esp + 4u + 4u * (n))
 
-typedef void (*recomp_func_t)(void);
+typedef void (*recomp_func_t)(RECOMP_PARAMS);   /* = option-c xbox_memory_layout.h */
 recomp_func_t recomp_lookup(uint32_t xbox_va);
 uint32_t xbox_HeapAlloc(uint32_t size, uint32_t alignment);
 void xbox_HeapFree(uint32_t xbox_va);
@@ -219,7 +219,7 @@ static int game_songs(void)
 }
 
 /* A guest stdcall function with n stack arguments; returns eax. */
-static uint32_t guest_call(uint32_t fn_va, recomp_func_t fn, int n, const uint32_t *args)
+static uint32_t guest_call(RECOMP_PARAMS, uint32_t fn_va, recomp_func_t fn, int n, const uint32_t *args)
 {
     uint32_t esp = g_esp, eax = g_eax, ecx = g_ecx, edx = g_edx, r;
     int i;
@@ -229,7 +229,7 @@ static uint32_t guest_call(uint32_t fn_va, recomp_func_t fn, int n, const uint32
     GUEST32(g_esp) = 0;                     /* return address: the callee only pops it */
     for (i = 0; i < n; i++)
         GUEST32(g_esp + 4u + 4u * (uint32_t)i) = args[i];
-    fn();
+    fn(RECOMP_ARGS);
     r = g_eax;
     g_esp = esp; g_eax = eax; g_ecx = ecx; g_edx = edx;
     return r;
@@ -253,7 +253,7 @@ static uint32_t method(uint32_t obj, int slot) { return GUEST32(GUEST32(obj) + 4
  * own stream asks for them (a shorter one in the middle of a song broke its
  * state: a crash in WMADEC after a custom song ended mid-packet); what the
  * caller does not take now waits in pcm[]. */
-static long gs_read(void *c, int16_t *out, long frames)
+static long gs_read(RECOMP_PARAMS, void *c, int16_t *out, long frames)
 {
     GameSrc *g = (GameSrc *)c;
     long done = 0;
@@ -277,7 +277,7 @@ static long gs_read(void *c, int16_t *out, long frames)
         GUEST32(g->blk + 0xB4) = 0;
         GUEST32(g->blk + 0xB8) = 0;
         a[0] = g->obj; a[1] = 0; a[2] = g->blk + 0xA4;
-        if (guest_call(method(g->obj, 4), NULL, 3, a) & 0x80000000u)
+        if (guest_call(RECOMP_ARGS, method(g->obj, 4), NULL, 3, a) & 0x80000000u)
             return done ? done : -1;
         got = GUEST32(g->blk + 0x9C) & ~3u;
         if (got > GS_PCM)
@@ -291,29 +291,29 @@ static long gs_read(void *c, int16_t *out, long frames)
     return done;
 }
 
-static int gs_rewind(void *c)
+static int gs_rewind(RECOMP_PARAMS, void *c)
 {
     GameSrc *g = (GameSrc *)c;
     uint32_t a = g->obj;
-    guest_call(method(g->obj, 6), NULL, 1, &a);   /* Flush */
+    guest_call(RECOMP_ARGS, method(g->obj, 6), NULL, 1, &a);   /* Flush */
     g->eof = 0;
     g->have = g->at = 0;
     return 1;
 }
 
-static void gs_close(void *c)
+static void gs_close(RECOMP_PARAMS, void *c)
 {
     GameSrc *g = (GameSrc *)c;
     uint32_t a = g->obj;
     if (g->obj)
-        guest_call(method(g->obj, 1), NULL, 1, &a);   /* Release */
+        guest_call(RECOMP_ARGS, method(g->obj, 1), NULL, 1, &a);   /* Release */
     xbox_HeapFree(g->blk);
     free(g);
 }
 
-extern void sub_00067740_gen(void);
+extern void sub_00067740_gen(RECOMP_PARAMS);
 
-static int open_game_track(int track, XdkMusicSource *src)
+static int open_game_track(RECOMP_PARAMS, int track, XdkMusicSource *src)
 {
     GameSrc *g;
     uint32_t a[8], r;
@@ -331,14 +331,14 @@ static int open_game_track(int track, XdkMusicSource *src)
     memcpy(GPTR(g->blk), name, strlen(name) + 1);
     a[0] = g->blk; a[1] = 0; a[2] = 0; a[3] = 0x10000; a[4] = 8; a[5] = 1;
     a[6] = g->blk + 0x80; a[7] = g->blk + 0x98;
-    r = guest_call(0x00067740u, sub_00067740_gen, 8, a);
+    r = guest_call(RECOMP_ARGS, 0x00067740u, sub_00067740_gen, 8, a);
     g->obj = GUEST32(g->blk + 0x98);
     if (r || !g->obj || GUEST16(g->blk + 0x80) != 1 || GUEST16(g->blk + 0x82) != 2
             || GUEST32(g->blk + 0x84) != MEDIA_RATE || GUEST16(g->blk + 0x8E) != 16) {
         fprintf(stderr, "[MUSIC] game track %d (%s): no 44.1 kHz stereo decoder (0x%08X)\n", track + 1, name, r);
         if (!g->obj)
             g->obj = 0;
-        gs_close(g);
+        gs_close(RECOMP_ARGS, g);
         return 0;
     }
     src->ctx = g;
@@ -365,25 +365,25 @@ static int on(void) { return s_on && xdk_soundtrack_active(); }
 
 /* ── XAPI soundtrack functions ─────────────────────────────────────────── */
 
-extern void sub_001B9A4E_gen(void);
-extern void sub_001B9A2F_gen(void);
-extern void sub_001B8D5C_gen(void);
-extern void sub_001B9AFD_gen(void);
-extern void sub_001B9D26_gen(void);
+extern void sub_001B9A4E_gen(RECOMP_PARAMS);
+extern void sub_001B9A2F_gen(RECOMP_PARAMS);
+extern void sub_001B8D5C_gen(RECOMP_PARAMS);
+extern void sub_001B9AFD_gen(RECOMP_PARAMS);
+extern void sub_001B9D26_gen(RECOMP_PARAMS);
 
-void sub_001B9A4E(void) { if (on()) xdk_XFindFirstSoundtrack(); else sub_001B9A4E_gen(); }
-void sub_001B9A2F(void) { if (on()) xdk_XFindNextSoundtrack(); else sub_001B9A2F_gen(); }
-void sub_001B8D5C(void) { if (!on() || !xdk_XFindClose_ours()) sub_001B8D5C_gen(); }
-void sub_001B9AFD(void) { if (on()) xdk_XGetSoundtrackSongInfo(); else sub_001B9AFD_gen(); }
-void sub_001B9D26(void) { if (on()) xdk_XOpenSoundtrackSong(); else sub_001B9D26_gen(); }
+void sub_001B9A4E(RECOMP_PARAMS) { if (on()) xdk_XFindFirstSoundtrack(RECOMP_ARGS); else sub_001B9A4E_gen(RECOMP_ARGS); }
+void sub_001B9A2F(RECOMP_PARAMS) { if (on()) xdk_XFindNextSoundtrack(RECOMP_ARGS); else sub_001B9A2F_gen(RECOMP_ARGS); }
+void sub_001B8D5C(RECOMP_PARAMS) { if (!on() || !xdk_XFindClose_ours(RECOMP_ARGS)) sub_001B8D5C_gen(RECOMP_ARGS); }
+void sub_001B9AFD(RECOMP_PARAMS) { if (on()) xdk_XGetSoundtrackSongInfo(RECOMP_ARGS); else sub_001B9AFD_gen(RECOMP_ARGS); }
+void sub_001B9D26(RECOMP_PARAMS) { if (on()) xdk_XOpenSoundtrackSong(RECOMP_ARGS); else sub_001B9D26_gen(RECOMP_ARGS); }
 
 /* ── which song the game asks for ──────────────────────────────────────── */
 
 /* The saved choice into the game: 0x001A9CE0 with eax = k (album k - 1),
  * or 0 for game music and COMBINED (that is TONY HAWK there). Only once the
  * level's catalog exists. */
-extern void sub_001A9CE0_gen(void);
-static void apply_choice(void)
+extern void sub_001A9CE0_gen(RECOMP_PARAMS);
+static void apply_choice(RECOMP_PARAMS)
 {
     uint32_t k = s_sel >= 0 ? (uint32_t)s_sel + 1u : 0u, eax = g_eax;
     if (!s_pending || !GUEST32(ST_RECORDS) || k > GUEST32(ST_COUNT))
@@ -391,19 +391,19 @@ static void apply_choice(void)
     g_eax = k;
     g_esp -= 4;
     GUEST32(g_esp) = 0;                     /* plain ret pops it */
-    sub_001A9CE0_gen();
+    sub_001A9CE0_gen(RECOMP_ARGS);
     g_eax = eax;
     s_pending = 0;
 }
 
 /* 0x001A95D0: the level's music set-up resets the soundtrack to TONY HAWK. */
-extern void sub_001A95D0_gen(void);
-void sub_001A95D0(void)
+extern void sub_001A95D0_gen(RECOMP_PARAMS);
+void sub_001A95D0(RECOMP_PARAMS)
 {
-    sub_001A95D0_gen();
+    sub_001A95D0_gen(RECOMP_ARGS);
     if (on()) {
         s_pending = 1;
-        apply_choice();
+        apply_choice(RECOMP_ARGS);
     }
 }
 
@@ -414,14 +414,14 @@ void sub_001A95D0(void)
  * 16 level names: "songs\.bet" not found, then a null read in 0x00097070
  * (maintainer's listening test, 2026-10-25). It sees the level song count. */
 #define SONG_COUNT   0x00305AA4u
-extern void sub_00097160_gen(void);
-void sub_00097160(void)
+extern void sub_00097160_gen(RECOMP_PARAMS);
+void sub_00097160(RECOMP_PARAMS)
 {
     uint32_t n = GUEST32(SONG_COUNT);
     int swap = on() && GUEST32(ST_CHOSEN) != 0;
     if (swap)
         GUEST32(SONG_COUNT) = GUEST32(GAME_COUNT);
-    sub_00097160_gen();
+    sub_00097160_gen(RECOMP_ARGS);
     if (swap)
         GUEST32(SONG_COUNT) = n;
 }
@@ -429,10 +429,10 @@ void sub_00097160(void)
 /* 0x001A9CE0 from the pause menu: the player's own pick, saved (only a
  * change -- with COMBINED or ALL CUSTOM the game shows TONY HAWK, and keeping
  * that is no choice). */
-void sub_001A9CE0(void)
+void sub_001A9CE0(RECOMP_PARAMS)
 {
     uint32_t before = GUEST32(ST_CHOSEN);
-    sub_001A9CE0_gen();
+    sub_001A9CE0_gen(RECOMP_ARGS);
     if (on() && GUEST32(ST_CHOSEN) != before) {
         uint32_t k = GUEST32(ST_CHOSEN);
         fprintf(stderr, "[MUSIC] pause-menu soundtrack %u: saved\n", k);
@@ -459,47 +459,47 @@ static int club_music(void) { return on() && GUEST32(LEVEL) == CLUB_LEVEL && (in
  * (count + step + song) % count of the game music, set to CLUB_SONG -- and the
  * soundtrack state is put back after it. MUSIC LEVEL 0 takes the game's own
  * path (no song). */
-extern void sub_001A98B0_gen(void);
-void sub_001A98B0(void)
+extern void sub_001A98B0_gen(RECOMP_PARAMS);
+void sub_001A98B0(RECOMP_PARAMS)
 {
     if (on())
-        apply_choice();
+        apply_choice(RECOMP_ARGS);
     if (club_music() && GUEST32(MUSIC_LEVEL)) {
         uint32_t chosen = GUEST32(ST_CHOSEN), count = GUEST32(SONG_COUNT), song = GUEST32(SONG_NOW);
         uint32_t n = GUEST32(GAME_COUNT), step = ARG(0) % n;
         GUEST32(ST_CHOSEN) = 0;
         GUEST32(SONG_COUNT) = n;
         GUEST32(SONG_NOW) = ((uint32_t)CLUB_SONG + n - step) % n;
-        sub_001A98B0_gen();
+        sub_001A98B0_gen(RECOMP_ARGS);
         GUEST32(ST_CHOSEN) = chosen;
         GUEST32(SONG_COUNT) = count;
         GUEST32(SONG_NOW) = song;
         return;
     }
-    sub_001A98B0_gen();
+    sub_001A98B0_gen(RECOMP_ARGS);
 }
 
 /* 0x001A99E0: the pause menu's sound options restart the music after a
  * change (SOUNDTRACK or SELECT TRACK) -- the song asked for then is the
  * player's pick, which a shuffle mode starts from too. */
-extern void sub_001A99E0_gen(void);
-void sub_001A99E0(void)
+extern void sub_001A99E0_gen(RECOMP_PARAMS);
+void sub_001A99E0(RECOMP_PARAMS)
 {
     s_user_pick = 1;
-    sub_001A99E0_gen();
+    sub_001A99E0_gen(RECOMP_ARGS);
     s_user_pick = 0;
 }
 
 /* 0x001B4220(name, x) opens a file stream "D:\songs\<name>"; a name from the
  * level-song table is game track (name - table) / 64. */
-extern void sub_001B4220_gen(void);
-void sub_001B4220(void)
+extern void sub_001B4220_gen(RECOMP_PARAMS);
+void sub_001B4220(RECOMP_PARAMS)
 {
     uint32_t name = ARG(0);
     int saved = s_req_game;
     if (name >= LEVEL_SONGS && name < LEVEL_SONGS + MAX_GAME * SONG_NAME && !((name - LEVEL_SONGS) % SONG_NAME))
         s_req_game = (int)((name - LEVEL_SONGS) / SONG_NAME);
-    sub_001B4220_gen();
+    sub_001B4220_gen(RECOMP_ARGS);
     s_req_game = saved;
 }
 
@@ -517,7 +517,7 @@ static void remember_current(void)
 /* WmaCreateDecoderEx: a custom song's handle or a level song (every source
  * and mode has a playlist since 2026-11-05) gets a host media object; the
  * playlist's inner game tracks the game's own decoder. */
-void sub_00067740(void)
+void sub_00067740(RECOMP_PARAMS)
 {
     MediaSong req;
     int custom = 0, game = 0;
@@ -527,7 +527,7 @@ void sub_00067740(void)
     if (on() && club_music() && s_req_game == CLUB_SONG) {
         s_req_game = -1;                        /* the club music: the game's own decoder, it loops (#20) */
         fprintf(stderr, "[MUSIC] Club London: the club music (game track %d)\n", CLUB_SONG + 1);
-        sub_00067740_gen();
+        sub_00067740_gen(RECOMP_ARGS);
         return;
     }
     if (on()) {
@@ -540,7 +540,7 @@ void sub_00067740(void)
         }
     }
     if (!custom && !game) {
-        sub_00067740_gen();
+        sub_00067740_gen(RECOMP_ARGS);
         return;
     }
     remember_current();                         /* a stream still open: its song is the last one */
@@ -571,7 +571,7 @@ void sub_00067740(void)
     }
     if (c && (c->album != req.album || c->track != req.track))
         req = *c;
-    obj = xdk_music_create(req, &pl, pwfx);
+    obj = xdk_music_create(RECOMP_ARGS, req, &pl, pwfx);
     if (obj) {
         s_last = req;
         s_have_last = 1;
@@ -648,11 +648,11 @@ static void sound_menu_order(uint32_t menu)
     *GPTR(menu + 6) = 0;                            /* the cursor on SOUNDTRACK */
 }
 
-extern void sub_000FF600_gen(void);
-void pause_quit_line(uint32_t menu);               /* recomp_manual.c: QUIT GAME in the pause menu */
-void sub_000FF600(void)
+extern void sub_000FF600_gen(RECOMP_PARAMS);
+void pause_quit_line(RECOMP_PARAMS, uint32_t menu);               /* recomp_manual.c: QUIT GAME in the pause menu */
+void sub_000FF600(RECOMP_PARAMS)
 {
-    pause_quit_line(g_ecx);
+    pause_quit_line(RECOMP_ARGS, g_ecx);
     if (on() && g_ecx && g_ecx == GUEST32(SND_MENU)) {
         if (!s_next_text && (s_next_text = xbox_HeapAlloc(16, 4)) != 0)
             memcpy(GPTR(s_next_text), "NEXT TRACK", 11);
@@ -661,7 +661,7 @@ void sub_000FF600(void)
         mode_text();
         sound_menu_order(g_ecx);
     }
-    sub_000FF600_gen();
+    sub_000FF600_gen(RECOMP_ARGS);
 }
 
 static uint32_t s_name_buf;
@@ -671,8 +671,8 @@ static uint32_t s_name_buf;
  * chosen in GENERAL OPTIONS -> SOUNDTRACKS, upper case: the album's own
  * spelling ("Nu Med") came out in the font's small lower-case letters, a
  * smaller line than the others; and the line is the source picker now. */
-extern void sub_001A9C50_gen(void);
-void sub_001A9C50(void)
+extern void sub_001A9C50_gen(RECOMP_PARAMS);
+void sub_001A9C50(RECOMP_PARAMS)
 {
     if (on()) {
         if (!s_name_buf)
@@ -684,7 +684,7 @@ void sub_001A9C50(void)
             return;
         }
     }
-    sub_001A9C50_gen();
+    sub_001A9C50_gen(RECOMP_ARGS);
 }
 
 /* The SOUNDTRACK line (the game prints it when the screen opens; rewritten
@@ -707,10 +707,10 @@ static void refresh_st_line(void)
 
 /* the music again from the next song in the source / mode just picked: the
  * game's next track (0x001A98B0(1), as Retry), which takes the choice first */
-static void restart_music(void)
+static void restart_music(RECOMP_PARAMS)
 {
     uint32_t one = 1;
-    guest_call(0x001A98B0u, sub_001A98B0, 1, &one);
+    guest_call(RECOMP_ARGS, 0x001A98B0u, sub_001A98B0, 1, &one);
 }
 
 /* 0x00101790 prints the in-game menu texts every frame and formats the
@@ -719,13 +719,13 @@ static void restart_music(void)
  * sprintf. While a playlist plays, SELECT TRACK shows the song's number in
  * the album that is playing (a game track: its number in the game's list),
  * like the SOUNDTRACK line names that album. */
-extern void sub_001DBF50_gen(void);
-void sub_001DBF50(void)
+extern void sub_001DBF50_gen(RECOMP_PARAMS);
+void sub_001DBF50(RECOMP_PARAMS)
 {
     MediaSong cur;
     int pl = 0;
     uint32_t dst = ARG(0);
-    sub_001DBF50_gen();
+    sub_001DBF50_gen(RECOMP_ARGS);
     if (dst == TRACK_LINE && on() && xdk_music_current(&cur, &pl) && pl) {
         char line[28];
         snprintf(line, sizeof line, "%s: %d", (const char *)GPTR(GUEST32(0x00289A6Cu)), cur.track + 1);
@@ -744,7 +744,7 @@ void sub_001DBF50(void)
 #define PAD_LEFT(k)  (0x003053B9u + (uint32_t)(k) * 0x18Cu)
 #define PAD_RIGHT(k) (0x003053C9u + (uint32_t)(k) * 0x18Cu)
 
-static void select_track_step(void)
+static void select_track_step(RECOMP_PARAMS)
 {
     MediaSong cur;
     int pl = 0, dir = 0, n;
@@ -763,7 +763,7 @@ static void select_track_step(void)
     if (n <= 0)
         return;
     cur.track = (cur.track + dir + n) % n;
-    xdk_music_jump(cur);
+    xdk_music_jump(RECOMP_ARGS, cur);   /* may open a game track: the WMA decoder runs on this guest thread */
     fprintf(stderr, "[MUSIC] SELECT TRACK %d\n", cur.track + 1);
 }
 
@@ -805,60 +805,60 @@ static int take_a(void)
  *   HAWK + the albums); saved, the music goes on in the new source at once;
  * - PLAYBACK MODE (maintainer, 2026-11-05; under NEXT SONG): left / right or
  *   A switch IN ORDER / SHUFFLE; saved, the music goes on at once. */
-extern void sub_00104210_gen(void);
+extern void sub_00104210_gen(RECOMP_PARAMS);
 void classic_frame(void);                         /* recomp_manual.c: classic career screens */
-int pause_camera_frame(void);                     /* recomp_manual.c: CAMERA OPTIONS in this screen */
-void sub_00104210(void)
+int pause_camera_frame(RECOMP_PARAMS);                     /* recomp_manual.c: CAMERA OPTIONS in this screen */
+void sub_00104210(RECOMP_PARAMS)
 {
     uint32_t menu = GUEST32(SND_MENU);
     classic_frame();
-    if (pause_camera_frame()) {                   /* our camera lines are open: not the sound lines */
-        sub_00104210_gen();
+    if (pause_camera_frame(RECOMP_ARGS)) {                   /* our camera lines are open: not the sound lines */
+        sub_00104210_gen(RECOMP_ARGS);
         return;
     }
     if (on() && menu && s_next_text && GUEST32(UI_STATE) == 0x2Fu) {
         uint32_t sel = *GPTR(menu + 6), text = GUEST32(menu + 0x18u + sel * 0x18u);
         int dir;
         if (text == TRACK_LINE)
-            select_track_step();
+            select_track_step(RECOMP_ARGS);
         if (text == s_next_text && take_a()) {
-            xdk_music_skip();
+            xdk_music_skip(RECOMP_ARGS);
             fprintf(stderr, "[MUSIC] NEXT TRACK\n");
         }
         if (text == ST_LINE && (dir = take_lr()) != 0) {
             int n = thps_st_choices();
             thps_st_set_choice((thps_st_choice() + dir + n) % n);
             fprintf(stderr, "[MUSIC] pause SOUNDTRACK -> choice %d\n", thps_st_choice());
-            restart_music();
+            restart_music(RECOMP_ARGS);
         }
         if (text == s_mode_text && s_mode_text && ((dir = take_lr()) != 0 || take_a())) {
             thps_st_set_mode(!s_shuffle);
             mode_text();
             fprintf(stderr, "[MUSIC] pause PLAYBACK MODE -> %s\n", s_shuffle ? "shuffle" : "in order");
-            restart_music();
+            restart_music(RECOMP_ARGS);
         }
         refresh_st_line();
     }
-    sub_00104210_gen();
+    sub_00104210_gen(RECOMP_ARGS);
 }
 
 /* ── the WMA media object's methods: host objects go to the toolkit ────── */
 
 #define BIND(addr, fn) \
-    extern void sub_##addr##_gen(void); \
-    void sub_##addr(void) { if (xdk_music_owns(ARG(0))) fn(); else sub_##addr##_gen(); }
+    extern void sub_##addr##_gen(RECOMP_PARAMS); \
+    void sub_##addr(RECOMP_PARAMS) { if (xdk_music_owns(ARG(0))) fn(RECOMP_ARGS); else sub_##addr##_gen(RECOMP_ARGS); }
 
 BIND(00067900, xdk_music_AddRef)
 /* Release: the song that played to the end of the stream (a playlist moves on
  * inside the object) is the one PLAY IN ORDER goes on from */
-extern void sub_00067940_gen(void);
-void sub_00067940(void)
+extern void sub_00067940_gen(RECOMP_PARAMS);
+void sub_00067940(RECOMP_PARAMS)
 {
     if (xdk_music_owns(ARG(0))) {
         remember_current();
-        xdk_music_Release();
+        xdk_music_Release(RECOMP_ARGS);
     } else {
-        sub_00067940_gen();
+        sub_00067940_gen(RECOMP_ARGS);
     }
 }
 BIND(000688B0, xdk_music_GetInfo)

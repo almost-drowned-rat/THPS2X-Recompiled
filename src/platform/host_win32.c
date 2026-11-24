@@ -28,9 +28,7 @@
 #include "host.h"
 #include "recomp_icall_feedback.h"   /* no-op unless RECOMP_ICALL_FEEDBACK */
 
-/* Guest register file (thread-local, defined in xbox_memory_layout.c). */
-extern RECOMP_TLS uint32_t g_eax, g_ecx, g_edx, g_esp;
-extern RECOMP_TLS uint32_t g_ebx, g_esi, g_edi;
+/* Guest registers: option-c names them as fields of the register context ctx (xbox_memory_layout.h). */
 extern ptrdiff_t g_xbox_mem_offset;
 
 /* Emulated APU MMIO trap (see templates/new-game/src/main.c). */
@@ -52,7 +50,7 @@ static void host_log_drain(void);
 /* Name the guest function a fault happened in (the generated sub_XXXXXXXX
  * symbol, via the .pdb) and scan the guest stack for return addresses:
  * FPO frames, so it is a scan, not a walk, and over-reports. */
-static void print_guest_context(void *rip)
+static void print_guest_context(RECOMP_PARAMS, void *rip)
 {
     char buf[sizeof(SYMBOL_INFO) + 256];
     SYMBOL_INFO *sym = (SYMBOL_INFO *)buf;
@@ -152,8 +150,18 @@ static DWORD WINAPI watch_thread(LPVOID unused)
     return 0;
 }
 
+/* A vectored exception handler has a fixed signature: no register context is handed in. These two are diagnostics
+ * only, so they take the faulting thread's registered set (xbox_diag_ctx, toolkit: meant for exactly this) - or an
+ * all-zero one on a host thread that runs no guest code - and only READ it. */
+#define HOST_DIAG_CTX()                                                   \
+    static X86Ctx diag_none_;                                             \
+    X86Ctx *ctx = xbox_diag_ctx() ? xbox_diag_ctx() : &diag_none_;        \
+    uint8_t *base = RECOMP_GUEST_BASE;                                    \
+    (void)base
+
 static LONG CALLBACK watch_handler(PEXCEPTION_POINTERS ep)
 {
+    HOST_DIAG_CTX();    /* ctx_rewrite: keep (VEH signature) */
     int which;
     if (ep->ExceptionRecord->ExceptionCode != EXCEPTION_SINGLE_STEP || !(ep->ContextRecord->Dr6 & 0xF))
         return EXCEPTION_CONTINUE_SEARCH;
@@ -236,6 +244,7 @@ void host_debug_start(void)
 
 static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
 {
+    HOST_DIAG_CTX();    /* ctx_rewrite: keep (VEH signature) */
     DWORD code = ep->ExceptionRecord->ExceptionCode;
 
     if (code == EXCEPTION_ACCESS_VIOLATION) {
@@ -253,7 +262,7 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
                               (uintptr_t)ep->ContextRecord->Rip)) {
             static int shown;
             if (shown++ < 8)
-                print_guest_context((void *)(uintptr_t)ep->ContextRecord->Rip);
+                print_guest_context(RECOMP_ARGS, (void *)(uintptr_t)ep->ContextRecord->Rip);
             return EXCEPTION_CONTINUE_EXECUTION;
         }
 
@@ -281,7 +290,7 @@ static LONG CALLBACK veh_handler(PEXCEPTION_POINTERS ep)
     fprintf(stderr, "  Xbox regs: eax=0x%08X ecx=0x%08X edx=0x%08X esp=0x%08X\n",
             g_eax, g_ecx, g_edx, g_esp);
     fprintf(stderr, "  Xbox regs: ebx=0x%08X esi=0x%08X edi=0x%08X\n", g_ebx, g_esi, g_edi);
-    print_guest_context((void *)ep->ContextRecord->Rip);
+    print_guest_context(RECOMP_ARGS, (void *)ep->ContextRecord->Rip);
     RECOMP_ICALL_FEEDBACK_DUMP();   /* a title that dies mid-boot is the one whose targets we want */
     host_log_drain();               /* the process is about to die */
     return EXCEPTION_CONTINUE_SEARCH;
@@ -758,7 +767,9 @@ static void log_line(const char *line)
             return;
         }
     }
-    if (!strncmp(line, "[FTRACE]", 8)) {
+    /* [DRAW] (RECOMP_VK_DRAW_TRACE) passes uncollapsed like [FTRACE]: the draws of a flip look "similar" and all
+     * but a few per flip were folded away (THPS 2.0 shadow trace 11-19; as the toolkit host, template 79a0d89). */
+    if (!strncmp(line, "[FTRACE]", 8) || !strncmp(line, "  [DRAW]", 8)) {
         log_flush_run();
         s_prev_key[0] = '\0';
         fputs(line, s_log);
@@ -907,9 +918,19 @@ int host_init(int argc, char **argv, HostOptions *opt)
     }
     slash = strrchr(opt->exe_dir, '\\');
     if (slash) *slash = '\0';
-    join(opt->game_dir, opt->exe_dir, "game");
-    join(opt->save_dir, opt->exe_dir, "saves");
-    join(opt->data_dir, opt->exe_dir, "data");
+    {
+        /* Release layout (maintainer, 2026-11-21; option-c src/porthost/host_win32.c 723a516): the game exe lies in
+         * <root>\data, the launcher alone on top - so an exe in a folder named "data" (any case) takes the folder
+         * above as its root (as xbox_host_root, host_paths.c). exe_dir stays (the .pdb beside the exe). */
+        char root[HOST_PATH_MAX];
+        char *b = strrchr(opt->exe_dir, '\\');
+        snprintf(root, sizeof root, "%s", opt->exe_dir);
+        if (b && !_stricmp(b + 1, "data"))
+            root[b - opt->exe_dir] = '\0';
+        join(opt->game_dir, root, "game");
+        join(opt->save_dir, root, "saves");
+        join(opt->data_dir, root, "data");
+    }
 
     for (i = 1; i < argc; i++) {
         const char *a = argbuf[i], *v = (i + 1 < argc) ? argbuf[i + 1] : NULL;

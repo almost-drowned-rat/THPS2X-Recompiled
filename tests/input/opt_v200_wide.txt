@@ -1,0 +1,57 @@
+# opt_v200_wide.txt - THPS 2.0 DISPLAY at 16:9 in the option-p layout (maintainer 2026-11-24; run with
+# THPS_ASPECT_RATIO=16:9): the three 16:9 lines on the DISPLAY page itself (the WIDESCREEN sub-page is gone).
+# Checked:
+#   00 a movie at the start: pillarboxed (or stretched with THPS_MOVIES_STRETCHED=on)
+#   10 DISPLAY: the Y hint, DISPLAY MODE, RENDER RESOLUTION, ASPECT RATIO: 16:9, STRETCH CUTSCENES: OFF,
+#      MENUS AT 16:9: PILLARBOXED, HUD AT 16:9: ORIGINAL PROPORTIONS, FIELD OF VIEW
+#   12 STRETCH CUTSCENES right = ON (saved: movies_stretched=on); the menu itself stays pillarboxed
+#   13 Y on it = OFF (the default); 14 right = ON again
+#   99 OPTIONS again
+#   THPS2X.exe --max-seconds 85 --input-script tests\input\opt_v200_wide.txt
+# Times count from the first pad read (about 1 s after start); 300 ms presses (see menu_tour.txt).
+
+0:p2-connect
+
+# a movie (ATVISION) before the first start press
+1500:shot=00_movie
+3000:start:200
+6000:start:200
+9000:start:200
+12000:start:200
+15000:start:200
+
+# main menu: OPTIONS is the seventh entry
+20000:down:300
+21000:down:300
+22000:down:300
+23000:down:300
+24000:down:300
+25000:down:300
+27000:a:300
+# OPTIONS: RECOMP OPTIONS is the 10th line
+33000:down:300
+34000:down:300
+35000:down:300
+36000:down:300
+37000:down:300
+38000:down:300
+39000:down:300
+40000:down:300
+41000:down:300
+44000:a:300
+# DISPLAY (first line); the cursor on DISPLAY MODE, STRETCH CUTSCENES the fourth value
+48000:a:300
+51000:shot=10_display
+52000:down:300
+53000:down:300
+54000:down:300
+55000:right:300
+58000:shot=12_cutscenes_stretched
+59000:y:300
+61000:shot=13_cutscenes_default
+62000:right:300
+64000:shot=14_cutscenes_stretched
+65000:b:300
+67000:b:300
+69000:b:300
+73000:shot=99_end

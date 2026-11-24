@@ -1,5 +1,8 @@
 # Shader module – phase 1 analysis (2026-10-27, no code)
 
+> **Removed from THPS 2.0 on 2026-11-19** (maintainer; still part of option-c) - see the note at the top of
+> [shader_module.md](shader_module.md). This file stays as history.
+
 Phase 1 of [shader_module.md](shader_module.md): where the pass goes, how 4:3 / 16:9 reach it, how the menu can host
 it, how librashader is loaded – plan, risks, effort. **Report for the maintainer; nothing is built.** Sources: the
 librashader repository (README, `include/librashader.h`, `include/librashader_ld.h`, `librashader-cache`), docs.rs

@@ -18,5 +18,8 @@ void        settings_init(const char *save_dir);
 const char *settings_get(const char *key, const char *def);
 /* Sets and writes the file at once (no-op when the value is unchanged). */
 void        settings_set(const char *key, const char *value);
+/* Removes the key and writes the file at once (no-op when it is not there):
+ * "unset" = the toolkit's own default (SHADER COMPILE, option-c 04ab677). */
+void        settings_unset(const char *key);
 
 #endif

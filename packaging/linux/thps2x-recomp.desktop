@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=THPS 2X Recomp
+Comment=Static recompilation of THPS 2X (Xbox, USA) - needs your own disc image
+Exec=thps2x-recomp
+Icon=thps2x-recomp
+Terminal=false
+Categories=Game;SportsGame;

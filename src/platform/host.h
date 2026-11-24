@@ -1,7 +1,7 @@
 /* host.h - THPS 2X host platform layer (process, paths, log, crash handling).
  *
  * Everything OS-specific of the game executable lives behind this header
- * (CLAUDE.md, Portability). Windows implementation: host_win32.c.
+ * (README, Portability). Windows implementation: host_win32.c; Linux: host_linux.c (2.0).
  */
 #ifndef THPS_HOST_H
 #define THPS_HOST_H
@@ -9,6 +9,14 @@
 #include <stddef.h>
 
 #define HOST_PATH_MAX 1024
+
+/* The path separator for joins outside the host layer ("%s" HOST_SEP "shaders"): Windows paths stay as they were
+ * in 1.x, Linux gets '/'. */
+#if defined(_WIN32)
+#define HOST_SEP "\\"
+#else
+#define HOST_SEP "/"
+#endif
 
 typedef struct HostOptions {
     char exe_dir[HOST_PATH_MAX];   /* folder of the executable, no trailing separator */

@@ -51,7 +51,7 @@ extern volatile uint32_t g_icall_trace[16];
 extern volatile uint32_t g_icall_trace_idx;
 extern volatile uint64_t g_icall_count;
 
-typedef void (*recomp_func_t)(void);
+typedef void (*recomp_func_t)(RECOMP_PARAMS);   /* = option-c xbox_memory_layout.h */
 
 /* â”€â”€ Register state (defined in xbox_memory_layout.c) â”€â”€â”€â”€â”€â”€â”€â”€ */
 
@@ -66,7 +66,7 @@ typedef void (*recomp_func_t)(void);
 #include <stddef.h>
 #include <string.h>
 #include <stdatomic.h>
-extern THPS_TLS uint32_t g_eax, g_esp;
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
 extern ptrdiff_t g_xbox_mem_offset;
 #define GUEST32(va) (*(volatile uint32_t *)((uintptr_t)g_xbox_mem_offset + (uint32_t)(va)))
 
@@ -133,7 +133,7 @@ recomp_func_t recomp_lookup_manual(uint32_t xbox_va)
  * (the ICALL macro pops the dummy return address and continues).
  * Focus on the ones that cause crashes or incorrect behavior.
  */
-void recomp_icall_fail_log(uint32_t va)
+void recomp_icall_fail_log(X86Ctx *ctx, uint32_t va)
 {
     /* Rate-limited per address: a missing vtable target is called every frame
      * (0x0011F760 wrote 850,000 log lines in two minutes). The first three
@@ -174,7 +174,9 @@ void recomp_icall_fail_log(uint32_t va)
  * Rate-limited per address: a spin can produce millions of these, and the
  * useful information is which addresses occur, not how often.
  */
-void recomp_icall_not_code_log(uint32_t va)
+/* option-c's generated code calls this as recomp_icall_not_code_log(ctx, va) - ctx only, no base (toolkit
+ * tools/recomp test_icall_guarded_runtime.py); the body reads g_esp and guest memory through GUEST32 only. */
+void recomp_icall_not_code_log(X86Ctx *ctx, uint32_t va)
 {
     enum { SLOTS = 16 };
     static uint32_t seen[SLOTS];
@@ -226,7 +228,7 @@ void recomp_icall_not_code_log(uint32_t va)
 #include <stdlib.h>
 #include <math.h>
 
-void recomp_unimpl(const char *text, uint32_t va)
+void recomp_unimpl(X86Ctx *ctx, const char *text, uint32_t va)
 {
     static int printed;
     const char *trap = getenv("RECOMP_UNIMPL_TRAP");
@@ -254,7 +256,7 @@ void recomp_unimpl(const char *text, uint32_t va)
  * So the semaphore is the pointer at dev+0x3F0: hand it to the executor
  * (NV2A semaphore releases land there), then run the original wait.
  * Same fix as Burnout 3's BlockOnTime (burnout3-sw 0bf84b5,
- * src/recomp_manual.c).
+ * src/recomp_manual.c; burnout3_vulkan patches/02-d3d-semaphore.patch).
  * Verified: M2 stage 4 run, docs/status.md.
  *
  * Second part (M3 stage 2): the wait itself, with the executor. The original
@@ -278,12 +280,12 @@ void recomp_unimpl(const char *text, uint32_t va)
 extern void nv2a_pb_set_semaphore_target(uint32_t guest_va);
 extern void recomp_spin_wake(void);
 extern void xbox_GuestSleepNs(uint64_t ns);
-extern void sub_00019FE0_gen(void);
-extern void sub_00019F40(void);
-extern void sub_00019E90(void);
-extern THPS_TLS uint32_t g_ecx;
+extern void sub_00019FE0_gen(RECOMP_PARAMS);
+extern void sub_00019F40(RECOMP_PARAMS);
+extern void sub_00019E90(RECOMP_PARAMS);
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
 
-void sub_00019FE0(void)
+void sub_00019FE0(RECOMP_PARAMS)
 {
     static int exec = -1;
     static uint32_t registered;
@@ -301,7 +303,7 @@ void sub_00019FE0(void)
         registered = sem;
     }
     if (!exec || !sem || !target) {
-        sub_00019FE0_gen();
+        sub_00019FE0_gen(RECOMP_ARGS);
         return;
     }
     {
@@ -312,11 +314,11 @@ void sub_00019FE0(void)
             if (target == cur) {
                 g_esp -= 4; GUEST32(g_esp) = 0;              /* flags */
                 g_esp -= 4; GUEST32(g_esp) = 0x0001A01Cu;    /* return address */
-                sub_00019F40();                              /* ret 4 */
+                sub_00019F40(RECOMP_ARGS);                              /* ret 4 */
             } else {
                 g_ecx = dev;
                 g_esp -= 4; GUEST32(g_esp) = 0x0001A01Cu;
-                sub_00019E90();                              /* ret */
+                sub_00019E90(RECOMP_ARGS);                              /* ret */
             }
             g_esp = entry_esp;
             /* The executor thread releases the semaphore; wake it and sleep in
@@ -348,9 +350,9 @@ void sub_00019FE0(void)
  * Address: XInputGetState(handle, state) stdcall ret 8 -- copies the packet
  * number from handle+8 and the gamepad from handle+0x14; the only caller is
  * the game's pad poll at 0x001B0FFE. Off by default: a pass-through. */
-extern void sub_0021830B_gen(void);
+extern void sub_0021830B_gen(RECOMP_PARAMS);
 
-void sub_0021830B(void)
+void sub_0021830B(RECOMP_PARAMS)
 {
     static int on = -1;
     static uint32_t last_buttons = 0xFFFFFFFFu, last_analog, last_rc = 0xFFFFFFFFu;
@@ -361,9 +363,9 @@ void sub_0021830B(void)
         on = e && *e && *e != '0';
     }
     if (xdk_xinput_active())
-        xdk_XInputGetState();
+        xdk_XInputGetState(RECOMP_ARGS);
     else
-        sub_0021830B_gen();
+        sub_0021830B_gen(RECOMP_ARGS);
     if (on && state) {
         uint32_t buttons = GUEST32(state + 4) & 0xFFFFu;   /* wButtons */
         uint32_t analog = GUEST32(state + 6);              /* A B X Y */
@@ -394,7 +396,7 @@ void sub_0021830B(void)
  * guest stack (a scan; FPO frames, so stale slots show up too).
  * Address: the swap path's first function, called once per presented frame
  * (waits on the swap throttle at 0x00018FA1). Off by default: a pass-through. */
-extern void sub_00018F90_gen(void);
+extern void sub_00018F90_gen(RECOMP_PARAMS);
 static int thps_fps(void);                    /* level frame limiter, below */
 static void thps_clock_tick(void);            /* THPS_CLOCK_LOG (test), below */
 static volatile int s_limiter_calls;
@@ -402,21 +404,22 @@ static volatile int s_in_level;               /* the last frame ran the level li
 static void thps_bind_tick(void);             /* BUTTON MAPPING (end of file) */
 static volatile uint64_t s_movie_vbl;         /* the guest vblank of the Bink loop's last pass (thps_movie_wait) */
 static volatile int s_menus_stretched;        /* MENUS AT 16:9 = STRETCHED (RECOMP OPTIONS values) */
+static volatile int s_movies_stretched;       /* MOVIES AT 16:9 = STRETCHED (2.0) */
 static volatile int s_hud_stretched;          /* HUD AT 16:9 = STRETCHED (GitHub #10, v1.2.2) */
 void thps_gamma_apply(void);                  /* BRIGHTNESS (GitHub #11, v1.2.2) */
 extern void xbox_GuestSetHz(int hz);
 extern int xbox_GuestHz(void);
 static volatile uint32_t s_swaps;             /* presented frames, for the freeze report */
-static void thps_freeze_watch_start(void);    /* FREEZE REPORT (GitHub #11), below */
+static void thps_freeze_watch_start(RECOMP_PARAMS);    /* FREEZE REPORT (GitHub #11), below */
 static void thps_freeze_test_hold(uint32_t secs);
 
-void sub_00018F90(void)
+void sub_00018F90(RECOMP_PARAMS)
 {
     static int every = -1;
     static unsigned calls;
 
     if (!s_swaps)
-        thps_freeze_watch_start();                /* on the game thread: its g_esp */
+        thps_freeze_watch_start(RECOMP_ARGS);                /* on the game thread: its g_esp */
     s_swaps++;
     {
         /* THPS_TEST_FREEZE=<frame>:<s> (test only): hold the game thread once,
@@ -551,9 +554,13 @@ void sub_00018F90(void)
             xbox_SetPresentWide(s_in_level);
             thps_ws_apply();
             /* MENUS AT 16:9 stretches menus only, never a movie (maintainer,
-             * 2026-10-26): the Bink loop ran within the last half second */
-            nv2a_vk_set_stretch_43(s_menus_stretched
-                                   && !(s_movie_vbl && xbox_GuestVblankCount() - s_movie_vbl < 30));
+             * 2026-10-26): the Bink loop ran within the last half second; a
+             * movie follows MOVIES AT 16:9 instead (2.0, pillarboxed by
+             * default as before) */
+            {
+                int movie = s_movie_vbl && xbox_GuestVblankCount() - s_movie_vbl < 30;
+                nv2a_vk_set_stretch_43(movie ? s_movies_stretched : s_menus_stretched);
+            }
             {
                 /* HUD at the wide aspects (maintainer, 2026-11-07): SCORE,
                  * SPECIAL, SWITCH and the rest of the 2D are drawn with the
@@ -604,7 +611,7 @@ void sub_00018F90(void)
             thps_clock_tick();
         s_limiter_calls = 0;
     }
-    sub_00018F90_gen();
+    sub_00018F90_gen(RECOMP_ARGS);
 }
 
 /* â”€â”€ XPP device calls â€” XInput HLE (stage 3, B2) and diagnostic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -629,52 +636,52 @@ void sub_00018F90(void)
  *   0x002183B4 XInputPoll(handle) ret 4
  *   0x00216AA0 XDEVICE_TYPE_GAMEPAD record (bound in input.c)
  * Verified: menu tour and B3 two-pad runs with the HLE on, docs/status.md. */
-extern void sub_0021782B_gen(void);
-extern void sub_00217830_gen(void);
-extern void sub_00217852_gen(void);
-extern void sub_00218098_gen(void);
-extern void sub_0021810D_gen(void);
-extern void sub_00218119_gen(void);
-extern void sub_0021837C_gen(void);
-extern void sub_002183B4_gen(void);
+extern void sub_0021782B_gen(RECOMP_PARAMS);
+extern void sub_00217830_gen(RECOMP_PARAMS);
+extern void sub_00217852_gen(RECOMP_PARAMS);
+extern void sub_00218098_gen(RECOMP_PARAMS);
+extern void sub_0021810D_gen(RECOMP_PARAMS);
+extern void sub_00218119_gen(RECOMP_PARAMS);
+extern void sub_0021837C_gen(RECOMP_PARAMS);
+extern void sub_002183B4_gen(RECOMP_PARAMS);
 
-void sub_0021782B(void)
+void sub_0021782B(RECOMP_PARAMS)
 {
     if (xdk_xinput_active())
-        xdk_XInitDevices();
+        xdk_XInitDevices(RECOMP_ARGS);
     else
-        sub_0021782B_gen();
+        sub_0021782B_gen(RECOMP_ARGS);
 }
 
-void sub_00217830(void)
+void sub_00217830(RECOMP_PARAMS)
 {
     if (xdk_xinput_active())
-        xdk_UpdateDevices();
-    sub_00217830_gen();
+        xdk_UpdateDevices(RECOMP_ARGS);
+    sub_00217830_gen(RECOMP_ARGS);
 }
 
-void sub_00218119(void)
+void sub_00218119(RECOMP_PARAMS)
 {
     if (xdk_xinput_active())
-        xdk_XInputGetCapabilities();
+        xdk_XInputGetCapabilities(RECOMP_ARGS);
     else
-        sub_00218119_gen();
+        sub_00218119_gen(RECOMP_ARGS);
 }
 
-void sub_0021837C(void)
+void sub_0021837C(RECOMP_PARAMS)
 {
     if (xdk_xinput_active())
-        xdk_XInputSetState();
+        xdk_XInputSetState(RECOMP_ARGS);
     else
-        sub_0021837C_gen();
+        sub_0021837C_gen(RECOMP_ARGS);
 }
 
-void sub_002183B4(void)
+void sub_002183B4(RECOMP_PARAMS)
 {
     if (xdk_xinput_active())
-        xdk_XInputPoll();
+        xdk_XInputPoll(RECOMP_ARGS);
     else
-        sub_002183B4_gen();
+        sub_002183B4_gen(RECOMP_ARGS);
 }
 
 static int pad_trace_on(void)
@@ -687,40 +694,40 @@ static int pad_trace_on(void)
     return on;
 }
 
-void sub_00217852(void)
+void sub_00217852(RECOMP_PARAMS)
 {
     uint32_t type = GUEST32(g_esp + 4), pins = GUEST32(g_esp + 8), prem = GUEST32(g_esp + 12);
     uint32_t ret_va = GUEST32(g_esp);
     if (xdk_xinput_active())
-        xdk_UpdateDevices();
-    sub_00217852_gen();
+        xdk_UpdateDevices(RECOMP_ARGS);
+    sub_00217852_gen(RECOMP_ARGS);
     if (pad_trace_on() && (GUEST32(pins) || GUEST32(prem)))
         fprintf(stderr, "[PADTRACE] XGetDeviceChanges(type 0x%08X) ins=%X rem=%X ret=0x%08X\n",
                 type, GUEST32(pins), GUEST32(prem), ret_va);
 }
 
-void sub_00218098(void)
+void sub_00218098(RECOMP_PARAMS)
 {
     uint32_t type = GUEST32(g_esp + 4), port = GUEST32(g_esp + 8), slot = GUEST32(g_esp + 12);
     uint32_t ret_va = GUEST32(g_esp);
     if (xdk_xinput_active())
-        xdk_XInputOpen();
+        xdk_XInputOpen(RECOMP_ARGS);
     else
-        sub_00218098_gen();
+        sub_00218098_gen(RECOMP_ARGS);
     if (pad_trace_on())
         fprintf(stderr, "[PADTRACE] XInputOpen(type 0x%08X, port %u, slot %u) -> 0x%08X ret=0x%08X\n",
                 type, port, slot, g_eax, ret_va);
 }
 
-void sub_0021810D(void)
+void sub_0021810D(RECOMP_PARAMS)
 {
     uint32_t h = GUEST32(g_esp + 4), ret_va = GUEST32(g_esp);
     if (pad_trace_on())
         fprintf(stderr, "[PADTRACE] XInputClose(0x%08X) ret=0x%08X\n", h, ret_va);
     if (xdk_xinput_active())
-        xdk_XInputClose();
+        xdk_XInputClose(RECOMP_ARGS);
     else
-        sub_0021810D_gen();
+        sub_0021810D_gen(RECOMP_ARGS);
 }
 
 /* â”€â”€ Multiplayer entry with two controllers and no link, sub_001BECBA â”€â”€â”€â”€â”€
@@ -735,10 +742,10 @@ void sub_0021810D(void)
  * (System Link stays unavailable); only this one call site, return address
  * 0x001238EC, answers "link" when two or more controllers are connected.
  * Verified: B3 runs with two controllers (docs/status.md). */
-extern void sub_001BECBA_gen(void);
+extern void sub_001BECBA_gen(RECOMP_PARAMS);
 extern unsigned xbox_InputConnectedMask(void);
 
-void sub_001BECBA(void)
+void sub_001BECBA(RECOMP_PARAMS)
 {
     if (GUEST32(g_esp) == 0x001238ECu) {
         unsigned m = xbox_InputConnectedMask(), n = 0;
@@ -750,7 +757,7 @@ void sub_001BECBA(void)
             return;
         }
     }
-    sub_001BECBA_gen();
+    sub_001BECBA_gen(RECOMP_ARGS);
 }
 
 /* â”€â”€ DirectSound â€” HLE (stage 3, B1) and diagnostic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -768,302 +775,302 @@ void sub_001BECBA(void)
  * methods are the XMediaObject vtable at 0x0021EAB0 (second vtable 0x0021EAA4),
  * bound with xdk_dsound_bind() in main.c.
  * Verified: menu tour with RECOMP_DSOUND_WAV recording, docs/status.md. */
-extern void sub_0004A19C_gen(void);
-extern void sub_0004A278_gen(void);
-extern void sub_00049325_gen(void);
-extern void sub_000477CE_gen(void);
-extern void sub_000477E4_gen(void);
-extern void sub_0004A043_gen(void);
-extern void sub_0004A067_gen(void);
-extern void sub_0004781A_gen(void);
-extern void sub_00049ABC_gen(void);
-extern void sub_00049AE0_gen(void);
-extern void sub_00049137_gen(void);
-extern void sub_00049153_gen(void);
-extern void sub_00049173_gen(void);
-extern void sub_0004918F_gen(void);
-extern void sub_00049AF8_gen(void);
-extern void sub_00049117_gen(void);
-extern void sub_00049A68_gen(void);
-extern void sub_00048E9C_gen(void);
-extern void sub_000491DF_gen(void);
-extern void sub_0004931B_gen(void);
-extern void sub_00049972_gen(void);
-extern void sub_00049982_gen(void);
-extern void sub_000485EF_gen(void);
-extern void sub_00048694_gen(void);
-extern void sub_000486C9_gen(void);
-extern void sub_0004863A_gen(void);
-extern void sub_00048667_gen(void);
+extern void sub_0004A19C_gen(RECOMP_PARAMS);
+extern void sub_0004A278_gen(RECOMP_PARAMS);
+extern void sub_00049325_gen(RECOMP_PARAMS);
+extern void sub_000477CE_gen(RECOMP_PARAMS);
+extern void sub_000477E4_gen(RECOMP_PARAMS);
+extern void sub_0004A043_gen(RECOMP_PARAMS);
+extern void sub_0004A067_gen(RECOMP_PARAMS);
+extern void sub_0004781A_gen(RECOMP_PARAMS);
+extern void sub_00049ABC_gen(RECOMP_PARAMS);
+extern void sub_00049AE0_gen(RECOMP_PARAMS);
+extern void sub_00049137_gen(RECOMP_PARAMS);
+extern void sub_00049153_gen(RECOMP_PARAMS);
+extern void sub_00049173_gen(RECOMP_PARAMS);
+extern void sub_0004918F_gen(RECOMP_PARAMS);
+extern void sub_00049AF8_gen(RECOMP_PARAMS);
+extern void sub_00049117_gen(RECOMP_PARAMS);
+extern void sub_00049A68_gen(RECOMP_PARAMS);
+extern void sub_00048E9C_gen(RECOMP_PARAMS);
+extern void sub_000491DF_gen(RECOMP_PARAMS);
+extern void sub_0004931B_gen(RECOMP_PARAMS);
+extern void sub_00049972_gen(RECOMP_PARAMS);
+extern void sub_00049982_gen(RECOMP_PARAMS);
+extern void sub_000485EF_gen(RECOMP_PARAMS);
+extern void sub_00048694_gen(RECOMP_PARAMS);
+extern void sub_000486C9_gen(RECOMP_PARAMS);
+extern void sub_0004863A_gen(RECOMP_PARAMS);
+extern void sub_00048667_gen(RECOMP_PARAMS);
 
 /* DirectSoundCreate, 3 arg(s) */
-void sub_0004A19C(void)
+void sub_0004A19C(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("DirectSoundCreate", 3);
+    xdk_dsound_trace(ctx, "DirectSoundCreate", 3);
     if (xdk_dsound_active())
-        xdk_DirectSoundCreate();
+        xdk_DirectSoundCreate(RECOMP_ARGS);
     else
-        sub_0004A19C_gen();
+        sub_0004A19C_gen(RECOMP_ARGS);
 }
 
 /* DirectSoundCreateStream, 2 arg(s) */
-void sub_0004A278(void)
+void sub_0004A278(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("DirectSoundCreateStream", 2);
+    xdk_dsound_trace(ctx, "DirectSoundCreateStream", 2);
     if (xdk_dsound_active())
-        xdk_DirectSoundCreateStream();
+        xdk_DirectSoundCreateStream(RECOMP_ARGS);
     else
-        sub_0004A278_gen();
+        sub_0004A278_gen(RECOMP_ARGS);
 }
 
 /* DirectSoundDoWork, 0 arg(s) */
-void sub_00049325(void)
+void sub_00049325(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("DirectSoundDoWork", 0);
+    xdk_dsound_trace(ctx, "DirectSoundDoWork", 0);
     if (xdk_dsound_active())
-        xdk_DirectSoundDoWork();
+        xdk_DirectSoundDoWork(RECOMP_ARGS);
     else
-        sub_00049325_gen();
+        sub_00049325_gen(RECOMP_ARGS);
 }
 
 /* IDirectSound_AddRef, 1 arg(s) */
-void sub_000477CE(void)
+void sub_000477CE(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSound_AddRef", 1);
+    xdk_dsound_trace(ctx, "IDirectSound_AddRef", 1);
     if (xdk_dsound_active())
-        xdk_IDirectSound_AddRef();
+        xdk_IDirectSound_AddRef(RECOMP_ARGS);
     else
-        sub_000477CE_gen();
+        sub_000477CE_gen(RECOMP_ARGS);
 }
 
 /* IDirectSound_Release, 1 arg(s) */
-void sub_000477E4(void)
+void sub_000477E4(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSound_Release", 1);
+    xdk_dsound_trace(ctx, "IDirectSound_Release", 1);
     if (xdk_dsound_active())
-        xdk_IDirectSound_Release();
+        xdk_IDirectSound_Release(RECOMP_ARGS);
     else
-        sub_000477E4_gen();
+        sub_000477E4_gen(RECOMP_ARGS);
 }
 
 /* IDirectSound_CreateSoundBuffer, 4 arg(s) */
-void sub_0004A043(void)
+void sub_0004A043(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSound_CreateSoundBuffer", 4);
+    xdk_dsound_trace(ctx, "IDirectSound_CreateSoundBuffer", 4);
     if (xdk_dsound_active())
-        xdk_IDirectSound_CreateSoundBuffer();
+        xdk_IDirectSound_CreateSoundBuffer(RECOMP_ARGS);
     else
-        sub_0004A043_gen();
+        sub_0004A043_gen(RECOMP_ARGS);
 }
 
 /* IDirectSound_CreateSoundStream, 4 arg(s) */
-void sub_0004A067(void)
+void sub_0004A067(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSound_CreateSoundStream", 4);
+    xdk_dsound_trace(ctx, "IDirectSound_CreateSoundStream", 4);
     if (xdk_dsound_active())
-        xdk_IDirectSound_CreateSoundStream();
+        xdk_IDirectSound_CreateSoundStream(RECOMP_ARGS);
     else
-        sub_0004A067_gen();
+        sub_0004A067_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_Release, 1 arg(s) */
-void sub_0004781A(void)
+void sub_0004781A(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_Release", 1);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_Release", 1);
     if (xdk_dsound_active())
-        xdk_DSB_Release();
+        xdk_DSB_Release(RECOMP_ARGS);
     else
-        sub_0004781A_gen();
+        sub_0004781A_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_Play, 4 arg(s) */
-void sub_00049ABC(void)
+void sub_00049ABC(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_Play", 4);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_Play", 4);
     if (xdk_dsound_active())
-        xdk_DSB_Play();
+        xdk_DSB_Play(RECOMP_ARGS);
     else
-        sub_00049ABC_gen();
+        sub_00049ABC_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_Stop, 1 arg(s) */
-void sub_00049AE0(void)
+void sub_00049AE0(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_Stop", 1);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_Stop", 1);
     if (xdk_dsound_active())
-        xdk_DSB_Stop();
+        xdk_DSB_Stop(RECOMP_ARGS);
     else
-        sub_00049AE0_gen();
+        sub_00049AE0_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_GetStatus, 2 arg(s) */
-void sub_00049137(void)
+void sub_00049137(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_GetStatus", 2);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_GetStatus", 2);
     if (xdk_dsound_active())
-        xdk_DSB_GetStatus();
+        xdk_DSB_GetStatus(RECOMP_ARGS);
     else
-        sub_00049137_gen();
+        sub_00049137_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_GetCurrentPosition, 3 arg(s) */
-void sub_00049153(void)
+void sub_00049153(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_GetCurrentPosition", 3);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_GetCurrentPosition", 3);
     if (xdk_dsound_active())
-        xdk_DSB_GetCurrentPosition();
+        xdk_DSB_GetCurrentPosition(RECOMP_ARGS);
     else
-        sub_00049153_gen();
+        sub_00049153_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_SetCurrentPosition, 2 arg(s) */
-void sub_00049173(void)
+void sub_00049173(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_SetCurrentPosition", 2);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_SetCurrentPosition", 2);
     if (xdk_dsound_active())
-        xdk_DSB_SetCurrentPosition();
+        xdk_DSB_SetCurrentPosition(RECOMP_ARGS);
     else
-        sub_00049173_gen();
+        sub_00049173_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_Lock, 8 arg(s) */
-void sub_0004918F(void)
+void sub_0004918F(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_Lock", 8);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_Lock", 8);
     if (xdk_dsound_active())
-        xdk_DSB_Lock();
+        xdk_DSB_Lock(RECOMP_ARGS);
     else
-        sub_0004918F_gen();
+        sub_0004918F_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_SetBufferData, 3 arg(s) */
-void sub_00049AF8(void)
+void sub_00049AF8(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_SetBufferData", 3);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_SetBufferData", 3);
     if (xdk_dsound_active())
-        xdk_DSB_SetBufferData();
+        xdk_DSB_SetBufferData(RECOMP_ARGS);
     else
-        sub_00049AF8_gen();
+        sub_00049AF8_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_SetLoopRegion, 3 arg(s) */
-void sub_00049117(void)
+void sub_00049117(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_SetLoopRegion", 3);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_SetLoopRegion", 3);
     if (xdk_dsound_active())
-        xdk_DSB_SetLoopRegion();
+        xdk_DSB_SetLoopRegion(RECOMP_ARGS);
     else
-        sub_00049117_gen();
+        sub_00049117_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_SetFrequency, 2 arg(s) */
-void sub_00049A68(void)
+void sub_00049A68(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_SetFrequency", 2);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_SetFrequency", 2);
     if (xdk_dsound_active())
-        xdk_DSB_SetFrequency();
+        xdk_DSB_SetFrequency(RECOMP_ARGS);
     else
-        sub_00049A68_gen();
+        sub_00049A68_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundBuffer_SetVolume, 2 arg(s) */
-void sub_00048E9C(void)
+void sub_00048E9C(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundBuffer_SetVolume", 2);
+    xdk_dsound_trace(ctx, "IDirectSoundBuffer_SetVolume", 2);
     if (xdk_dsound_active())
-        xdk_DSB_SetVolume();
+        xdk_DSB_SetVolume(RECOMP_ARGS);
     else
-        sub_00048E9C_gen();
+        sub_00048E9C_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundStream_SetVolume, 2 arg(s) */
-void sub_000491DF(void)
+void sub_000491DF(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundStream_SetVolume", 2);
+    xdk_dsound_trace(ctx, "IDirectSoundStream_SetVolume", 2);
     if (xdk_dsound_active())
-        xdk_DSS_SetVolume();
+        xdk_DSS_SetVolume(RECOMP_ARGS);
     else
-        sub_000491DF_gen();
+        sub_000491DF_gen(RECOMP_ARGS);
 }
 
 /* IDirectSoundStream_Pause, 2 arg(s) */
-void sub_0004931B(void)
+void sub_0004931B(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("IDirectSoundStream_Pause", 2);
+    xdk_dsound_trace(ctx, "IDirectSoundStream_Pause", 2);
     if (xdk_dsound_active())
-        xdk_DSS_Pause();
+        xdk_DSS_Pause(RECOMP_ARGS);
     else
-        sub_0004931B_gen();
+        sub_0004931B_gen(RECOMP_ARGS);
 }
 
 /* CDirectSoundStream_AddRef, 1 arg(s) */
-void sub_00049972(void)
+void sub_00049972(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("CDirectSoundStream_AddRef", 1);
+    xdk_dsound_trace(ctx, "CDirectSoundStream_AddRef", 1);
     if (xdk_dsound_active())
-        xdk_DSS_AddRef();
+        xdk_DSS_AddRef(RECOMP_ARGS);
     else
-        sub_00049972_gen();
+        sub_00049972_gen(RECOMP_ARGS);
 }
 
 /* CDirectSoundStream_Release, 1 arg(s) */
-void sub_00049982(void)
+void sub_00049982(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("CDirectSoundStream_Release", 1);
+    xdk_dsound_trace(ctx, "CDirectSoundStream_Release", 1);
     if (xdk_dsound_active())
-        xdk_DSS_Release();
+        xdk_DSS_Release(RECOMP_ARGS);
     else
-        sub_00049982_gen();
+        sub_00049982_gen(RECOMP_ARGS);
 }
 
 /* CDirectSoundStream_GetInfo, 2 arg(s) */
-void sub_000485EF(void)
+void sub_000485EF(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("CDirectSoundStream_GetInfo", 2);
+    xdk_dsound_trace(ctx, "CDirectSoundStream_GetInfo", 2);
     if (xdk_dsound_active())
-        xdk_DSS_GetInfo();
+        xdk_DSS_GetInfo(RECOMP_ARGS);
     else
-        sub_000485EF_gen();
+        sub_000485EF_gen(RECOMP_ARGS);
 }
 
 /* CDirectSoundStream_GetStatus, 2 arg(s) */
-void sub_00048694(void)
+void sub_00048694(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("CDirectSoundStream_GetStatus", 2);
+    xdk_dsound_trace(ctx, "CDirectSoundStream_GetStatus", 2);
     if (xdk_dsound_active())
-        xdk_DSS_GetStatus();
+        xdk_DSS_GetStatus(RECOMP_ARGS);
     else
-        sub_00048694_gen();
+        sub_00048694_gen(RECOMP_ARGS);
 }
 
 /* CDirectSoundStream_Process, 3 arg(s) */
-void sub_000486C9(void)
+void sub_000486C9(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("CDirectSoundStream_Process", 3);
+    xdk_dsound_trace(ctx, "CDirectSoundStream_Process", 3);
     if (xdk_dsound_active())
-        xdk_DSS_Process();
+        xdk_DSS_Process(RECOMP_ARGS);
     else
-        sub_000486C9_gen();
+        sub_000486C9_gen(RECOMP_ARGS);
 }
 
 /* CDirectSoundStream_Discontinuity, 1 arg(s) */
-void sub_0004863A(void)
+void sub_0004863A(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("CDirectSoundStream_Discontinuity", 1);
+    xdk_dsound_trace(ctx, "CDirectSoundStream_Discontinuity", 1);
     if (xdk_dsound_active())
-        xdk_DSS_Discontinuity();
+        xdk_DSS_Discontinuity(RECOMP_ARGS);
     else
-        sub_0004863A_gen();
+        sub_0004863A_gen(RECOMP_ARGS);
 }
 
 /* CDirectSoundStream_Flush, 1 arg(s) */
-void sub_00048667(void)
+void sub_00048667(RECOMP_PARAMS)
 {
-    xdk_dsound_trace("CDirectSoundStream_Flush", 1);
+    xdk_dsound_trace(ctx, "CDirectSoundStream_Flush", 1);
     if (xdk_dsound_active())
-        xdk_DSS_Flush();
+        xdk_DSS_Flush(RECOMP_ARGS);
     else
-        sub_00048667_gen();
+        sub_00048667_gen(RECOMP_ARGS);
 }
 
 /* â”€â”€ D3D 3947 spin delay, sub_00019A80 â€” sleep instead of spinning â”€â”€â”€â”€â”€â”€â”€â”€
@@ -1081,7 +1088,7 @@ void sub_00048667(void)
 extern void xbox_GuestFlipWait(void);
 extern void xbox_GuestYield(void);
 
-void sub_00019A80(void)
+void sub_00019A80(RECOMP_PARAMS)
 {
     if (GUEST32(g_esp) == 0x00018FB9u)
         xbox_GuestFlipWait();
@@ -1107,10 +1114,10 @@ void sub_00019A80(void)
  * (RECOMP_VBLANK=1, experimental) D3D's own count is used.
  * stdcall ret 4: [esp+4] = D3DFIELD_STATUS* { Field, VBlankCount }.
  * Verified: Single Session clock at 30/60/120 fps (docs/status.md, M4). */
-extern void sub_00013A20_gen(void);
+extern void sub_00013A20_gen(RECOMP_PARAMS);
 extern uint64_t xbox_DisplayVblankCount(void);
 
-void sub_00013A20(void)
+void sub_00013A20(RECOMP_PARAMS)
 {
     static int irq = -1;
     uint32_t status = GUEST32(g_esp + 4);
@@ -1118,7 +1125,7 @@ void sub_00013A20(void)
         const char *e = getenv("RECOMP_VBLANK");
         irq = e && strcmp(e, "0");
     }
-    sub_00013A20_gen();
+    sub_00013A20_gen(RECOMP_ARGS);
     if (!irq && status)
         GUEST32(status + 4) = (uint32_t)xbox_DisplayVblankCount();
 }
@@ -1137,7 +1144,7 @@ void sub_00013A20(void)
  * clear them first (xbox_Nv2aVblankTaken), as burnout3-sw does for its D3D
  * (src/recomp_manual.c, sub_00356DA0). thiscall: ecx = the miniport block.
  * Verified: Single Session clock, docs/status.md (M4). */
-extern void sub_0001F120_gen(void);
+extern void sub_0001F120_gen(RECOMP_PARAMS);
 extern void xbox_Nv2aVblankTaken(void);
 
 /* One at a time: the DPC (timer thread) and D3D's waits (game thread) both
@@ -1159,14 +1166,14 @@ static int vblank_trace(void)
     return on;
 }
 
-void sub_0001F120(void)
+void sub_0001F120(RECOMP_PARAMS)
 {
     uint32_t blk = g_ecx, before;
     while (atomic_flag_test_and_set_explicit(&s_vblank_handler_lock, memory_order_acquire))
         ;                                        /* the handler is short */
     before = GUEST32(blk + 0x210);
     xbox_Nv2aVblankTaken();
-    sub_0001F120_gen();
+    sub_0001F120_gen(RECOMP_ARGS);
     if (vblank_trace() && GUEST32(blk + 0x210) != before)
         fprintf(stderr, "[VBTRACE] vblank retire %u -> %u (ret 0x%08X)\n", before, GUEST32(blk + 0x210),
                 GUEST32(g_esp - 4));
@@ -1175,12 +1182,12 @@ void sub_0001F120(void)
 
 /* THPS_VBLANK_TRACE=1: D3D's software-method handler (NOP traps 0x300..0x324),
  * thiscall ecx = block, [esp+4] = method, [esp+8] = data; ret 8. */
-extern void sub_0001F300_gen(void);
+extern void sub_0001F300_gen(RECOMP_PARAMS);
 
-void sub_0001F300(void)
+void sub_0001F300(RECOMP_PARAMS)
 {
     uint32_t blk = g_ecx, m = GUEST32(g_esp + 4), d = GUEST32(g_esp + 8), before = GUEST32(blk + 0x210);
-    sub_0001F300_gen();
+    sub_0001F300_gen(RECOMP_ARGS);
     if (vblank_trace())
         fprintf(stderr, "[VBTRACE] swmethod 0x%03X data 0x%08X retire %u -> %u slot %u\n", m, d, before,
                 GUEST32(blk + 0x210), GUEST32(blk + 0x1E0));
@@ -1219,10 +1226,8 @@ void sub_0001F300(void)
  * Verified: Free Skate level, frame-time counter and process CPU
  * (docs/status.md, M4; fix B: M5). */
 #include "platform/host_wait.h"
-#include "nv2a_vk.h"                                      /* nv2a_vk_present_fifo */
-#include "shader_pack.h"                                  /* SHADERS: the pack index, saved presets */
+#include "nv2a_vk.h"                                   /* nv2a_vk_present_fifo */
 #include "boot_video.h"                                   /* BOOT ANIMATION: media\boot.mpg */
-#include <SDL3/SDL_stdinc.h>                              /* SDL_strcasecmp (SHADERS browser) */
 #include <SDL3/SDL_thread.h>                              /* the freeze report's watcher */
 #include <SDL3/SDL_timer.h>
 
@@ -1239,7 +1244,7 @@ void sub_0001F300(void)
  * blocked), and "[FREEZE] frames again" if the game recovers. Nothing is
  * stopped or changed; a long loading screen only costs a few log lines.
  * Verified: docs/status.md (freeze report run). */
-extern THPS_TLS uint32_t g_ebx, g_edx, g_esi, g_edi, g_ebp;
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
 extern volatile uint64_t g_icall_count;
 static uint32_t *s_fw_esp, *s_fw_reg[7];
 static int s_fw_secs;
@@ -1293,7 +1298,7 @@ static void thps_freeze_test_hold(uint32_t secs)
     SDL_Delay(secs * 1000u);
 }
 
-static void thps_freeze_watch_start(void)
+static void thps_freeze_watch_start(RECOMP_PARAMS)
 {
     const char *e = getenv("THPS_FREEZE_REPORT");
     SDL_Thread *t;
@@ -1309,7 +1314,7 @@ static void thps_freeze_watch_start(void)
     fprintf(stderr, "  freeze report: after %d s without a frame (THPS_FREEZE_REPORT)\n", s_fw_secs);
 }
 
-extern void sub_0015AFA0_gen(void);
+extern void sub_0015AFA0_gen(RECOMP_PARAMS);
 /* s_limiter_calls (declared above sub_00018F90): limiter runs since the last swap. */
 
 /* ── The 3 s hold after a save is loaded, sub_001205D0 ───────────────────────
@@ -1325,17 +1330,17 @@ extern void sub_0015AFA0_gen(void);
  * still ends after the game's own 3000 ms, every other time read goes
  * straight through.
  * Verified: docs/status.md (v0.9.2, QPC calls and the [hitch] line with a save). */
-extern void sub_001B9DB6_gen(void);
+extern void sub_001B9DB6_gen(RECOMP_PARAMS);
 extern void xbox_GuestSleepNs(uint64_t ns);       /* toolkit: the guest waits' high-resolution sleep */
 extern void xbox_ft_sleep(double ms);
 
-void sub_001B9DB6(void)
+void sub_001B9DB6(RECOMP_PARAMS)
 {
     if (GUEST32(g_esp) == 0x00120B5Au) {
         xbox_GuestSleepNs(1000000);
         xbox_ft_sleep(1.0);                       /* the [hitch] line: a sleep, not game work */
     }
-    sub_001B9DB6_gen();
+    sub_001B9DB6_gen(RECOMP_ARGS);
 }
 
 /* The player's choice, saves\settings.ini frame_rate = original | 120 (the
@@ -1523,7 +1528,7 @@ static void thps_timestep_fix(void)
 
 /* The level loop's frame step, sub_0015B080: its timesteps are its last work
  * (after them only the fps text, then ret); the physics runs in its caller. */
-extern void sub_0015B080_gen(void);
+extern void sub_0015B080_gen(RECOMP_PARAMS);
 
 /* Test only (fps120 loops, 2026-11-14): THPS_TEST_RESTART_SPEED=<v> - 0.5 s
  * after a test restart (sub_000CABE0 below arms it) player 1's velocity
@@ -1537,10 +1542,10 @@ static int s_test_kick_v;
  * waits below count these; 1 at 60 fps, 0 or 1 at 120). */
 static uint32_t s_clock_prev, s_clock_ticks = 1;
 
-void sub_0015B080(void)
+void sub_0015B080(RECOMP_PARAMS)
 {
     uint32_t c;
-    sub_0015B080_gen();
+    sub_0015B080_gen(RECOMP_ARGS);
     thps_timestep_fix();
     c = GUEST32(0x002FD504u);
     s_clock_ticks = c >= s_clock_prev ? c - s_clock_prev : 1;    /* a new level resets the clock */
@@ -1590,7 +1595,7 @@ static int thps_fps(void)
 }
 
 /* The game's time read: QueryPerformanceCounter into a guest buffer (low dword). */
-static uint32_t guest_time_lo(void)
+static uint32_t guest_time_lo(RECOMP_PARAMS)
 {
     uint32_t buf, lo;
     g_esp -= 8;
@@ -1599,7 +1604,7 @@ static uint32_t guest_time_lo(void)
     GUEST32(g_esp) = buf;
     g_esp -= 4;
     GUEST32(g_esp) = 0;                       /* return address: popped by ret 4 */
-    sub_001B9DB6();
+    sub_001B9DB6(RECOMP_ARGS);
     lo = GUEST32(buf);
     g_esp += 8;
     return lo;
@@ -1618,11 +1623,11 @@ extern long long xbox_ft_now(void);
 extern double xbox_ft_ms(long long since);
 extern void xbox_ft_vblank_wait(double ms);
 
-void sub_0015AFA0(void)
+void sub_0015AFA0(RECOMP_PARAMS)
 {
     double k = guest_us_per_tick();
     uint32_t target = (uint32_t)(1000000 / (thps_fps() + 1));      /* 60: 16393 = 0x4009 */
-    uint32_t start = guest_time_lo(), now = start;
+    uint32_t start = guest_time_lo(RECOMP_ARGS), now = start;
     double el;
     long long wait_t0;
 
@@ -1635,7 +1640,7 @@ void sub_0015AFA0(void)
             orig = e && *e == '0';
         }
         if (orig) {
-            sub_0015AFA0_gen();
+            sub_0015AFA0_gen(RECOMP_ARGS);
             return;
         }
     }
@@ -1650,7 +1655,7 @@ void sub_0015AFA0(void)
         el = (double)(uint32_t)(now - GUEST32(0x002762DCu)) * k;
         if ((double)target - el > 1500.0)
             host_sleep_ns((uint64_t)(((double)target - el - 1500.0) * 1000.0));
-        now = guest_time_lo();
+        now = guest_time_lo(RECOMP_ARGS);
     } else if (xbox_GuestHz() != thps_fps()) {
         /* The limiter is the pacer: hold the exact deadline. The guest time
          * is the host's QueryPerformanceCounter (KeQueryPerformanceCounter),
@@ -1661,7 +1666,7 @@ void sub_0015AFA0(void)
             if (el >= (double)target)
                 break;
             host_wait_until_ns(host_time_ns() + (uint64_t)(((double)target - el) * 1000.0));
-            now = guest_time_lo();
+            now = guest_time_lo(RECOMP_ARGS);
         }
     }
     /* else: the guest vblank paces (the swap throttle waits on it) and the
@@ -1679,7 +1684,7 @@ void sub_0015AFA0(void)
  * thps_hook_mp_check is its self-test: it runs at 0x001238B0, the first
  * instruction of the main menu's Multiplayer check, and only counts.
  * Verified: RECOMP_HOOK_TRACE=1 on the menu tour logs it (docs/status.md). */
-void thps_hook_mp_check(void)
+void thps_hook_mp_check(RECOMP_PARAMS)
 {
     static int on = -1;
     static unsigned n;
@@ -1699,10 +1704,10 @@ void thps_hook_mp_check(void)
  * 0x0019A430 name-exists check (eax = list, [esp+4] = name) ret 4,
  * 0x0019AB90 delete save (eax = index, ecx = list), 0x00146D80 overwrite
  * dialog step (ecx = screen, state at +0x16028). */
-extern void sub_0019A910_gen(void);
-extern void sub_0019A430_gen(void);
-extern void sub_0019AB90_gen(void);
-extern void sub_00146D80_gen(void);
+extern void sub_0019A910_gen(RECOMP_PARAMS);
+extern void sub_0019A430_gen(RECOMP_PARAMS);
+extern void sub_0019AB90_gen(RECOMP_PARAMS);
+extern void sub_00146D80_gen(RECOMP_PARAMS);
 
 static int save_trace_on(void)
 {
@@ -1726,21 +1731,21 @@ static void guest_str(uint32_t va, char *out, size_t n)
     out[i] = 0;
 }
 
-void sub_0019A910(void)
+void sub_0019A910(RECOMP_PARAMS)
 {
     uint32_t list = g_eax, ret_va = GUEST32(g_esp);
-    sub_0019A910_gen();
+    sub_0019A910_gen(RECOMP_ARGS);
     if (save_trace_on())
         fprintf(stderr, "[SAVETRACE] enumerate list=0x%08X -> %u saves (eax 0x%08X) ret=0x%08X\n",
                 list, GUEST32(list + 0x15bac), g_eax, ret_va);
 }
 
-void sub_0019A430(void)
+void sub_0019A430(RECOMP_PARAMS)
 {
     uint32_t list = g_eax, ret_va = GUEST32(g_esp);
     char name[64];
     guest_str(GUEST32(g_esp + 4), name, sizeof name);
-    sub_0019A430_gen();
+    sub_0019A430_gen(RECOMP_ARGS);
     if (save_trace_on())
         fprintf(stderr, "[SAVETRACE] name-exists \"%s\" in list=0x%08X (%u saves) -> %u ret=0x%08X\n",
                 name, list, GUEST32(list + 0x15bac), g_eax, ret_va);
@@ -1763,16 +1768,16 @@ void sub_0019A430(void)
 /* the screen: sub_00110560 is thiscall (ebp = ecx at its start); ebp is a
  * local of the lifted function, so the wrapper keeps ecx for the hook */
 static uint32_t s_save_scr;
-extern void sub_00110560_gen(void);
-void sub_00110560(void)
+extern void sub_00110560_gen(RECOMP_PARAMS);
+void sub_00110560(RECOMP_PARAMS)
 {
     uint32_t was = s_save_scr;
     s_save_scr = g_ecx;
-    sub_00110560_gen();
+    sub_00110560_gen(RECOMP_ARGS);
     s_save_scr = was;
 }
 
-void thps_save_overwrite_mode(void)
+void thps_save_overwrite_mode(RECOMP_PARAMS)
 {
     uint32_t scr = s_save_scr, list = scr + 0x244u, cnt, idx, typed;
     char a[32], b[32];
@@ -1791,21 +1796,21 @@ void thps_save_overwrite_mode(void)
     g_eax = 3u;
 }
 
-void sub_0019AB90(void)
+void sub_0019AB90(RECOMP_PARAMS)
 {
     uint32_t idx = g_eax, list = g_ecx, ret_va = GUEST32(g_esp);
     if (save_trace_on())
         fprintf(stderr, "[SAVETRACE] delete index %u list=0x%08X ret=0x%08X\n", idx, list, ret_va);
-    sub_0019AB90_gen();
+    sub_0019AB90_gen(RECOMP_ARGS);
     if (save_trace_on())
         fprintf(stderr, "[SAVETRACE] delete -> 0x%08X\n", g_eax);
 }
 
-void sub_00146D80(void)
+void sub_00146D80(RECOMP_PARAMS)
 {
     uint32_t self = g_ecx, ret_va = GUEST32(g_esp);
     uint32_t st = GUEST32(self + 0x16028);
-    sub_00146D80_gen();
+    sub_00146D80_gen(RECOMP_ARGS);
     if (save_trace_on())
         fprintf(stderr, "[SAVETRACE] overwrite dialog 0x%08X state %u -> %u (eax 0x%08X) ret=0x%08X\n",
                 self, st, GUEST32(self + 0x16028), g_eax, ret_va);
@@ -1814,11 +1819,11 @@ void sub_00146D80(void)
 /* Save-screen constructors (stage 3, B4): 0x0010F8B0(index, kind, mode) ret 0xC,
  * 0x0010FB40(?, kind, mode, ...) and 0x0010FC00(index, kind, mode, x) ret 0x10;
  * mode lands in [screen+0x15e24] (0 load, 1 new save, 3 overwrite). */
-extern void sub_0010F8B0_gen(void);
-extern void sub_0010FB40_gen(void);
-extern void sub_0010FC00_gen(void);
+extern void sub_0010F8B0_gen(RECOMP_PARAMS);
+extern void sub_0010FB40_gen(RECOMP_PARAMS);
+extern void sub_0010FC00_gen(RECOMP_PARAMS);
 
-static void save_ctor_trace(const char *fn)
+static void save_ctor_trace(RECOMP_PARAMS, const char *fn)
 {
     if (save_trace_on())
         fprintf(stderr, "[SAVETRACE] %s(0x%X, 0x%X, 0x%X, 0x%X) ret=0x%08X\n", fn,
@@ -1826,9 +1831,9 @@ static void save_ctor_trace(const char *fn)
                 GUEST32(g_esp));
 }
 
-void sub_0010F8B0(void) { save_ctor_trace("ctor_10F8B0"); sub_0010F8B0_gen(); }
-void sub_0010FB40(void) { save_ctor_trace("ctor_10FB40"); sub_0010FB40_gen(); }
-void sub_0010FC00(void) { save_ctor_trace("ctor_10FC00"); sub_0010FC00_gen(); }
+void sub_0010F8B0(RECOMP_PARAMS) { save_ctor_trace(RECOMP_ARGS, "ctor_10F8B0"); sub_0010F8B0_gen(RECOMP_ARGS); }
+void sub_0010FB40(RECOMP_PARAMS) { save_ctor_trace(RECOMP_ARGS, "ctor_10FB40"); sub_0010FB40_gen(RECOMP_ARGS); }
+void sub_0010FC00(RECOMP_PARAMS) { save_ctor_trace(RECOMP_ARGS, "ctor_10FC00"); sub_0010FC00_gen(RECOMP_ARGS); }
 
 /* â”€â”€ movie loop pacing (config/hooks.toml at 0x001B073F) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
  * Why: the Bink loop sub_001B05E0 spins while BinkWait says the next frame is
@@ -1844,7 +1849,7 @@ void sub_0010FC00(void) { save_ctor_trace("ctor_10FC00"); sub_0010FC00_gen(); }
 extern uint64_t xbox_GuestVblankCount(void);
 extern int64_t xbox_GuestNsToNextVblank(void);
 
-void thps_movie_wait(void)
+void thps_movie_wait(RECOMP_PARAMS)
 {
     static uint64_t last = (uint64_t)-1;
     uint64_t now = xbox_GuestVblankCount();
@@ -1886,7 +1891,7 @@ static int replay_ticks_fix(void)
 }
 
 /* after 0x000D2582 (recorder): eax = dt - 2 -> clamp(dt - 1, 0, 3) */
-void thps_replay_tick_rec(void)
+void thps_replay_tick_rec(RECOMP_PARAMS)
 {
     int32_t v = (int32_t)g_eax + 1;
     if (!replay_ticks_fix())
@@ -1897,7 +1902,7 @@ void thps_replay_tick_rec(void)
 }
 
 /* after 0x000D65C5 (playback): eax = field + 2 -> field + 1 */
-void thps_replay_tick_play(void)
+void thps_replay_tick_play(RECOMP_PARAMS)
 {
     if (replay_ticks_fix())
         g_eax -= 1;
@@ -1914,11 +1919,11 @@ void thps_replay_tick_play(void)
  * argument ([esp+4], the skater's object) tells the players of a split screen
  * apart. stdcall, ret 4. THPS_REPLAY_TICKS=0: the original, every frame.
  * Verified: docs/status.md (fps120, replay length at 60 and 120). */
-extern void sub_000D0FA0_gen(void);
-extern void sub_000D5FB0_gen(void);
+extern void sub_000D0FA0_gen(RECOMP_PARAMS);
+extern void sub_000D5FB0_gen(RECOMP_PARAMS);
 static int thps_clock_log(void);
 
-void sub_000D0FA0(void)
+void sub_000D0FA0(RECOMP_PARAMS)
 {
     static struct { uint32_t who, tick; } last[8];
     uint32_t who = GUEST32(g_esp + 4), now = GUEST32(0x0030697Cu);
@@ -1946,7 +1951,7 @@ void sub_000D0FA0(void)
     }
     if (thps_clock_log() == 2)
         fprintf(stderr, "[REC] recorded\n");
-    sub_000D0FA0_gen();
+    sub_000D0FA0_gen(RECOMP_ARGS);
 }
 
 /* Watch Replay playback, sub_000D5FB0 (the stream reader; called every ~100 ms
@@ -1963,13 +1968,13 @@ static int thps_replay_playing(void)
     return t && host_time_ns() - t < 1000000000ull;
 }
 
-void sub_000D5FB0(void)
+void sub_000D5FB0(RECOMP_PARAMS)
 {
     s_replay_play_ns = host_time_ns();
     if (thps_clock_log() >= 2)
         fprintf(stderr, "[PLAY] t_ms %llu tick %u\n",
                 (unsigned long long)(host_time_ns() / 1000000ull), GUEST32(0x0030697Cu));
-    sub_000D5FB0_gen();
+    sub_000D5FB0_gen(RECOMP_ARGS);
 }
 
 /* â”€â”€ Widescreen: horizontal field of view (config/hooks.toml) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -2053,12 +2058,12 @@ static int thps_fov_extra(void)
  * alone is 16:9 Vert- (measured: m00 1.198, m11 -1.599 -> -2.13). The base
  * is kept here; the swap (sub_00018F90) sets 3/4 of it during gameplay and
  * the base in menus. */
-extern void sub_00193020_gen(void);
+extern void sub_00193020_gen(RECOMP_PARAMS);
 static uint32_t s_xscale_base;
 
-void sub_00193020(void)
+void sub_00193020(RECOMP_PARAMS)
 {
-    sub_00193020_gen();
+    sub_00193020_gen(RECOMP_ARGS);
     s_xscale_base = GUEST32(0x0030458Cu);
 }
 
@@ -2083,14 +2088,14 @@ void thps_ws_apply(void) { ws_apply_xscale(); }
  * The 4/3 tan and the 3/4 x scale cancel in the screen distance H, so the
  * visibility frustum built from H stays at the 4:3 width: sub_001603C0
  * below. */
-extern void sub_00190FB0_gen(void);
+extern void sub_00190FB0_gen(RECOMP_PARAMS);
 static uint16_t s_fov_set;
 
 /* 2026-11-07: k = the aspect's factor (thps_aspect_k) and FIELD OF VIEW: the
  * camera's half angle atan(t / 4096) plus half the extra degrees, before k
  * (the tan word alone widens both axes alike; the x scale keeps the 4:3
  * height, so the extra degrees are on the 4:3 horizontal view). */
-void sub_00190FB0(void)
+void sub_00190FB0(RECOMP_PARAMS)
 {
     int extra = thps_fov_extra();
     if ((thps_widescreen() || extra) && s_in_level) {
@@ -2108,7 +2113,7 @@ void sub_00190FB0(void)
             *t = s_fov_set;
         }
     }
-    sub_00190FB0_gen();
+    sub_00190FB0_gen(RECOMP_ARGS);
 }
 
 /* Widescreen visibility frustum: the builder above calls
@@ -2127,9 +2132,9 @@ void sub_00190FB0(void)
  * with a pixel-identical picture; the wider rectangle alone lowers it (the
  * height follows h / w); maintainer's controller sessions in Hangar: no
  * popping at the left edge (aircraft) with the fix, popping without. */
-extern void sub_001603C0_gen(void);
+extern void sub_001603C0_gen(RECOMP_PARAMS);
 
-void sub_001603C0(void)
+void sub_001603C0(RECOMP_PARAMS)
 {
     volatile float *fov = (volatile float *)((uintptr_t)g_xbox_mem_offset + 0x00242564u);
     uint32_t view = GUEST32(g_esp + 12u);
@@ -2138,7 +2143,7 @@ void sub_001603C0(void)
     float a;
 
     if (!thps_widescreen() || !s_in_level || !view || r[0] <= r[2]) {
-        sub_001603C0_gen();
+        sub_001603C0_gen(RECOMP_ARGS);
         return;
     }
     a = *fov;
@@ -2146,7 +2151,7 @@ void sub_001603C0(void)
     r[0] = (uint16_t)(r[2] + (unsigned)((x1 - r[2]) * thps_aspect_k() + 0.5));
     if (a > 1.0f && a < 170.0f)
         *fov = 2.0f * atanf(tanf(a * 0.5f * 3.14159265f / 180.0f) * (float)thps_aspect_k()) * 180.0f / 3.14159265f;
-    sub_001603C0_gen();
+    sub_001603C0_gen(RECOMP_ARGS);
     r[0] = x1;
     *fov = a;
 }
@@ -2174,8 +2179,8 @@ void sub_001603C0(void)
  * end Options only (like BUTTON MAPPING). The names come from the game's
  * CHEATS screen where a code toggles one of its entries, otherwise from what
  * the probe saw it change.
- * Verified: THPS_CHEAT_PROBE=1 (v0.9.2 tests, cheat list). */
-extern void sub_00147460(void);
+ * Verified: THPS_CHEAT_PROBE=1 (docs/v092_tester_feedback.md, cheat list). */
+extern void sub_00147460(RECOMP_PARAMS);
 
 /* a code: the list's text (what it does), and where its state is read - a
  * byte or dword at va that means ON when nonzero (CHEAT_NZ), zero (CHEAT_Z)
@@ -2237,7 +2242,7 @@ static const Cheat s_cheats[] = {
      * (0x0031526C): $900,000, every tape, goal and gold medal */
     { "DULLBABY",      "CAREER COMPLETE",           0, 0, 0 },
     /* 0x002761F0 is 1 by default; at 0 sub_00167780 (the particle code beside
-     * the blood particles) does nothing: a bail leaves no blood (test run) */
+     * the blood particles) does nothing: a bail leaves no blood (test run 2026-10-30) */
     { "SCABS",         "NO BLOOD",                  0x002761F0u, 4, CHEAT_Z },
     /* 0x00306BCC: levels the skater's orientation vector every frame in the
      * spin reader sub_000AC9D0 / sub_000B48B0 and skips the BIG DROP check -
@@ -2266,7 +2271,7 @@ static const char s_cheat_letters[] = "URDLYBAXCTS";
 static const uint8_t s_cheat_off[] = { 0xA1, 0x91, 0xB1, 0x81, 0x01, 0x21, 0x31, 0x11, 0xC1, 0xD1, 0xE1 };
 
 /* code i through the checker: 1 accepted, 0 refused, -1 the checker is shut */
-static int cheat_enter(int i)
+static int cheat_enter(RECOMP_PARAMS, int i)
 {
     uint8_t saved[4][sizeof s_cheat_off];
     const char *c = s_cheats[i].code, *p;
@@ -2291,7 +2296,7 @@ static int cheat_enter(int i)
     GUEST32(g_esp) = 0;                           /* the main menu's argument */
     g_esp -= 4;
     GUEST32(g_esp) = 0x00121547u;                 /* return address (the main menu's call), popped by ret 4 */
-    sub_00147460();
+    sub_00147460(RECOMP_ARGS);
     res = (g_eax & 0xFFu) != 0;
     for (k = 0; k < 4; k++)
         for (j = 0; j < sizeof s_cheat_off; j++)
@@ -2302,7 +2307,7 @@ static int cheat_enter(int i)
 
 /* THPS_CHEAT_PROBE=1 (test, a throw-away layout): every code entered once,
  * each byte of the game's data 0x00270000 .. 0x00320000 it changed logged */
-static void cheat_probe(void)
+static void cheat_probe(RECOMP_PARAMS)
 {
     enum { LO = 0x00270000u, HI = 0x00320000u };
     static uint8_t before[HI - LO];
@@ -2311,7 +2316,7 @@ static void cheat_probe(void)
         uint32_t a, shown = 0;
         int r;
         memcpy(before, (const void *)((uintptr_t)g_xbox_mem_offset + LO), sizeof before);
-        r = cheat_enter(i);
+        r = cheat_enter(RECOMP_ARGS, i);
         fprintf(stderr, "[CHEAT] %-13s -> %d\n", s_cheats[i].code, r);
         for (a = LO; a < HI; a++)
             if (GUEST8(a) != before[a - LO] && shown++ < 24)
@@ -2342,7 +2347,7 @@ static void cheat_probe(void)
  * and a list change returns state 0x19, so the Options screen comes back with
  * the other list (after B through sub_0013D050, whose result the run loop
  * sets). THPS_OPTIONS_MENU=0: the original list. */
-extern THPS_TLS uint32_t g_edx;
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
 
 #define OPT_STAY 0x19u                            /* Options again: a list change or a placeholder */
 #define OPT_SUB(n) (0x1000u + (n))                /* line opens list n */
@@ -2354,8 +2359,9 @@ typedef struct {
     int parent, parent_line;
 } OptList;
 
-enum { OPT_MAIN, OPT_CONTROLS, OPT_RECOMP, OPT_FPS, OPT_AA, OPT_BOOT, OPT_RESTART, OPT_SOUND, OPT_BINDKEYS, OPT_SHADERS, OPT_SHBROWSE, OPT_SHPARAMS, OPT_SHRESET,
+enum { OPT_MAIN, OPT_CONTROLS, OPT_RECOMP, OPT_FPS, OPT_AA, OPT_BOOT, OPT_RESTART, OPT_SOUND, OPT_BINDKEYS,
        OPT_GENERAL, OPT_CHEATS, OPT_QUIT, OPT_CTLREC, OPT_CTLPLAYER, OPT_GAMEPLAY, OPT_WIDE, OPT_PICTURE, OPT_PAUSEM,
+       OPT_DISPLAY, OPT_RENDERING,                /* 2.0: option-c layout pages (docs/recomp_options_layout.md) */
        OPT_LISTS };
 
 /* RECOMP CONTROL OPTIONS -> PLAYER n (GitHub issue #6, maintainer
@@ -2365,15 +2371,6 @@ static char s_ctlp_title[16] = "PLAYER 1";
 static void fc_reload(void);                      /* FREE CAMERA, below: settings changed */
 static uint16_t fc_reset_src(int port);           /* CAMERA RESET's source of a device (-1 keyboard) */
 static void fc_reset_store(int port, uint16_t src);
-
-/* SHADERS lists (see "SHADERS" below): titles and lines built when shown */
-static char s_sh_title[4][40];
-static char s_sh_text[4][12][44];
-#define SH_LINES(k) { s_sh_text[k][0], s_sh_text[k][1], s_sh_text[k][2], s_sh_text[k][3], s_sh_text[k][4], \
-                      s_sh_text[k][5], s_sh_text[k][6], s_sh_text[k][7], s_sh_text[k][8], s_sh_text[k][9], \
-                      s_sh_text[k][10], s_sh_text[k][11] }
-#define SH_STAY { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, \
-                  OPT_STAY, OPT_STAY, OPT_STAY }
 
 /* BUTTON MAPPING (rebinding, see "Button mapping" below): one screen -- PLAYER
  * and DEVICE lines, then that device's bindings; texts built when shown (""
@@ -2451,8 +2448,9 @@ static const OptList s_opt[OPT_LISTS] = {
      * 16:9 saved, ANISOTROPIC FILTER), ANTIALIASING and FRAME RATE as
      * sub-lists (their line: opt_parent_line), BOOT ANIMATION -- built by opt_build (texts, next states and
      * value lines move with the MENUS line); RESOLUTION dropped (2026-10-26) */
-    /* all 12 slots: with 16:9 saved the list has 10 lines (the 9 slots it
-     * had dropped BOOT ANIMATION once GAMEPLAY OPTIONS came in, v0.9.2) */
+    /* all 12 slots: with 16:9 saved the list has 9 lines since 2.0 (10 with
+     * SHADERS, removed 2026-11-19; the 9 slots it had dropped BOOT ANIMATION
+     * once GAMEPLAY OPTIONS came in, v0.9.2) */
     [OPT_RECOMP] = { "RECOMP OPTIONS",
         { s_val_text[OPT_RECOMP][0], s_val_text[OPT_RECOMP][1], s_val_text[OPT_RECOMP][2],
           s_val_text[OPT_RECOMP][3], s_val_text[OPT_RECOMP][4], s_val_text[OPT_RECOMP][5],
@@ -2460,15 +2458,40 @@ static const OptList s_opt[OPT_LISTS] = {
           s_val_text[OPT_RECOMP][9], s_val_text[OPT_RECOMP][10], s_val_text[OPT_RECOMP][11] },
         { OPT_STAY },                             /* opt_next */
         OPT_MAIN, 9 },
-    /* FRAME RATE, VSYNC, FPS COUNTER -- VSYNC and the counter belong with the
-     * frame rate (maintainer, 2026-10-26) */
-    /* four lines since FRAME PACING (2026-11-05): FRAME RATE, FRAME PACING,
-     * VSYNC, FPS COUNTER - the fourth was missing, FPS COUNTER could not be
-     * reached (maintainer's play test, 2026-11-07) */
-    [OPT_FPS] = { "FRAME RATE",
-        { s_val_text[OPT_FPS][0], s_val_text[OPT_FPS][1], s_val_text[OPT_FPS][2], s_val_text[OPT_FPS][3] },
-        { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY },
-        OPT_RECOMP, 0 },
+    /* PERFORMANCE (2.0; was FRAME RATE until v1.2.8 - option-c layout of
+     * 2026-11-22, docs/recomp_options_layout.md): FRAME RATE, V-SYNC, then the
+     * overlay's three ON / OFF switches FPS, FRAME TIME, GAME SPEED (the old
+     * FPS COUNTER line); FRAME PACING left the menu (settings file only,
+     * main.c). Built by opt_build. */
+    /* option-p layout (2026-11-24): every value page opens with the Y hint and a
+     * blank line, as GENERAL OPTIONS (opt_build OPT_E_HINT / OPT_E_BLANK) */
+    [OPT_FPS] = { "PERFORMANCE",
+        { s_val_text[OPT_FPS][0], s_val_text[OPT_FPS][1], s_val_text[OPT_FPS][2], s_val_text[OPT_FPS][3],
+          s_val_text[OPT_FPS][4], s_val_text[OPT_FPS][5], s_val_text[OPT_FPS][6] },
+        { OPT_STAY },                             /* opt_next */
+        OPT_RECOMP, 0 },                          /* opt_parent_line: s_sub_line */
+    /* DISPLAY (2.0; option-p layout, maintainer 2026-11-24): the Y hint, a
+     * blank, DISPLAY MODE, RENDER RESOLUTION, ASPECT RATIO, then - only with a
+     * wide aspect saved - STRETCH CUTSCENES, MENUS AT 16:9, HUD AT 16:9 (the
+     * WIDESCREEN sub-page of v1.2.2 is gone), FIELD OF VIEW. Built by
+     * opt_build. */
+    [OPT_DISPLAY] = { "DISPLAY",
+        { s_val_text[OPT_DISPLAY][0], s_val_text[OPT_DISPLAY][1], s_val_text[OPT_DISPLAY][2],
+          s_val_text[OPT_DISPLAY][3], s_val_text[OPT_DISPLAY][4], s_val_text[OPT_DISPLAY][5],
+          s_val_text[OPT_DISPLAY][6], s_val_text[OPT_DISPLAY][7], s_val_text[OPT_DISPLAY][8] },
+        { OPT_STAY },                             /* opt_next */
+        OPT_RECOMP, 0 },                          /* opt_parent_line: s_sub_line */
+    /* RENDERING (2.0, option-c layout 2026-11-23, the SHADERS page's place):
+     * SHADER COMPILE (OFF / SKIP / WAIT / HYBRID, nv2a_vk_set_async_mode; the
+     * toolkit's default until the player picks one) and SHADER NOTICE (ON /
+     * OFF, nv2a_vk_set_shader_notice: option-c's "BUILDING SHADERS" corner
+     * panel, on by default in the toolkit - so THPS 2.0 has it and gets its
+     * line). Built by opt_build. */
+    [OPT_RENDERING] = { "RENDERING",
+        { s_val_text[OPT_RENDERING][0], s_val_text[OPT_RENDERING][1], s_val_text[OPT_RENDERING][2],
+          s_val_text[OPT_RENDERING][3] },
+        { OPT_STAY },                             /* opt_next */
+        OPT_RECOMP, 0 },                          /* opt_parent_line: s_sub_line */
     /* media\boot.mpg (maintainer, 2026-10-27: MPEG-1 + MP2 through pl_mpeg,
      * no H.264 / AAC): the status line (s_boot_text: found / needs the file /
      * convert boot.mp4 or mkv), ON / OFF -- greyed out without the file
@@ -2502,14 +2525,21 @@ static const OptList s_opt[OPT_LISTS] = {
      * WIDESCREEN = MENUS AT 16:9 and HUD AT 16:9 (GitHub #10: the HUD
      * correction can be switched off), only with a wide aspect saved; PICTURE =
      * ANISOTROPIC FILTER, ANTIALIASING, MOTION BLUR, BRIGHTNESS. Built by
-     * opt_build. */
+     * opt_build. 2.0: WIDESCREEN lives on the DISPLAY page and has MOVIES AT
+     * 16:9 too (the option-c layout's STRETCH CUTSCENES); PICTURE is the
+     * layout's POST PROCESSING and has UPSCALING (+ FSR PRESET / FSR SHARPNESS
+     * with FSR) at its end. */
     [OPT_WIDE] = { "WIDESCREEN",
-        { s_val_text[OPT_WIDE][0], s_val_text[OPT_WIDE][1] },
+        { s_val_text[OPT_WIDE][0], s_val_text[OPT_WIDE][1], s_val_text[OPT_WIDE][2] },
         { OPT_STAY },                             /* opt_next */
-        OPT_RECOMP, 0 },                          /* opt_parent_line: s_sub_line */
-    [OPT_PICTURE] = { "PICTURE",
+        OPT_DISPLAY, 0 },                         /* opt_parent_line: s_sub_line */
+    /* POST PROCESSING (option-p layout 2026-11-24; was PICTURE): the Y hint, a
+     * blank, ANTIALIASING (a value line now), ANISOTROPIC FILTER, MOTION BLUR,
+     * BRIGHTNESS, UPSCALING, FSR PRESET + FSR SHARPNESS (only with FSR) */
+    [OPT_PICTURE] = { "POST PROCESSING",
         { s_val_text[OPT_PICTURE][0], s_val_text[OPT_PICTURE][1], s_val_text[OPT_PICTURE][2],
-          s_val_text[OPT_PICTURE][3] },
+          s_val_text[OPT_PICTURE][3], s_val_text[OPT_PICTURE][4], s_val_text[OPT_PICTURE][5],
+          s_val_text[OPT_PICTURE][6], s_val_text[OPT_PICTURE][7], s_val_text[OPT_PICTURE][8] },
         { OPT_STAY },                             /* opt_next */
         OPT_RECOMP, 0 },
     /* PAUSE MENU (GitHub #18, maintainer 2026-11-12: more options need more
@@ -2530,12 +2560,8 @@ static const OptList s_opt[OPT_LISTS] = {
           s_val_text[OPT_SOUND][3], s_val_text[OPT_SOUND][4] },
         { OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY, OPT_STAY },
         OPT_GENERAL, 3 },
-    /* SHADERS (shader module phase 4): the last line of RECOMP OPTIONS; its
-     * lists are built when shown (sh_build) */
-    [OPT_SHADERS]  = { s_sh_title[0], SH_LINES(0), SH_STAY, OPT_RECOMP, 0 },
-    [OPT_SHBROWSE] = { s_sh_title[1], SH_LINES(1), SH_STAY, OPT_SHADERS, 1 },
-    [OPT_SHPARAMS] = { s_sh_title[2], SH_LINES(2), SH_STAY, OPT_SHADERS, 2 },
-    [OPT_SHRESET]  = { s_sh_title[3], SH_LINES(3), SH_STAY, OPT_SHADERS, 4 },
+    /* (SHADERS and its three sub-lists stood here: RetroArch shaders removed
+     * from THPS 2.0, maintainer 2026-11-19; still in option-c) */
     /* GENERAL OPTIONS (maintainer, 2026-10-28): our list in place of the
      * game's screen (vtable 0x0022A810, four fixed lines with ON / OFF
      * elements): the game's four options read and written where its screen
@@ -2611,7 +2637,7 @@ static void cheat_build(void)
 }
 
 /* A on BUTTON CHEATS' line: switch its cheat, or the next page; the line the cursor stays on */
-static uint32_t cheat_action(uint32_t line)
+static uint32_t cheat_action(RECOMP_PARAMS, uint32_t line)
 {
     int i = s_cheat_page * CHEAT_PAGE + (int)line - CHEAT_FIRST, n = cheat_on_page();
     s_cheat_refused = -1;
@@ -2619,7 +2645,7 @@ static uint32_t cheat_action(uint32_t line)
         s_cheat_page = (s_cheat_page + 1) % CHEAT_PAGES;
         line = CHEAT_FIRST;
     } else if (line >= CHEAT_FIRST && line < (uint32_t)(CHEAT_FIRST + n)) {
-        int r = cheat_enter(i);
+        int r = cheat_enter(RECOMP_ARGS, i);
         if (r == 1 && !s_cheats[i].va)
             s_cheat_done[i] = 1;
         else if (r != 1)
@@ -2629,7 +2655,7 @@ static uint32_t cheat_action(uint32_t line)
     return line;
 }
 
-char g_thps_media_dir[512];                       /* set by main.c: <layout>\media (boot player, soundtracks, shaders) */
+char g_thps_media_dir[512];                       /* set by main.c: <layout>\media (boot player, soundtracks) */
 
 /* ── BOOT ANIMATION (maintainer, 2026-10-27; toolkit src/bootvideo) ──────────
  * media\boot.mpg (MPEG-1 video + MP2 audio; the README gives the one-time
@@ -2687,18 +2713,6 @@ static int s_opt_shown = OPT_MAIN;                /* the list the running Option
 static uint32_t s_opt_shown_lines;
 static int s_opt_back;                            /* B left a sub-list: Options again */
 static uint32_t opt_next(int list, uint32_t line); /* RECOMP OPTIONS values, below */
-/* SHADERS (below) */
-static void sh_build(int list);
-static uint32_t sh_action(uint32_t line);
-static int sh_lr(uint32_t line, int dir);
-static void sh_tick(void);
-static void sh_summary(char *out, size_t n);
-static int sh_menu_usable(void);
-static void sh_ov_load(void);
-static void sh_user_scan(void);
-static void sh_apply(void);
-static char s_sh_saved[40];
-static void bind_upper(char *dst, size_t n, const char *src);
 
 static int opt_menu_on(void)
 {
@@ -2735,12 +2749,12 @@ static const char *const s_opt_old[13] = {
 /* Rewrite the title and the 12 line texts (u16 length + text, in file order)
  * of a loaded OptionMain.PANEL; the result is never longer than the file
  * (unused lines become " "). */
-static uint32_t guest_alloc_like_loader(uint32_t size);
-static void guest_free_like_loader(uint32_t buf);
+static uint32_t guest_alloc_like_loader(RECOMP_PARAMS, uint32_t size);
+static void guest_free_like_loader(RECOMP_PARAMS, uint32_t buf);
 
 /* Returns the panel buffer: the loaded one, or a bigger one from the
  * loader's allocator when the new texts need more room (PLAYBACK MODE). */
-static uint32_t opt_rewrite_panel(uint32_t buf, uint32_t size_ptr)
+static uint32_t opt_rewrite_panel(RECOMP_PARAMS, uint32_t buf, uint32_t size_ptr)
 {
     uint8_t *g = (uint8_t *)((uintptr_t)g_xbox_mem_offset);
     uint32_t size = GUEST32(size_ptr), room, pos = 0, last = 0, out = 0, i, nb = buf;
@@ -2773,7 +2787,7 @@ static uint32_t opt_rewrite_panel(uint32_t buf, uint32_t size_ptr)
     }
     memcpy(tmp + out, g + buf + last, size - last);
     out += size - last;
-    if (out > size && !(nb = guest_alloc_like_loader(out))) {
+    if (out > size && !(nb = guest_alloc_like_loader(RECOMP_ARGS, out))) {
         free(tmp);
         return buf;
     }
@@ -2781,15 +2795,15 @@ static uint32_t opt_rewrite_panel(uint32_t buf, uint32_t size_ptr)
     if (nb == buf)
         memset(g + buf + out, 0, size - out);
     else
-        guest_free_like_loader(buf);
+        guest_free_like_loader(RECOMP_ARGS, buf);
     GUEST32(size_ptr) = out;
     free(tmp);
     return nb;
 }
 
 /* The front end's file loader (ecx = name, edx = &size, 2 stack args). */
-extern void sub_0017A060_gen(void);
-void sub_0017A060(void)
+extern void sub_0017A060_gen(RECOMP_PARAMS);
+void sub_0017A060(RECOMP_PARAMS)
 {
     char name[96];
     uint32_t np = g_ecx, size_ptr = g_edx, k;
@@ -2799,21 +2813,21 @@ void sub_0017A060(void)
             break;
     }
     name[k] = 0;
-    sub_0017A060_gen();
+    sub_0017A060_gen(RECOMP_ARGS);
     if (g_eax && opt_menu_on() && k >= 16 && !strcmp(name + k - 16, "OptionMain.PANEL"))
-        g_eax = opt_rewrite_panel(g_eax, size_ptr);
+        g_eax = opt_rewrite_panel(RECOMP_ARGS, g_eax, size_ptr);
     /* the game's PLAYER n CONTROLS screen stays stock since 2026-10-25: BUTTON
      * MAPPING is its own line under CONTROLS (thps_ctl_panel: the former,
      * shown but not selectable fourth line; THPS_CTL_PANEL_LINE=1 shows it) */
     if (g_eax && opt_menu_on() && k >= 25 && !strcmp(name + k - 25, "OptionControlScreen.PANEL")
             && getenv("THPS_CTL_PANEL_LINE") && *getenv("THPS_CTL_PANEL_LINE") == '1') {
-        extern uint32_t thps_ctl_panel(uint32_t buf, uint32_t size_ptr);
-        g_eax = thps_ctl_panel(g_eax, size_ptr);
+        extern uint32_t thps_ctl_panel(RECOMP_PARAMS, uint32_t buf, uint32_t size_ptr);
+        g_eax = thps_ctl_panel(RECOMP_ARGS, g_eax, size_ptr);
     }
 }
 
 /* after 0x0013D323 (push 0xC): the number of lines the menu navigates */
-void thps_opt_line_count(void)
+void thps_opt_line_count(RECOMP_PARAMS)
 {
     if (opt_menu_on())
         GUEST32(g_esp) = opt_nav_lines(s_opt_list);
@@ -2821,11 +2835,11 @@ void thps_opt_line_count(void)
 
 /* Init: the line -> next state table for the list shown (sub-lists and
  * placeholders return Options again; A sorts them out). */
-extern void sub_0013D230_gen(void);
-void sub_0013D230(void)
+extern void sub_0013D230_gen(RECOMP_PARAMS);
+void sub_0013D230(RECOMP_PARAMS)
 {
     uint32_t screen = g_ecx, i;
-    sub_0013D230_gen();
+    sub_0013D230_gen(RECOMP_ARGS);
     s_opt_shown = s_opt_list;
     s_opt_shown_lines = opt_nav_lines(s_opt_list);
     if (!opt_menu_on())
@@ -2867,8 +2881,13 @@ static uint32_t s_bind_cursor;
  * start, main.c turns them into its env defaults: ASPECT RATIO, VSYNC (OFF =
  * the unblocked present modes, RECOMP_VSYNC=0). BOOT ANIMATION: media\boot.mpg,
  * ON / OFF in its sub-list (see "BOOT ANIMATION" above). */
-enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE, VAL_PACING, VAL_VSYNC, VAL_COUNTER,
+enum { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MENUS, VAL_ANISO, VAL_FRAMERATE, VAL_VSYNC,
        VAL_FOV, VAL_HUD, VAL_BRIGHT,                              /* v1.2.2: HUD AT 16:9 (#10), BRIGHTNESS (#11) */
+       VAL_MOVIES,                                                /* 2.0: MOVIES AT 16:9 (STRETCH CUTSCENES) */
+       VAL_PERF_FPS, VAL_PERF_FT, VAL_PERF_SPEED,                 /* 2.0: PERFORMANCE switches (was FPS COUNTER) */
+       VAL_UPSCALE, VAL_FSRPRESET, VAL_FSRSHARP,                  /* 2.0: UPSCALING, FSR PRESET, FSR SHARPNESS */
+       VAL_SHADER, VAL_SHNOTICE,                                  /* 2.0: RENDERING - SHADER COMPILE, SHADER NOTICE */
+       VAL_AA,                                                    /* 2.0: ANTIALIASING as a value line (option-p layout) */
        VAL_TIPS, VAL_SCORE, VAL_CHAT, VAL_BLUR,
        VAL_LAYOUT, VAL_SPINTAPS, VAL_BIGDROP, VAL_WALLBAIL, VAL_CAREER, VAL_MANUALS, VAL_PHYSICS, VAL_SCORECALC,
        VAL_SPECIALIN,                                             /* SPECIAL TRICKS INPUT (GitHub #15) */
@@ -2901,7 +2920,7 @@ static const struct { uint32_t va, size; const char *key; } s_game_opt[VAL_LAST_
     { 0x002B18D8u, 4, "quick_chat" },             /* QUICK CHAT */
     { 0x002B191Cu, 1, "motion_blur" },            /* MOTION BLUR */
 };
-extern void sub_00073810(void);
+extern void sub_00073810(RECOMP_PARAMS);
 
 static int game_opt_on(int id)
 {
@@ -2911,7 +2930,7 @@ static int game_opt_on(int id)
 }
 
 /* set it like the game's screen does on leaving; 0 when the game keeps them now */
-static int game_opt_set(int id, int on)
+static int game_opt_set(RECOMP_PARAMS, int id, int on)
 {
     uint32_t va = s_game_opt[id - VAL_FIRST_GAME].va;
     if (GUEST32(0x003068B4u))
@@ -2922,7 +2941,7 @@ static int game_opt_set(int id, int on)
         GUEST32(va) = on != 0;
     g_esp -= 4;
     GUEST32(g_esp) = 0;                           /* return address, popped by its ret */
-    sub_00073810();
+    sub_00073810(RECOMP_ARGS);
     settings_set(s_game_opt[id - VAL_FIRST_GAME].key, on ? "on" : "off");
     return 1;
 }
@@ -2934,7 +2953,7 @@ static int game_opt_set(int id, int on)
  * sub_00073810 fills from the globals. Setting the globals here left the copy
  * at the game's start default / the save's value; so after any value from the
  * settings file, sub_00073810 runs too, as game_opt_set does. */
-static void game_opts_from_settings(void)
+static void game_opts_from_settings(RECOMP_PARAMS)
 {
     int id, any = 0;
     for (id = VAL_FIRST_GAME; id <= VAL_LAST_GAME; id++) {
@@ -2953,7 +2972,7 @@ static void game_opts_from_settings(void)
     if (any) {
         g_esp -= 4;
         GUEST32(g_esp) = 0;                       /* return address, popped by its ret */
-        sub_00073810();
+        sub_00073810(RECOMP_ARGS);
         fprintf(stderr, "  options: game values from settings (motion blur %u, save block %u)\n",
                 (unsigned)*(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + 0x002B191Cu),
                 (unsigned)*(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + 0x002FFF60u));
@@ -2996,11 +3015,11 @@ static void initials_from_settings(void)
 static uint32_t s_ini_entry;                     /* guest VA of the entry being named, 0 = none */
 static char s_ini_last[4];
 
-extern void sub_00103860_gen(void);
-void sub_00103860(void)                           /* a new high-score entry (or none) */
+extern void sub_00103860_gen(RECOMP_PARAMS);
+void sub_00103860(RECOMP_PARAMS)                           /* a new high-score entry (or none) */
 {
     uint32_t slot, level;
-    sub_00103860_gen();
+    sub_00103860_gen(RECOMP_ARGS);
     slot = GUEST32(0x002765B8u);
     level = GUEST32(0x00276198u);
     if (slot < 8u && level < 64u) {
@@ -3041,19 +3060,19 @@ void thps_initials_tick(void)
     still = 0;
 }
 
-extern void sub_00073D20_gen(void);
-void sub_00073D20(void)                           /* the game's start defaults */
+extern void sub_00073D20_gen(RECOMP_PARAMS);
+void sub_00073D20(RECOMP_PARAMS)                           /* the game's start defaults */
 {
-    sub_00073D20_gen();
-    game_opts_from_settings();
+    sub_00073D20_gen(RECOMP_ARGS);
+    game_opts_from_settings(RECOMP_ARGS);
     initials_from_settings();
 }
 
-extern void sub_00073A30_gen(void);
-void sub_00073A30(void)                           /* a save's options into the game */
+extern void sub_00073A30_gen(RECOMP_PARAMS);
+void sub_00073A30(RECOMP_PARAMS)                           /* a save's options into the game */
 {
-    sub_00073A30_gen();
-    game_opts_from_settings();
+    sub_00073A30_gen(RECOMP_ARGS);
+    game_opts_from_settings(RECOMP_ARGS);
     initials_from_settings();
 }
 
@@ -3096,8 +3115,8 @@ static int rc_allowed(void)
            !thps_replay_playing();
 }
 
-extern void sub_001AF080_gen(void);
-void sub_001AF080(void)                           /* the level frame: Back flips the camera */
+extern void sub_001AF080_gen(RECOMP_PARAMS);
+void sub_001AF080(RECOMP_PARAMS)                           /* the level frame: Back flips the camera */
 {
     uint32_t before;
     int on = rc_on() && rc_allowed();
@@ -3106,7 +3125,7 @@ void sub_001AF080(void)                           /* the level frame: Back flips
         fprintf(stderr, "  options: camera %u put back (REMEMBER CAMERA)\n", (unsigned)s_rc_kept);
     }
     before = GUEST32(RC_FLAG);
-    sub_001AF080_gen();
+    sub_001AF080_gen(RECOMP_ARGS);
     if (on && GUEST32(RC_FLAG) != before) {        /* Back during this frame */
         s_rc_kept = GUEST32(RC_FLAG) ? 1u : 0u;
         settings_set("camera_toggled", s_rc_kept ? "1" : "0");
@@ -3151,15 +3170,47 @@ static const OptVal s_val[VAL_COUNT] = {
     [VAL_ANISO]     = { "ANISOTROPIC FILTER", "anisotropic_filter", "16", { "off", "2", "4", "8", "16" },
                         { "OFF", "2X", "4X", "8X", "16X" }, 5 },
     [VAL_FRAMERATE] = { "FRAME RATE", "frame_rate", "original", { "original", "120" }, { "ORIGINAL 60", "120" }, 2 },
-    /* FRAME PACING (maintainer, 2026-11-05; main.c -> RECOMP_FRAME_PACING, after a restart) */
-    [VAL_PACING]    = { "FRAME PACING", "frame_pacing", "display", { "display", "timer" },
-                        { "DISPLAY", "60 HZ TIMER" }, 2 },
+    /* (FRAME PACING stood here until v1.2.8: out of the menu since 2.0, the
+     * settings file's frame_pacing only - main.c) */
+    /* VSYNC: the option-c layout writes V-SYNC, but THPS's menu font has no
+     * hyphen (it showed "V SYNC", run 20261123_233306_opt_pages) - THPS's own
+     * spelling stays */
     [VAL_VSYNC]     = { "VSYNC", "vsync", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
-    /* the counter's two numbers: frames per second, and the longest frame of
-     * the last half second in ms (maintainer, 2026-10-26: either or both) */
-    [VAL_COUNTER]   = { "FPS COUNTER", "fps_counter", "off", { "off", "fps", "fps_frametime", "frametime" },
-                        { "OFF", "FPS", "FPS AND FRAME TIME", "FRAME TIME" }, 4 },
-    /* v0.9.2 gameplay options (maintainer, 2026-10-28; player requests):
+    /* STRETCH CUTSCENES (2.0; was MOVIES AT 16:9 on the WIDESCREEN page until
+     * the option-p layout, maintainer 2026-11-24 - the standard name, OFF / ON;
+     * nv2a_vk_set_stretch_43 while a movie plays): OFF = pillarboxed as until
+     * v1.2.8 (maintainer 2026-10-26), ON = stretched; at once. Same key. */
+    [VAL_MOVIES]    = { "STRETCH CUTSCENES", "movies_stretched", "off", { "off", "on" }, { "OFF", "ON" }, 2 },
+    /* PERFORMANCE overlay (2.0, option-c layout 2026-11-22; was FPS COUNTER
+     * with four values): three ON / OFF switches stored together in
+     * performance_overlay (perf_mask / perf_store); key NULL = not a plain
+     * key. Unset: the old fps_counter mapped. */
+    [VAL_PERF_FPS]   = { "FPS", NULL, NULL, { NULL }, { "OFF", "ON" }, 2 },
+    [VAL_PERF_FT]    = { "FRAME TIME", NULL, NULL, { NULL }, { "OFF", "ON" }, 2 },
+    [VAL_PERF_SPEED] = { "GAME SPEED", NULL, NULL, { NULL }, { "OFF", "ON" }, 2 },
+    /* UPSCALING (2.0, PICTURE; option-c nv2a_vk_set_upscaling, AMD FSR 1.0):
+     * BILINEAR as before or FSR; FSR PRESET / FSR SHARPNESS only with FSR. One
+     * value per line as every THPS line (left / right), not the layout's
+     * values side by side: THPS's own menu look (port-menus-look-native).
+     * While FSR is on RENDER RESOLUTION shows FSR and does not step. At once. */
+    [VAL_UPSCALE]   = { "UPSCALING", "upscaling", "bilinear", { "bilinear", "fsr" }, { "BILINEAR", "FSR" }, 2 },
+    [VAL_FSRPRESET] = { "FSR PRESET", "fsr_preset", "quality", { "quality", "balanced", "performance" },
+                        { "QUALITY", "BALANCED", "PERFORMANCE" }, 3 },          /* = NV2A_VK_FSR_* */
+    [VAL_FSRSHARP]  = { "FSR SHARPNESS", "fsr_sharpness", "high", { "low", "medium", "high", "max" },
+                        { "LOW", "MEDIUM", "HIGH", "MAX" }, 4 },                /* = NV2A_VK_FSR_SHARP_* */
+    /* SHADER COMPILE (2.0, RENDERING): index = NV2A_VK_ASYNC_*; def NULL = the
+     * toolkit's default (HYBRID on Windows / Linux, option-c 04ab677), nothing
+     * stored until the player picks a value, Y removes it again */
+    [VAL_SHADER]    = { "SHADER COMPILE", "shader_compile", NULL, { "off", "skip", "wait", "hybrid" },
+                        { "OFF", "SKIP", "WAIT", "HYBRID" }, 4 },
+    [VAL_SHNOTICE]  = { "SHADER NOTICE", "shader_notice", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
+    /* ANTIALIASING (2.0, option-p layout 2026-11-24: one value line on POST
+     * PROCESSING, not the sub-list of v1.2.2 - v2.0 drafts); default FXAA, the
+     * order = NV2A_VK_AA_* = s_aa_val; a pick that fails to allocate (MSAA)
+     * goes back (s_aa_undo, thps_options_tick) */
+    [VAL_AA]        = { "ANTIALIASING", "antialiasing", "fxaa", { "off", "fxaa", "smaa", "msaa2", "msaa4" },
+                        { "OFF", "FXAA", "SMAA", "MSAA 2X", "MSAA 4X" }, 5 },
+    /* v0.9.2 gameplay options (maintainer, 2026-10-28; docs/v092_tester_feedback.md):
      * default = the original game; read where they act (ps2_layout,
      * spin_taps_off, ...), so a change applies at once */
     /* the game's own, in its memory (game_opt_*): key NULL */
@@ -3197,7 +3248,7 @@ static const OptVal s_val[VAL_COUNT] = {
     [VAL_PM_SOUND]  = { "SOUND OPTIONS", "pause_sound_options", "on", { "on", "off" }, { "ON", "OFF" }, 2 },
     [VAL_WALLBAIL]  = { "WALL BAIL", "wall_bail", "original", { "original", "no_bail" },
                         { "ORIGINAL", "NO BAIL" }, 2 },
-    /* classic career (maintainer, 2026-10-30: the last GAMEPLAY line):
+    /* classic career (maintainer, 2026-10-30: the last GAMEPLAY line; docs/classic_career.md):
      * the mode a career gets when it starts, kept in the career itself (classic_*) */
     [VAL_CAREER]    = { "CAREER MODE", "career_mode", "original", { "original", "classic" },
                         { "ORIGINAL", "CLASSIC" }, 2 },
@@ -3243,7 +3294,6 @@ static int opt_val_at(int list, uint32_t line)    /* VAL_* or -1 */
 }
 
 static int s_vsync_start = -1;                    /* VSYNC as it runs (1 off), thps_options_apply */
-static int s_pacing_start = -1;                   /* FRAME PACING as it runs (1 timer), thps_options_apply */
 static int s_boot_start = -1;                     /* BOOT ANIMATION as at this start (it plays only then) */
 /* the render step before the last one (+1, 0 none), its aspect and how many
  * frames thps_options_tick still watches whether the new one allocated */
@@ -3252,11 +3302,22 @@ static int s_aa_undo;                             /* ANTIALIASING before the las
 static uint32_t s_line_next[OPT_LISTS][12];       /* opt_build's next states (RECOMP OPTIONS) */
 static uint32_t s_sub_line[OPT_LISTS];            /* a sub-list's line in RECOMP OPTIONS (opt_build) */
 
+/* the value pages that open with the Y hint and a blank line (opt_build): the cursor starts on their first value,
+ * the blank is greyed (sub_0013D400), Y puts a value line back to its default (sub_001E66E0). GENERAL OPTIONS and
+ * GAMEPLAY since v0.9.2; RECOMP OPTIONS' DISPLAY, POST PROCESSING, PERFORMANCE and RENDERING since the option-p
+ * layout (maintainer 2026-11-24). */
+static int opt_hint_list(int list)
+{
+    return list == OPT_GENERAL || list == OPT_GAMEPLAY || list == OPT_DISPLAY || list == OPT_PICTURE
+           || list == OPT_FPS || list == OPT_RENDERING;
+}
+
 /* a line's next state: built lists keep theirs in s_line_next */
 static uint32_t opt_next(int list, uint32_t line)
 {
     if (list == OPT_RECOMP || list == OPT_GENERAL || list == OPT_GAMEPLAY || list == OPT_CTLPLAYER
-        || list == OPT_WIDE || list == OPT_PICTURE || list == OPT_PAUSEM)
+        || list == OPT_WIDE || list == OPT_PICTURE || list == OPT_PAUSEM || list == OPT_FPS || list == OPT_DISPLAY
+        || list == OPT_RENDERING)
         return line < 12 ? s_line_next[list][line] : OPT_STAY;
     return s_opt[list].next[line];
 }
@@ -3267,6 +3328,7 @@ static uint32_t opt_parent_line(int list)
     if (list == OPT_CTLPLAYER)
         return (uint32_t)s_ctl_player;            /* PLAYER n's line */
     return s_opt[list].parent == OPT_RECOMP || s_opt[list].parent == OPT_GENERAL || s_opt[list].parent == OPT_PICTURE
+           || s_opt[list].parent == OPT_DISPLAY
            ? s_sub_line[list] : (uint32_t)s_opt[list].parent_line;
 }
 
@@ -3288,6 +3350,61 @@ static void st_build(void)
              shuffle ? "ON" : "OFF");
 }
 
+/* PERFORMANCE overlay parts (NV2A_VK_PERF_* bits): performance_overlay, else
+ * the old fps_counter mapped (fps -> fps, fps_frametime -> fps + frame time,
+ * frametime -> frame time) - option-c docs/recomp_options_layout.md; model
+ * Panzer Dragoon Orta Recompiled perf_mask */
+static int perf_mask(void)
+{
+    const char *p = settings_get("performance_overlay", NULL), *o;
+    if (p && *p)
+        return nv2a_vk_perf_overlay_parse(p);
+    o = settings_get("fps_counter", "off");
+    return !strcmp(o, "fps") ? NV2A_VK_PERF_FPS : !strcmp(o, "fps_frametime") ? NV2A_VK_PERF_FPS | NV2A_VK_PERF_FRAMETIME
+         : !strcmp(o, "frametime") ? NV2A_VK_PERF_FRAMETIME : 0;
+}
+
+static int perf_bit(int id)
+{
+    return id == VAL_PERF_FPS ? NV2A_VK_PERF_FPS : id == VAL_PERF_FT ? NV2A_VK_PERF_FRAMETIME : NV2A_VK_PERF_SPEED;
+}
+
+static int perf_val(int id)
+{
+    return id == VAL_PERF_FPS || id == VAL_PERF_FT || id == VAL_PERF_SPEED;
+}
+
+/* performance_overlay = fps / frametime / speed joined by '+', all, off */
+static void perf_store(int mask)
+{
+    char v[32];
+    if (mask == 0)
+        snprintf(v, sizeof v, "off");
+    else if (mask == NV2A_VK_PERF_ALL)
+        snprintf(v, sizeof v, "all");
+    else
+        snprintf(v, sizeof v, "%s%s%s%s%s", mask & NV2A_VK_PERF_FPS ? "fps" : "",
+                 (mask & NV2A_VK_PERF_FPS) && (mask & (NV2A_VK_PERF_FRAMETIME | NV2A_VK_PERF_SPEED)) ? "+" : "",
+                 mask & NV2A_VK_PERF_FRAMETIME ? "frametime" : "",
+                 (mask & NV2A_VK_PERF_FRAMETIME) && (mask & NV2A_VK_PERF_SPEED) ? "+" : "",
+                 mask & NV2A_VK_PERF_SPEED ? "speed" : "");
+    settings_set("performance_overlay", v);
+}
+
+/* SHADER COMPILE's default = the toolkit's mode before the port set one
+ * (HYBRID on Windows / Linux, or RECOMP_VK_ASYNC): taken once in
+ * thps_options_apply, before any set - afterwards nv2a_vk_get_async_mode
+ * answers the value set (Orta run 20261123_171310_options_pages) */
+static int s_shader_def = -1;
+static int shader_default(void)
+{
+    if (s_shader_def < 0) {
+        int m = nv2a_vk_get_async_mode();
+        s_shader_def = m >= NV2A_VK_ASYNC_OFF && m <= NV2A_VK_ASYNC_HYBRID ? m : NV2A_VK_ASYNC_HYBRID;
+    }
+    return s_shader_def;
+}
+
 /* the value in use as an index into val[] (an unknown value: the default) */
 static int opt_val_index(int id)
 {
@@ -3296,6 +3413,17 @@ static int opt_val_index(int id)
     int i;
     if (id >= VAL_FIRST_GAME && id <= VAL_LAST_GAME)
         return game_opt_on(id) ? 0 : 1;           /* ON, OFF */
+    if (perf_val(id))
+        return (perf_mask() & perf_bit(id)) != 0; /* OFF, ON */
+    if (!v->key)
+        return 0;                                 /* RENDER RESOLUTION: opt_render_* */
+    if (id == VAL_SHADER) {                       /* unset: the toolkit's default */
+        cur = settings_get(v->key, NULL);
+        for (i = 0; cur && i < v->nval; i++)
+            if (!strcmp(cur, v->val[i]))
+                return i;
+        return shader_default();
+    }
     cur = settings_get(v->key, v->def);
     for (i = 0; i < v->nval; i++)
         if (!strcmp(cur, v->val[i]))
@@ -3314,16 +3442,25 @@ static int opt_aniso_level(void)
     return n == 2 || n == 4 || n == 8 || n == 16 ? n : 1;   /* "off" = 1 */
 }
 
-static int opt_hud_mode(void)
-{
-    const char *v = settings_get("fps_counter", "off");
-    return !strcmp(v, "fps") ? NV2A_VK_HUD_FPS : !strcmp(v, "fps_frametime") ? NV2A_VK_HUD_BOTH
-         : !strcmp(v, "frametime") ? NV2A_VK_HUD_MS : NV2A_VK_HUD_OFF;
-}
-
 static int opt_stretch_on(void)
 {
     return !strcmp(settings_get("menus_stretched", "off"), "on");
+}
+
+static int opt_movies_stretched(void)              /* MOVIES AT 16:9 = STRETCHED */
+{
+    return !strcmp(settings_get("movies_stretched", "off"), "on");
+}
+
+/* UPSCALING / FSR PRESET / FSR SHARPNESS to the toolkit */
+static int opt_fsr_on(void)
+{
+    return opt_val_index(VAL_UPSCALE) == 1;
+}
+
+static void opt_upscaling_apply(void)
+{
+    nv2a_vk_set_upscaling(opt_fsr_on(), opt_val_index(VAL_FSRPRESET), opt_val_index(VAL_FSRSHARP));
 }
 
 /* HUD AT 16:9 = STRETCHED (GitHub #10): the HUD without the v1.2.0
@@ -3496,8 +3633,6 @@ static void opt_render_text(int s, int ws, char *out, size_t n)
              nv2a_vk_render_scale_fits(f, ws != 0) ? "" : " TOO LARGE");
 }
 
-static void opt_shader_apply(void);
-
 /* main.c, right after nv2a_vk_install: the values the renderer takes at run
  * time. No saved render size leaves the toolkit's default (RECOMP_GL_SCALE). */
 void thps_options_apply(void)
@@ -3510,8 +3645,12 @@ void thps_options_apply(void)
         opt_render_text(s, a, rt, sizeof rt);
     }
     s_vsync_start = opt_val_index(VAL_VSYNC);
-    s_pacing_start = opt_val_index(VAL_PACING);
     s_boot_start = boot_on();
+    shader_default();                           /* the toolkit's SHADER COMPILE default, before any set */
+    if (settings_get("shader_compile", NULL))   /* only a value the player picked (option-c porting guide) */
+        nv2a_vk_set_async_mode(opt_val_index(VAL_SHADER));
+    nv2a_vk_set_shader_notice(opt_val_index(VAL_SHNOTICE) == 0);
+    opt_upscaling_apply();
     nv2a_vk_set_display_mode(opt_display_mode());
     nv2a_vk_set_antialiasing(opt_aa_index());
     {
@@ -3521,81 +3660,37 @@ void thps_options_apply(void)
             nv2a_vk_set_window_rect(x, y, w, h);
     }
     nv2a_vk_aniso = opt_aniso_level();
-    nv2a_vk_set_fps_hud(opt_hud_mode());
+    nv2a_vk_set_perf_overlay(perf_mask());      /* PERFORMANCE: FPS / FRAME TIME / GAME SPEED */
     s_menus_stretched = opt_stretch_on();       /* per frame in sub_00018F90: not during a movie */
+    s_movies_stretched = opt_movies_stretched(); /* ... and during one (MOVIES AT 16:9) */
     s_hud_stretched = opt_hud_stretched();      /* HUD AT 16:9 (GitHub #10) */
     thps_gamma_apply();                         /* BRIGHTNESS (GitHub #11) */
     fprintf(stderr, "  options: hud %s, brightness %s\n", s_hud_stretched ? "stretched" : "original proportions",
             settings_get("brightness", "0"));
     fprintf(stderr, "  options: display %s, render scale %s, anisotropic filter %dx, antialiasing %s, frame rate %s, "
-            "aspect %s, menus %s, vsync %s, fps counter %s\n", s_val[VAL_DISPMODE].val[opt_val_index(VAL_DISPMODE)],
+            "aspect %s, menus %s, movies %s, vsync %s, performance overlay %d\n",
+            s_val[VAL_DISPMODE].val[opt_val_index(VAL_DISPMODE)],
             rs ? rs : "default", nv2a_vk_aniso, s_aa_val[opt_aa_index()], settings_get("frame_rate", "original"),
             s_val[VAL_ASPECT].txt[thps_aspect_index()], opt_stretch_on() ? "stretched" : "pillarboxed",
-            settings_get("vsync", "on"), settings_get("fps_counter", "off"));
-    opt_shader_apply();
-}
-
-/* SHADERS at start (docs/shader_module.md): shader_on, shader_preset (a .slangp
- * path, relative to the layout folder -- the one that holds game\ and media\ --
- * or absolute; "" or missing = none) and shader_params from the settings file
- * (sh_apply, see "SHADERS" below). THPS_SHADER_PRESET (read as UTF-8:
- * settings_get's getenv is the ANSI one) forces a preset for tests, without the
- * saved values. The toolkit's RECOMP_SHADER_PRESET wins over both.
- * While the packs are being (re)extracted at start (data\ deleted), a preset in
- * them -- or a saved one whose #reference points there -- cannot load yet:
- * s_sh_retry makes thps_options_tick apply it once more when the extraction
- * has ended and the first try failed (sh_retry_tick). */
-static int s_sh_retry;
-static void opt_shader_apply(void)
-{
-    extern const char *xbox_getenv_utf8(const char *name);
-    const char *p = xbox_getenv_utf8("THPS_SHADER_PRESET");
-    char full[1024];
-    size_t n = strlen(g_thps_media_dir);
-    s_sh_retry = shader_pack_state() == SHADER_PACK_WORKING;
-    sh_ov_load();
-    sh_user_scan();
-    if (!p || !*p) {
-        sh_apply();
-        p = settings_get("shader_preset", "");
-        if (*p)
-            fprintf(stderr, "  options: shader %s, preset %s, values \"%s\"%s\n",
-                    strcmp(settings_get("shader_on", "on"), "off") ? "on" : "off", p,
-                    settings_get("shader_params", ""),
-                    nv2a_vk_shader_library_present() ? "" : " (no librashader next to the exe)");
-        return;
-    }
-    if (*p && !(p[0] == '/' || p[0] == '\\' || (p[0] && p[1] == ':'))) {
-        if (n >= 5)
-            n -= 5;                                   /* "<layout>\media" -> "<layout>\" */
-        snprintf(full, sizeof full, "%.*s%s", (int)n, g_thps_media_dir, p);
-        p = full;
-    }
-    nv2a_vk_set_shader_preset(*p ? p : NULL);
-    if (*p)
-        fprintf(stderr, "  options: shader preset %s%s\n", p,
-                nv2a_vk_shader_library_present() ? "" : " (no librashader next to the exe)");
-}
-
-/* thps_options_tick: the extraction at start has ended -- a preset that failed
- * meanwhile is applied once more (one that is still building is waited for) */
-static void sh_retry_tick(void)
-{
-    if (!s_sh_retry || shader_pack_state() == SHADER_PACK_WORKING
-        || nv2a_vk_shader_status() == NV2A_VK_SHADER_LOADING)
-        return;
-    s_sh_retry = 0;
-    if (nv2a_vk_shader_status() != NV2A_VK_SHADER_FAILED)
-        return;
-    fprintf(stderr, "  options: shader packs ready -- the preset that failed at start once more\n");
-    nv2a_vk_set_shader_preset(NULL);               /* the same path again is no new request (sp_set_preset) */
-    opt_shader_apply();                            /* the SHADERS screen follows by itself (sh_tick) */
+            opt_movies_stretched() ? "stretched" : "pillarboxed", settings_get("vsync", "on"), perf_mask());
+    fprintf(stderr, "  options: upscaling %s (%s, %s), shader compile %s%s, shader notice %s\n",
+            s_val[VAL_UPSCALE].val[opt_val_index(VAL_UPSCALE)], s_val[VAL_FSRPRESET].val[opt_val_index(VAL_FSRPRESET)],
+            s_val[VAL_FSRSHARP].val[opt_val_index(VAL_FSRSHARP)], s_val[VAL_SHADER].val[opt_val_index(VAL_SHADER)],
+            settings_get("shader_compile", NULL) ? "" : " (default)",
+            s_val[VAL_SHNOTICE].val[opt_val_index(VAL_SHNOTICE)]);
+    /* no shader preset applied here any more (RetroArch shaders removed from
+     * THPS 2.0, maintainer 2026-11-19; still in option-c): old shader_on /
+     * shader_preset / shader_params keys in saves\settings.ini are ignored */
 }
 
 /* one value line's text */
 static void opt_val_text(int id, char *out, size_t n)
 {
     const char *hint = "";
+    if (id == VAL_RENDER && opt_fsr_on()) {        /* the FSR preset sets the size (UPSCALING) */
+        snprintf(out, n, "%s: FSR", s_val[id].label);
+        return;
+    }
     if (id == VAL_RENDER) {
         /* the sizes of the ASPECT RATIO picked, also before the restart
          * (maintainer, 2026-11-07) */
@@ -3611,8 +3706,6 @@ static void opt_val_text(int id, char *out, size_t n)
     if (id == VAL_ASPECT && opt_val_index(id) != thps_aspect_index())
         hint = " AFTER RESTART";
     else if (id == VAL_VSYNC && s_vsync_start >= 0 && opt_val_index(id) != s_vsync_start)
-        hint = " AFTER RESTART";
-    else if (id == VAL_PACING && s_pacing_start >= 0 && opt_val_index(id) != s_pacing_start)
         hint = " AFTER RESTART";
     else if (id == VAL_FRAMERATE && opt_val_index(id) == 1) {
         float hz = nv2a_vk_display_hz();
@@ -3634,8 +3727,7 @@ static int opt_restart_pending(void)
         what[n++] = "ASPECT RATIO";
     if (s_vsync_start >= 0 && opt_val_index(VAL_VSYNC) != s_vsync_start)
         what[n++] = "VSYNC";
-    if (s_pacing_start >= 0 && opt_val_index(VAL_PACING) != s_pacing_start)
-        what[n++] = "FRAME PACING";
+    /* (FRAME PACING was the fourth until v1.2.8: out of the menu since 2.0) */
     if (s_boot_start >= 0 && boot_on() != s_boot_start)
         what[n++] = "BOOT ANIMATION";
     if (n == 1)
@@ -3644,8 +3736,6 @@ static int opt_restart_pending(void)
         snprintf(s_restart_text, sizeof s_restart_text, "%s AND %s CHANGED", what[0], what[1]);
     else if (n == 3)
         snprintf(s_restart_text, sizeof s_restart_text, "%s %s AND %s", what[0], what[1], what[2]);
-    else if (n == 4)
-        snprintf(s_restart_text, sizeof s_restart_text, "SEVERAL OPTIONS CHANGED");
     return n > 0;
 }
 
@@ -3657,20 +3747,32 @@ static int opt_restart_pending(void)
 #define OPT_GENERAL_FIRST 2                       /* GENERAL OPTIONS: its first value line (CAREER MODE) */
 static void opt_build(int list)
 {
-    /* SHADERS before BOOT ANIMATION (maintainer, 2026-10-27); BUTTON CHEATS
-     * between them (maintainer, 2026-10-28); MOTION BLUR (the game's own value,
+    /* BUTTON CHEATS before BOOT ANIMATION (maintainer, 2026-10-28; SHADERS
+     * stood before it: RetroArch shaders removed from THPS 2.0, maintainer
+     * 2026-11-19; still in option-c -- one line fewer); MOTION BLUR (the game's own value,
      * game_opt_*) moved here from GENERAL OPTIONS, under ANTIALIASING with the
      * other picture settings (maintainer, 2026-11-07) */
     /* FIELD OF VIEW right under ASPECT RATIO (maintainer, 2026-11-07); with
      * MENUS AT 16:9 the list holds 12 lines, the most it can */
     /* v1.2.2 (maintainer, 2026-11-12): WIDESCREEN and PICTURE sub-lists (see
      * OPT_WIDE / OPT_PICTURE); WIDESCREEN only with a wide aspect saved */
-    static const short recomp[] = { VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_FOV, OPT_E_SUB + OPT_WIDE,
-                                    OPT_E_SUB + OPT_PICTURE, OPT_E_SUB + OPT_FPS, OPT_E_SUB + OPT_SHADERS,
-                                    OPT_E_SUB + OPT_CHEATS, OPT_E_SUB + OPT_BOOT };
-    static const short wide[] = { VAL_MENUS, VAL_HUD };
-    static const short picture[] = { VAL_ANISO, OPT_E_SUB + OPT_AA, VAL_BLUR, VAL_BRIGHT };
-    static const short frame[] = { VAL_FRAMERATE, VAL_PACING, VAL_VSYNC, VAL_COUNTER };
+    /* 2.0 (option-c layout, docs/recomp_options_layout.md: THPS keeps its
+     * menu and takes the DISPLAY page, the UPSCALING lines, PERFORMANCE and
+     * RENDERING): DISPLAY > / PICTURE > (= POST PROCESSING) / PERFORMANCE > /
+     * RENDERING >, then THPS's own BUTTON CHEATS and BOOT ANIMATION */
+    static const short recomp[] = { OPT_E_SUB + OPT_DISPLAY, OPT_E_SUB + OPT_PICTURE, OPT_E_SUB + OPT_FPS,
+                                    OPT_E_SUB + OPT_RENDERING, OPT_E_SUB + OPT_CHEATS, OPT_E_SUB + OPT_BOOT };
+    /* option-p layout (maintainer 2026-11-24, option-c docs/recomp_options_layout.md "THPS 2X (2.0.0)"): every
+     * value page opens with the Y hint and a blank line (the cursor starts on its first value); the three 16:9
+     * lines only with a wide aspect saved, the FSR two only with FSR */
+    static const short display[] = { OPT_E_HINT, OPT_E_BLANK, VAL_DISPMODE, VAL_RENDER, VAL_ASPECT, VAL_MOVIES,
+                                     VAL_MENUS, VAL_HUD, VAL_FOV };
+    static const short wide[] = { VAL_MENUS, VAL_HUD, VAL_MOVIES };   /* (v1.2.2 - 2.0 drafts; unused) */
+    static const short picture[] = { OPT_E_HINT, OPT_E_BLANK, VAL_AA, VAL_ANISO, VAL_BLUR, VAL_BRIGHT, VAL_UPSCALE,
+                                     VAL_FSRPRESET, VAL_FSRSHARP };
+    static const short frame[] = { OPT_E_HINT, OPT_E_BLANK, VAL_FRAMERATE, VAL_VSYNC, VAL_PERF_FPS, VAL_PERF_FT,
+                                   VAL_PERF_SPEED };
+    static const short rendering[] = { OPT_E_HINT, OPT_E_BLANK, VAL_SHADER, VAL_SHNOTICE };
     /* the game's four, then LAYOUT and the gameplay values (maintainer,
      * 2026-10-28); OPT_E_HINT: a text line without an action */
     /* the Y hint, a blank line (greyed: the cursor skips it, see
@@ -3698,10 +3800,6 @@ static void opt_build(int list)
     player[3] = (short)(VAL_CAMSX1 + s_ctl_player);
     player[4] = (short)(VAL_CAMSY1 + s_ctl_player);
     player[5] = (short)(VAL_CAMRS1 + s_ctl_player);
-    if (list >= OPT_SHADERS && list <= OPT_SHRESET) {
-        sh_build(list);
-        return;
-    }
     if (list == OPT_SOUND) {
         st_build();
         return;
@@ -3710,6 +3808,10 @@ static void opt_build(int list)
         e = recomp, n = (int)(sizeof recomp / sizeof recomp[0]);
     else if (list == OPT_FPS)
         e = frame, n = (int)(sizeof frame / sizeof frame[0]);
+    else if (list == OPT_DISPLAY)
+        e = display, n = (int)(sizeof display / sizeof display[0]);
+    else if (list == OPT_RENDERING)
+        e = rendering, n = (int)(sizeof rendering / sizeof rendering[0]);
     else if (list == OPT_WIDE)
         e = wide, n = (int)(sizeof wide / sizeof wide[0]);
     else if (list == OPT_PICTURE)
@@ -3729,22 +3831,19 @@ static void opt_build(int list)
     for (i = 0; i < 12; i++)
         s_line_next[list][i] = OPT_STAY;
     for (i = 0; i < n; i++) {
-        if (e[i] == OPT_E_SUB + OPT_WIDE && opt_val_index(VAL_ASPECT) == 0)
-            continue;                              /* WIDESCREEN: only with a wide aspect saved */
+        if ((e[i] == VAL_MOVIES || e[i] == VAL_MENUS || e[i] == VAL_HUD) && opt_val_index(VAL_ASPECT) == 0)
+            continue;                              /* the 16:9 lines: only with a wide aspect saved */
+        if ((e[i] == VAL_FSRPRESET || e[i] == VAL_FSRSHARP) && !opt_fsr_on())
+            continue;                              /* FSR PRESET / SHARPNESS: only with FSR */
         if (e[i] == OPT_E_BLANK) {
             snprintf(s_val_text[list][line], sizeof s_val_text[list][line], " ");
         } else if (e[i] == OPT_E_HINT) {           /* Y resets the line's value (sub_001E66E0) */
             snprintf(s_val_text[list][line], sizeof s_val_text[list][line], "PRESS Y FOR DEFAULT SETTINGS");
         } else if (e[i] >= OPT_E_SUB) {
             int to = e[i] - OPT_E_SUB;
-            if (to == OPT_AA)                      /* the sub-menu's title with the choice in use; */
-                snprintf(s_val_text[list][line], sizeof s_val_text[list][line], "%s: %s%s", s_opt[to].title,
-                         s_opt[OPT_AA].line[opt_aa_index()],    /* a shader chain replaces FXAA (vk_flip) */
-                         opt_aa_index() == NV2A_VK_AA_FXAA && (nv2a_vk_shader_status() == NV2A_VK_SHADER_ON
-                                                              || nv2a_vk_shader_status() == NV2A_VK_SHADER_LOADING)
-                         ? " OFF WITH SHADER" : "");
-            else if (to == OPT_SHADERS)            /* "SHADERS: OFF" / "SHADERS: CRT EASYMODE" */
-                sh_summary(s_val_text[list][line], sizeof s_val_text[list][line]);
+            if (to == OPT_AA)                      /* the sub-menu's title with the choice in use */
+                snprintf(s_val_text[list][line], sizeof s_val_text[list][line], "%s: %s", s_opt[to].title,
+                         s_opt[OPT_AA].line[opt_aa_index()]);
             else if (to == OPT_BOOT) {             /* "BOOT ANIMATION: ON" with media\boot.mpg there */
                 char bp[700];
                 if (boot_state(bp, sizeof bp))
@@ -3767,10 +3866,49 @@ static void opt_build(int list)
     }
 }
 
+/* a value line's new value (index was -> to, already saved): applied where it acts at once - for a step (left /
+ * right / A) and for Y's default alike (option-p layout 2026-11-24: Y works on the RECOMP OPTIONS pages too) */
+static void opt_val_apply(int id, int was, int to)
+{
+    if (id == VAL_FRAMERATE)
+        s_fps_next_ns = 0;
+    else if (id == VAL_ANISO)
+        nv2a_vk_aniso = opt_aniso_level();
+    else if (id == VAL_AA) {
+        s_aa_undo = was + 1;                       /* thps_options_tick: back to it if MSAA fails */
+        nv2a_vk_set_antialiasing(opt_aa_index());
+    } else if (id == VAL_UPSCALE || id == VAL_FSRPRESET || id == VAL_FSRSHARP)
+        opt_upscaling_apply();                     /* the next frame */
+    else if (id == VAL_SHADER)
+        nv2a_vk_set_async_mode(to);                /* the renderer's next draw */
+    else if (id == VAL_SHNOTICE)
+        nv2a_vk_set_shader_notice(to == 0);
+    else if (id == VAL_MOVIES)
+        s_movies_stretched = opt_movies_stretched();
+    else if (id == VAL_MENUS)
+        s_menus_stretched = opt_stretch_on();
+    else if (id == VAL_FOV)
+        s_fov_reload = 1;                          /* at once (thps_fov_extra) */
+    else if (id == VAL_ASPECT)
+        opt_render_carry(was, to);                 /* the other aspect's render size, same width */
+    else if (id == VAL_DISPMODE)
+        nv2a_vk_set_display_mode(opt_display_mode());
+    else if (id >= VAL_FREECAM1 && id <= VAL_CAMRS4)
+        fc_reload();                               /* the camera reads them again, at once */
+    else if (id == VAL_REMCAM)
+        s_rc_loaded = 0;                           /* REMEMBER CAMERA: read again at the next frame */
+    else if (id == VAL_HUD)
+        s_hud_stretched = opt_hud_stretched();     /* at once (sub_00018F90 per frame) */
+    else if (id == VAL_BRIGHT)
+        thps_gamma_apply();                        /* at once */
+}
+
 /* one step of a value (dir -1 / +1): saved, applied where it can be; 0 when
  * nothing changed (an end of RENDER RESOLUTION, a factor that failed before) */
-static int opt_val_step(int id, int dir)
+static int opt_val_step(RECOMP_PARAMS, int id, int dir)
 {
+    if (id == VAL_RENDER && opt_fsr_on())
+        return 0;                                  /* locked: the FSR preset sets the resolution */
     if (id == VAL_RENDER) {
         /* the ASPECT RATIO picked (maintainer, 2026-11-07): before the
          * restart into it the size is only saved, not set live */
@@ -3791,33 +3929,18 @@ static int opt_val_step(int id, int dir)
         return 1;
     }
     if (id >= VAL_FIRST_GAME && id <= VAL_LAST_GAME)
-        return game_opt_set(id, !game_opt_on(id));   /* ON <-> OFF, in the game's memory */
+        return game_opt_set(RECOMP_ARGS, id, !game_opt_on(id));   /* ON <-> OFF, in the game's memory */
+    if (perf_val(id)) {                            /* PERFORMANCE: one bit of performance_overlay */
+        int m = perf_mask();
+        perf_store(m ^ perf_bit(id));
+        nv2a_vk_set_perf_overlay(perf_mask());     /* the next frame */
+        return 1;
+    }
     {
         int was = opt_val_index(id), nv = s_val[id].nval;
         int to = (was + dir + nv) % nv;             /* wraps */
         settings_set(s_val[id].key, s_val[id].val[to]);
-        if (id == VAL_FRAMERATE)
-            s_fps_next_ns = 0;
-        else if (id == VAL_ANISO)
-            nv2a_vk_aniso = opt_aniso_level();
-        else if (id == VAL_COUNTER)
-            nv2a_vk_set_fps_hud(opt_hud_mode());
-        else if (id == VAL_MENUS)
-            s_menus_stretched = opt_stretch_on();
-        else if (id == VAL_FOV)
-            s_fov_reload = 1;                      /* at once (thps_fov_extra) */
-        else if (id == VAL_ASPECT)
-            opt_render_carry(was, to);             /* the other aspect's render size, same width */
-        else if (id == VAL_DISPMODE)
-            nv2a_vk_set_display_mode(opt_display_mode());
-        else if (id >= VAL_FREECAM1 && id <= VAL_CAMRS4)
-            fc_reload();                           /* the camera reads them again, at once */
-        else if (id == VAL_REMCAM)
-            s_rc_loaded = 0;                       /* REMEMBER CAMERA: read again at the next frame */
-        else if (id == VAL_HUD)
-            s_hud_stretched = opt_hud_stretched();  /* at once (sub_00018F90 per frame) */
-        else if (id == VAL_BRIGHT)
-            thps_gamma_apply();                    /* at once */
+        opt_val_apply(id, was, to);
     }
     return 1;
 }
@@ -3826,11 +3949,11 @@ static int opt_val_step(int id, int dir)
  * step on (opt_val_step). */
 static int s_val_refresh;                          /* the A latch set by opt_lr, not a press */
 
-extern void sub_0013D470_gen(void);
-void sub_0013D470(void)
+extern void sub_0013D470_gen(RECOMP_PARAMS);
+void sub_0013D470(RECOMP_PARAMS)
 {
     uint32_t screen = g_ecx, line, n;
-    sub_0013D470_gen();
+    sub_0013D470_gen(RECOMP_ARGS);
     if (!opt_menu_on())
         return;
     if (s_bind_refresh) {                          /* set by the button mapping's tick, not a press */
@@ -3869,7 +3992,7 @@ void sub_0013D470(void)
             char bp[700];
             if (boot_state(bp, sizeof bp))
                 GUEST32(0x00306250u) = boot_on() ? 1u : 2u;
-        } else if (s_opt_list == OPT_GENERAL || s_opt_list == OPT_GAMEPLAY) {   /* on the first value */
+        } else if (opt_hint_list(s_opt_list)) {   /* on the first value, under the Y hint + blank */
             GUEST32(0x00306250u) = OPT_GENERAL_FIRST;
         } else if (s_opt_list == OPT_QUIT) {       /* on NO */
             GUEST32(0x00306250u) = 2;
@@ -3880,7 +4003,7 @@ void sub_0013D470(void)
                 int i;
                 probed = 1;
                 if (e && *e == '1')
-                    cheat_probe();
+                    cheat_probe(RECOMP_ARGS);
                 /* THPS_CHEATS_ON=<code>,<code>... (test, cheat_level.txt):
                  * those codes entered at the first opening, as A would */
                 for (i = 0; on && i < CHEAT_COUNT; i++) {
@@ -3888,7 +4011,7 @@ void sub_0013D470(void)
                     size_t n = strlen(s_cheats[i].code);
                     if (p && (p == on || p[-1] == ',') && (p[n] == ',' || !p[n]))
                         fprintf(stderr, "[CHEAT] %s (%s) -> %d\n", s_cheats[i].code, s_cheats[i].text,
-                                cheat_enter(i));
+                                cheat_enter(RECOMP_ARGS, i));
                 }
             }
             s_cheat_page = 0;
@@ -3898,7 +4021,7 @@ void sub_0013D470(void)
         }
         g_eax = OPT_STAY;
     } else if (s_opt_list == OPT_CHEATS) {         /* A: a cheat switched through the game's checker */
-        GUEST32(0x00306250u) = cheat_action(line);
+        GUEST32(0x00306250u) = cheat_action(RECOMP_ARGS, line);
         g_eax = OPT_STAY;
     } else if (s_opt_list == OPT_BINDKEYS) {       /* record a press, next page or reset */
         GUEST32(0x00306250u) = bind_keys_action(line);
@@ -3935,11 +4058,8 @@ void sub_0013D470(void)
             opt_build(OPT_RECOMP);
         }
         g_eax = OPT_STAY;
-    } else if (s_opt_list >= OPT_SHADERS && s_opt_list <= OPT_SHRESET) {   /* SHADERS: sh_action */
-        GUEST32(0x00306250u) = sh_action(line);
-        g_eax = OPT_STAY;
     } else if (opt_val_at(s_opt_list, line) >= 0) { /* a value line: one step on */
-        if (opt_val_step(opt_val_at(s_opt_list, line), +1))
+        if (opt_val_step(RECOMP_ARGS, opt_val_at(s_opt_list, line), +1))
             opt_build(s_opt_list);
         g_eax = OPT_STAY;
     } else if (s_opt_list == OPT_SOUND) {          /* A: the next source, or a mode picked; saved, same line */
@@ -3954,18 +4074,16 @@ void sub_0013D470(void)
 }
 
 /* B: from a sub-list one level up, on the entry it came from. */
-extern void sub_0013D4D0_gen(void);
-void sub_0013D4D0(void)
+extern void sub_0013D4D0_gen(RECOMP_PARAMS);
+void sub_0013D4D0(RECOMP_PARAMS)
 {
     int was = s_opt_list;
-    sub_0013D4D0_gen();
+    sub_0013D4D0_gen(RECOMP_ARGS);
     if (opt_menu_on() && was == OPT_RECOMP && opt_restart_pending()) {
         s_opt_list = OPT_RESTART;                  /* ask first, on RESTART NOW */
         s_opt_back = 1;
         GUEST32(0x00306250u) = 1;
     } else if (opt_menu_on() && s_opt[was].parent >= 0) {
-        if (was == OPT_SHADERS)
-            s_sh_saved[0] = 0;                     /* SAVED AS ...: only until SHADERS is left */
         s_opt_list = s_opt[was].parent;
         opt_build(s_opt_list);
         s_opt_back = 1;
@@ -3996,7 +4114,7 @@ static int opt_latch_pad(uint32_t base)
     return 0;                                     /* not latched (repeat): player 1 */
 }
 
-static void opt_lr(uint32_t screen, int dir, int pad)
+static void opt_lr(RECOMP_PARAMS, uint32_t screen, int dir, int pad)
 {
     uint32_t line;
     if (pad < 0 || !opt_menu_on() || GUEST32(screen) != 0x0022A2B0u)
@@ -4005,13 +4123,6 @@ static void opt_lr(uint32_t screen, int dir, int pad)
     if (s_opt_shown == OPT_BINDKEYS) {
         if (bind_lr(line, dir))                    /* PLAYER / DEVICE line: rebuilt via A */
             PAD_LATCH(0x00305369u, pad) = 1;
-        return;
-    }
-    if (s_opt_shown >= OPT_SHADERS && s_opt_shown <= OPT_SHRESET) {
-        if (sh_lr(line, dir)) {                    /* rebuilt via A, same line */
-            s_val_refresh = 1;
-            PAD_LATCH(0x00305369u, pad) = 1;
-        }
         return;
     }
     if (s_opt_shown == OPT_CHEATS) {               /* the next / previous page, wraps; the cursor stays */
@@ -4034,7 +4145,7 @@ static void opt_lr(uint32_t screen, int dir, int pad)
         }
         return;
     }
-    if (opt_val_at(s_opt_shown, line) >= 0 && opt_val_step(opt_val_at(s_opt_shown, line), dir)) {
+    if (opt_val_at(s_opt_shown, line) >= 0 && opt_val_step(RECOMP_ARGS, opt_val_at(s_opt_shown, line), dir)) {
         opt_build(s_opt_shown);
         s_val_refresh = 1;
         PAD_LATCH(0x00305369u, pad) = 1;
@@ -4069,8 +4180,8 @@ void thps_options_tick(void)
             nv2a_vk_set_render_scale(opt_render_factor(s_render_undo - 1, ws), ws != 0);
             s_render_undo = 0;
             s_render_undo_frames = 0;
-            if (s_opt_shown == OPT_RECOMP) {       /* the screen again with the old step */
-                opt_build(OPT_RECOMP);
+            if (s_opt_shown == OPT_DISPLAY) {      /* the screen again with the old step (its page since 2.0) */
+                opt_build(OPT_DISPLAY);
                 s_val_refresh = 1;
                 PAD_LATCH(0x00305369u, 0) = 1;
             }
@@ -4085,14 +4196,12 @@ void thps_options_tick(void)
         settings_set("antialiasing", s_aa_val[back]);
         nv2a_vk_set_antialiasing(back);
         s_aa_undo = 0;
-        if (s_opt_shown == OPT_RECOMP) {
-            opt_build(OPT_RECOMP);
+        if (s_opt_shown == OPT_PICTURE) {          /* ANTIALIASING's line is on PICTURE since v1.2.2 */
+            opt_build(OPT_PICTURE);
             s_val_refresh = 1;
             PAD_LATCH(0x00305369u, 0) = 1;
         }
     }
-    sh_retry_tick();
-    sh_tick();
     g = nv2a_vk_window_rect(&x, &y, &w, &h);
     if (g != seen) {
         seen = g;
@@ -4105,22 +4214,22 @@ void thps_options_tick(void)
     }
 }
 
-extern void sub_001E6600_gen(void);
-void sub_001E6600(void)
+extern void sub_001E6600_gen(RECOMP_PARAMS);
+void sub_001E6600(RECOMP_PARAMS)
 {
     uint32_t screen = g_ecx;
     int pad = opt_latch_pad(0x003053B9u);
-    sub_001E6600_gen();
-    opt_lr(screen, -1, pad);
+    sub_001E6600_gen(RECOMP_ARGS);
+    opt_lr(RECOMP_ARGS, screen, -1, pad);
 }
 
-extern void sub_001E65E0_gen(void);
-void sub_001E65E0(void)
+extern void sub_001E65E0_gen(RECOMP_PARAMS);
+void sub_001E65E0(RECOMP_PARAMS)
 {
     uint32_t screen = g_ecx;
     int pad = opt_latch_pad(0x003053C9u);
-    sub_001E65E0_gen();
-    opt_lr(screen, +1, pad);
+    sub_001E65E0_gen(RECOMP_ARGS);
+    opt_lr(RECOMP_ARGS, screen, +1, pad);
 }
 
 /* Y (maintainer, 2026-10-28: only the selected line): in GENERAL OPTIONS
@@ -4129,38 +4238,54 @@ void sub_001E65E0(void)
  * checker switches it off; one-time actions cannot be undone). The base
  * front-end handler (vtable +0x1C, 0x001E66E0) only clears the Y latches; the
  * screen is rebuilt through the A latch like a left / right step (opt_lr). */
-static int opt_val_default(int id)                /* 1 when it changed */
+static int opt_val_default(RECOMP_PARAMS, int id)                /* 1 when it changed */
 {
     if (id >= VAL_FIRST_GAME && id <= VAL_LAST_GAME)
-        return !game_opt_on(id) && game_opt_set(id, 1);
-    if (!s_val[id].key || !strcmp(settings_get(s_val[id].key, s_val[id].def), s_val[id].def))
+        return !game_opt_on(id) && game_opt_set(RECOMP_ARGS, id, 1);
+    if (id == VAL_SHADER) {                        /* the default = no key (the toolkit's) */
+        if (!settings_get(s_val[id].key, NULL))
+            return 0;
+        settings_unset(s_val[id].key);
+        nv2a_vk_set_async_mode(shader_default());
+        return 1;
+    }
+    if (perf_val(id)) {
+        if (!(perf_mask() & perf_bit(id)))
+            return 0;
+        perf_store(perf_mask() & ~perf_bit(id));
+        nv2a_vk_set_perf_overlay(perf_mask());
+        return 1;
+    }
+    if (!s_val[id].key || !s_val[id].def || !strcmp(settings_get(s_val[id].key, s_val[id].def), s_val[id].def))
         return 0;
-    settings_set(s_val[id].key, s_val[id].def);
-    if (id == VAL_REMCAM)
-        s_rc_loaded = 0;                           /* REMEMBER CAMERA: read again at the next frame */
+    {
+        int was = opt_val_index(id);
+        settings_set(s_val[id].key, s_val[id].def);
+        opt_val_apply(id, was, opt_val_index(id));  /* acts at once, as a step does */
+    }
     return 1;
 }
 
-extern void sub_001E66E0_gen(void);
-void sub_001E66E0(void)
+extern void sub_001E66E0_gen(RECOMP_PARAMS);
+void sub_001E66E0(RECOMP_PARAMS)
 {
     uint32_t screen = g_ecx, line;
     int pad = opt_latch_pad(0x00305339u), changed = 0;
-    sub_001E66E0_gen();
+    sub_001E66E0_gen(RECOMP_ARGS);
     if (!opt_menu_on() || GUEST32(screen) != 0x0022A2B0u)
         return;
     line = GUEST32(screen + 0x1B8u);
-    if (s_opt_shown == OPT_GENERAL || s_opt_shown == OPT_GAMEPLAY) {
+    if (opt_hint_list(s_opt_shown)) {
         int id = opt_val_at(s_opt_shown, line);
         if (id < 0)
             return;
-        changed = opt_val_default(id);
+        changed = opt_val_default(RECOMP_ARGS, id);
         opt_build(s_opt_shown);
     } else if (s_opt_shown == OPT_CHEATS) {
         int i = s_cheat_page * CHEAT_PAGE + (int)line - CHEAT_FIRST;
         if (line < CHEAT_FIRST || line >= (uint32_t)(CHEAT_FIRST + cheat_on_page()))
             return;
-        changed = cheat_on(i) && cheat_enter(i) == 1;
+        changed = cheat_on(i) && cheat_enter(RECOMP_ARGS, i) == 1;
         s_cheat_refused = -1;
         cheat_build();
     } else
@@ -4172,10 +4297,10 @@ void sub_001E66E0(void)
 }
 
 /* The Options screen's runner: after B in a sub-list, Options again. */
-extern void sub_0013D050_gen(void);
-void sub_0013D050(void)
+extern void sub_0013D050_gen(RECOMP_PARAMS);
+void sub_0013D050(RECOMP_PARAMS)
 {
-    sub_0013D050_gen();
+    sub_0013D050_gen(RECOMP_ARGS);
     if (s_opt_back) {
         s_opt_back = 0;
         g_eax = OPT_STAY;
@@ -4190,8 +4315,8 @@ void sub_0013D050(void)
  * greyed lines in the move's direction and keeps the line at panel + 0x128 =
  * screen + 0x1B8). A move that lands on the heading is moved on once more by
  * the same select, to the line after it in that direction. */
-extern void sub_001E93F0(void);
-static void opt_updown(uint32_t screen, int dir)
+extern void sub_001E93F0(RECOMP_PARAMS);
+static void opt_updown(RECOMP_PARAMS, uint32_t screen, int dir)
 {
     uint32_t eax = g_eax, ecx = g_ecx, line;
     if (!opt_menu_on() || GUEST32(screen) != 0x0022A2B0u || s_opt_shown != OPT_SOUND)
@@ -4203,25 +4328,25 @@ static void opt_updown(uint32_t screen, int dir)
     g_eax = dir < 0 ? ST_LINE_SOURCE : ST_LINE_ORDER;   /* up: over the greyed blank to SOUNDTRACK */
     g_esp -= 4;
     GUEST32(g_esp) = 0;                           /* its ret pops it */
-    sub_001E93F0();
+    sub_001E93F0(RECOMP_ARGS);
     g_eax = eax;
     g_ecx = ecx;
 }
 
-extern void sub_0013D520_gen(void);
-void sub_0013D520(void)
+extern void sub_0013D520_gen(RECOMP_PARAMS);
+void sub_0013D520(RECOMP_PARAMS)
 {
     uint32_t screen = g_ecx;
-    sub_0013D520_gen();
-    opt_updown(screen, -1);
+    sub_0013D520_gen(RECOMP_ARGS);
+    opt_updown(RECOMP_ARGS, screen, -1);
 }
 
-extern void sub_0013D560_gen(void);
-void sub_0013D560(void)
+extern void sub_0013D560_gen(RECOMP_PARAMS);
+void sub_0013D560(RECOMP_PARAMS)
 {
     uint32_t screen = g_ecx;
-    sub_0013D560_gen();
-    opt_updown(screen, +1);
+    sub_0013D560_gen(RECOMP_ARGS);
+    opt_updown(RECOMP_ARGS, screen, +1);
 }
 
 /* Lines greyed out: the original (sub_0013D400) greys line j (1-4) for a
@@ -4238,12 +4363,12 @@ void sub_0013D560(void)
  * screen corrupt (crash in its destructor, 0x0013D1F2; cause not found).
  * The list is the one this screen was built with (s_opt_shown): A / B switch
  * s_opt_list while the old screen still runs a few frames. */
-extern void sub_0013D400_gen(void);
-void sub_0013D400(void)
+extern void sub_0013D400_gen(RECOMP_PARAMS);
+void sub_0013D400(RECOMP_PARAMS)
 {
     uint32_t saved[4], k, real = opt_lines(s_opt_shown);
     if (!opt_menu_on()) {
-        sub_0013D400_gen();
+        sub_0013D400_gen(RECOMP_ARGS);
         return;
     }
     for (k = 0; k < 4; k++)
@@ -4256,639 +4381,23 @@ void sub_0013D400(void)
             v = line < 4 ? saved[line] : 1u;            /* PLAYER line+1 <- pad line; BUTTON MAPPING always */
         else if (s_opt_shown == OPT_BOOT)
             v = s_boot_text[0] == 'B';                  /* ON / OFF: only with media\boot.mpg (boot_state) */
-        else if (s_opt_shown == OPT_SHADERS && !sh_menu_usable())
-            v = 0;                                      /* no librashader / no pack: the hint, the rest greyed */
-        else if ((s_opt_shown == OPT_GENERAL || s_opt_shown == OPT_GAMEPLAY)
-                 && !strcmp(s_val_text[s_opt_shown][line], " "))
-            v = 0;                                      /* GENERAL OPTIONS, GAMEPLAY: the blank under the Y hint */
+        else if (opt_hint_list(s_opt_shown) && !strcmp(s_val_text[s_opt_shown][line], " "))
+            v = 0;                                      /* a value page (GENERAL OPTIONS ...): the blank under the Y hint */
         else if (s_opt_shown == OPT_CHEATS && line == CHEAT_FIRST - 1)
             v = 0;                                      /* BUTTON CHEATS: the blank under the Y hint */
         else if (s_opt_shown == OPT_SOUND && line == ST_LINE_HEADING - 1)
             v = 0;                                      /* SOUNDTRACKS: the blank (the heading: opt_updown) */
         GUEST32(0x003054A4u + k * 0x18Cu) = v;
     }
-    sub_0013D400_gen();
+    sub_0013D400_gen(RECOMP_ARGS);
     for (k = 0; k < 4; k++)
         GUEST32(0x003054A4u + k * 0x18Cu) = saved[k];
 }
 
-/* ── SHADERS (shader module phase 4; docs/shader_module.md) ──────────────────
- * RECOMP OPTIONS -> SHADERS (the line before BOOT ANIMATION, the last one;
- * maintainer, 2026-10-27): SHADER ON / OFF (left / right or A), PRESET (the browser),
- * PARAMETERS (from the preset in place: nv2a_vk_shader_params), SAVE AS PRESET
- * (a RetroArch simple preset in saves\shaders\My Presets: #reference + the
- * changed values, toolkit shader_pack_save_preset), RESET ALL PARAMETERS (with a
- * confirmation). Without librashader (a build without Rust) or without a pack
- * the first line is the hint and the other four are greyed.
- * Browser: the packs (data\shaders\<zip>, folders of media\shaders, MY PRESETS),
- * folders first, 10 entries a page, NEXT PAGE (left / right too), the pass
- * count as the cost hint; A on a folder opens it, on ".." goes up, on a preset
- * picks it (saved, applied at once, back to SHADERS). Parameters: 10 a page,
- * "NAME: VALUE", left / right = one step (no step given: 1/100 of the range;
- * at most 10,000 steps), A = back to the preset's value; min == max = a caption.
- * No shoulder-button big steps (maintainer, 2026-10-27: not needed). Kept in saves\settings.ini: shader_on (on / off),
- * shader_preset (relative to the layout folder when inside it), shader_params
- * ("name=value;..." of the changed ones; dropped when another preset is picked).
- * The panel font: capitals, digits, dot, colon, space (bind_upper). */
-#define SH_PAGE 10
-#define SH_MAX_PARAMS 1024
-static int s_sh_dirpage, s_sh_parpage;
-static char s_sh_dir[512];                        /* the browser's folder key: "" = the packs */
-static ShaderIndex s_sh_user;                     /* MY PRESETS, listed when the browser opens */
-static const ShaderPreset *s_sh_line_preset[12];  /* browser line -> preset (NULL: folder / other) */
-static char s_sh_line_folder[12][128];            /* browser line -> folder key */
-static Nv2aVkShaderParam *s_sh_par;               /* the preset's parameters (nv2a_vk_shader_params) */
-static int s_sh_npar;
-static unsigned s_sh_par_gen = ~0u;
-static int s_sh_line_par[12];                     /* parameter line -> index, -1 */
-static char s_sh_saved[40];                       /* SAVE AS PRESET's result text */
-static int s_sh_shown_status = -1, s_sh_shown_pack = -1;
-char g_thps_save_dir[512];                        /* set by main.c: <saves> (My Presets) */
-
-/* overrides of the preset in place: name / value, mirrored in shader_params */
-typedef struct { char name[64]; float v; } ShOv;
-static ShOv *s_sh_ov;
-static int s_sh_nov, s_sh_capov;
-
-static const char *sh_layout(char *out, size_t n)  /* "<layout>\" from <layout>\media */
-{
-    size_t k = strlen(g_thps_media_dir);
-    snprintf(out, n, "%.*s", (int)(k >= 5 ? k - 5 : 0), g_thps_media_dir);
-    return out;
-}
-
-static int sh_ov_grow(void)
-{
-    if (s_sh_nov == s_sh_capov) {
-        int cap = s_sh_capov ? s_sh_capov * 2 : 32;
-        ShOv *p = (ShOv *)realloc(s_sh_ov, (size_t)cap * sizeof *p);
-        if (!p)
-            return 0;
-        s_sh_ov = p;
-        s_sh_capov = cap;
-    }
-    return 1;
-}
-
-static void sh_ov_load(void)
-{
-    const char *s = settings_get("shader_params", "");
-    s_sh_nov = 0;
-    while (*s) {
-        const char *eq = strchr(s, '='), *end = strchr(s, ';');
-        if (!end)
-            end = s + strlen(s);
-        if (eq && eq < end && eq - s < 64) {
-            if (!sh_ov_grow())
-                return;
-            snprintf(s_sh_ov[s_sh_nov].name, sizeof s_sh_ov[0].name, "%.*s", (int)(eq - s), s);
-            s_sh_ov[s_sh_nov].v = (float)atof(eq + 1);
-            s_sh_nov++;
-        }
-        s = *end ? end + 1 : end;
-    }
-}
-
-static void sh_ov_save(void)
-{
-    size_t cap = (size_t)s_sh_nov * 80 + 1, k = 0;
-    char *t = (char *)malloc(cap);
-    int i;
-    if (!t)
-        return;
-    t[0] = 0;
-    for (i = 0; i < s_sh_nov; i++)
-        k += (size_t)snprintf(t + k, cap - k, "%s%s=%g", i ? ";" : "", s_sh_ov[i].name, (double)s_sh_ov[i].v);
-    settings_set("shader_params", t);
-    free(t);
-}
-
-static int sh_ov_find(const char *name)
-{
-    int i;
-    for (i = 0; i < s_sh_nov; i++)
-        if (!strcmp(s_sh_ov[i].name, name))
-            return i;
-    return -1;
-}
-
-static void sh_ov_set(const char *name, float v, float initial)
-{
-    int i = sh_ov_find(name);
-    if (fabsf(v - initial) < 1e-6f) {                 /* back to the preset's value: no override */
-        if (i >= 0)
-            s_sh_ov[i] = s_sh_ov[--s_sh_nov];
-    } else {
-        if (i < 0) {
-            if (!sh_ov_grow())
-                return;
-            i = s_sh_nov++;
-            snprintf(s_sh_ov[i].name, sizeof s_sh_ov[i].name, "%s", name);
-        }
-        s_sh_ov[i].v = v;
-    }
-    nv2a_vk_set_shader_param(name, v);
-    sh_ov_save();
-    s_sh_saved[0] = 0;
-}
-
-/* the preset path in use (absolute), "" none */
-static void sh_preset_path(char *out, size_t n)
-{
-    const char *p = settings_get("shader_preset", "");
-    char lay[512];
-    if (*p && !(p[0] == '/' || p[0] == '\\' || (p[0] && p[1] == ':')))
-        snprintf(out, n, "%s%s", sh_layout(lay, sizeof lay), p);
-    else
-        snprintf(out, n, "%s", p);
-}
-
-static int sh_on(void)
-{
-    return strcmp(settings_get("shader_on", "on"), "off") != 0;
-}
-
-/* the toolkit gets the preset (or none) and the overrides; any change drops
- * SAVE AS PRESET's result text */
-static void sh_apply(void)
-{
-    char path[1024];
-    int i;
-    s_sh_saved[0] = 0;
-    sh_preset_path(path, sizeof path);
-    nv2a_vk_set_shader_preset(sh_on() && path[0] ? path : NULL);
-    if (sh_on() && path[0])
-        for (i = 0; i < s_sh_nov; i++)
-            nv2a_vk_set_shader_param(s_sh_ov[i].name, s_sh_ov[i].v);
-}
-
-/* "CRT EASYMODE" from ".../crt-easymode.slangp" */
-static void sh_name(const char *file, char *out, size_t n)
-{
-    const char *b = strrchr(file, '/'), *bs = strrchr(file, '\\');
-    char tmp[128];
-    size_t l;
-    if (bs > b)
-        b = bs;
-    b = b ? b + 1 : file;
-    snprintf(tmp, sizeof tmp, "%s", b);
-    l = strlen(tmp);
-    if (l > 7 && !SDL_strcasecmp(tmp + l - 7, ".slangp"))
-        tmp[l - 7] = 0;
-    bind_upper(out, n, tmp);
-}
-
-/* the SHADERS lines usable (sub_0013D400 greys them otherwise): librashader
- * next to the exe and a pack (being prepared, or with presets) or own presets */
-static int sh_menu_usable(void)
-{
-    const ShaderIndex *x = shader_pack_index();
-    return nv2a_vk_shader_library_present() && (shader_pack_state() == SHADER_PACK_WORKING || (x && x->n > 0)
-                                                || s_sh_user.n > 0);
-}
-
-static void sh_user_scan(void)
-{
-    char d[700];
-    shader_pack_free(&s_sh_user);
-    snprintf(d, sizeof d, "%s\\shaders\\My Presets", g_thps_save_dir);
-    shader_pack_list_dir(d, "MY PRESETS", &s_sh_user);
-}
-
-/* the SHADERS line in RECOMP OPTIONS: "SHADERS: OFF" / "SHADERS: CRT EASYMODE" /
- * "SHADERS: BROKEN PASS  FAILED" (the preset did not load; the picture is unshaded) */
-static void sh_summary(char *out, size_t n)
-{
-    char path[1024], nm[40];
-    sh_preset_path(path, sizeof path);
-    if (!sh_on() || !path[0] || !nv2a_vk_shader_library_present())
-        snprintf(out, n, "SHADERS: OFF");
-    else {
-        sh_name(path, nm, 28);
-        snprintf(out, n, "SHADERS: %s%s", nm, nv2a_vk_shader_status() == NV2A_VK_SHADER_FAILED ? "  FAILED" : "");
-    }
-}
-
-static void sh_build_main(void)
-{
-    char path[1024], nm[40];
-    int st = nv2a_vk_shader_status(), pk = shader_pack_state();
-    memset(s_sh_text[0], 0, sizeof s_sh_text[0]);
-    s_sh_shown_status = st;
-    s_sh_shown_pack = pk;
-    snprintf(s_sh_title[0], sizeof s_sh_title[0], "SHADERS%s",
-             st == NV2A_VK_SHADER_LOADING ? "  LOADING" : st == NV2A_VK_SHADER_FAILED ? "  PRESET FAILED" : "");
-    if (!sh_menu_usable()) {
-        snprintf(s_sh_text[0][0], sizeof s_sh_text[0][0], "%s", !nv2a_vk_shader_library_present()
-                 ? "NEEDS LIBRASHADER IN THE GAME FOLDER" : "NEEDS A SHADER PACK IN MEDIA SHADERS");
-        snprintf(s_sh_text[0][1], sizeof s_sh_text[0][1], "SHADER: OFF");
-        snprintf(s_sh_text[0][2], sizeof s_sh_text[0][2], "PRESET: NONE");
-        snprintf(s_sh_text[0][3], sizeof s_sh_text[0][3], "PARAMETERS");
-        snprintf(s_sh_text[0][4], sizeof s_sh_text[0][4], "SAVE AS PRESET");
-        return;
-    }
-    sh_preset_path(path, sizeof path);
-    snprintf(s_sh_text[0][0], sizeof s_sh_text[0][0], "SHADER: %s", sh_on() ? "ON" : "OFF");
-    if (pk == SHADER_PACK_WORKING)
-        snprintf(s_sh_text[0][1], sizeof s_sh_text[0][1], "PRESET: PREPARING PACKS");
-    else if (!path[0])
-        snprintf(s_sh_text[0][1], sizeof s_sh_text[0][1], "PRESET: NONE");
-    else {
-        sh_name(path, nm, 30);
-        snprintf(s_sh_text[0][1], sizeof s_sh_text[0][1], "PRESET: %s", nm);
-    }
-    s_sh_npar = nv2a_vk_shader_params(NULL, 0, NULL);
-    if (s_sh_npar)
-        snprintf(s_sh_text[0][2], sizeof s_sh_text[0][2], "PARAMETERS: %d  %d CHANGED", s_sh_npar, s_sh_nov);
-    else
-        snprintf(s_sh_text[0][2], sizeof s_sh_text[0][2], "PARAMETERS: NONE");
-    snprintf(s_sh_text[0][3], sizeof s_sh_text[0][3], "%s", s_sh_saved[0] ? s_sh_saved : "SAVE AS PRESET");
-    snprintf(s_sh_text[0][4], sizeof s_sh_text[0][4], "RESET ALL PARAMETERS");
-}
-
-/* every preset known: the index, then MY PRESETS */
-static const ShaderPreset *sh_preset_at(int i)
-{
-    const ShaderIndex *x = shader_pack_index();
-    int nx = x ? x->n : 0;
-    return i < nx ? &x->p[i] : i - nx < s_sh_user.n ? &s_sh_user.p[i - nx] : NULL;
-}
-
-static int sh_presets(void)
-{
-    const ShaderIndex *x = shader_pack_index();
-    return (x ? x->n : 0) + s_sh_user.n;
-}
-
-/* entries of folder s_sh_dir: its sub-folders (unique), then its presets */
-static int sh_entries(char (*folders)[128], int maxf, int *nf, const ShaderPreset **pres, int maxp, int *np)
-{
-    size_t dl = strlen(s_sh_dir);
-    int i, k;
-    *nf = *np = 0;
-    for (i = 0; i < sh_presets(); i++) {
-        const ShaderPreset *p = sh_preset_at(i);
-        const char *rest, *sl;
-        if (dl && (SDL_strncasecmp(p->rel, s_sh_dir, dl) || p->rel[dl] != '/'))
-            continue;
-        rest = p->rel + (dl ? dl + 1 : 0);
-        sl = strchr(rest, '/');
-        if (sl) {
-            char f[128];
-            snprintf(f, sizeof f, "%.*s%s%.*s", (int)dl, s_sh_dir, dl ? "/" : "", (int)(sl - rest), rest);
-            for (k = 0; k < *nf && SDL_strcasecmp(folders[k], f); k++)
-                ;
-            if (k == *nf && *nf < maxf)
-                snprintf(folders[(*nf)++], 128, "%s", f);
-        } else if (*np < maxp) {
-            pres[(*np)++] = p;
-        }
-    }
-    return *nf + *np;
-}
-
-static void sh_build_browse(void)
-{
-    static char folders[512][128];
-    static const ShaderPreset *pres[4096];
-    int nf, np, total, pages, line = 0, e;
-    const char *last = strrchr(s_sh_dir, '/');
-    char t[40];
-    memset(s_sh_text[1], 0, sizeof s_sh_text[1]);
-    memset(s_sh_line_preset, 0, sizeof s_sh_line_preset);
-    memset(s_sh_line_folder, 0, sizeof s_sh_line_folder);
-    total = sh_entries(folders, 512, &nf, pres, 4096, &np);
-    pages = total ? (total + SH_PAGE - 1) / SH_PAGE : 1;
-    if (s_sh_dirpage >= pages)
-        s_sh_dirpage = 0;
-    if (s_sh_dirpage < 0)
-        s_sh_dirpage = pages - 1;
-    bind_upper(t, 22, last ? last + 1 : s_sh_dir[0] ? s_sh_dir : "PRESETS");
-    if (pages > 1)
-        snprintf(s_sh_title[1], sizeof s_sh_title[1], "%s  %d OF %d", t, s_sh_dirpage + 1, pages);
-    else
-        snprintf(s_sh_title[1], sizeof s_sh_title[1], "%s", t);
-    snprintf(s_sh_text[1][line++], sizeof s_sh_text[1][0], "%s", s_sh_dir[0] ? ".. UP" : "NONE");
-    for (e = s_sh_dirpage * SH_PAGE; e < total && e < (s_sh_dirpage + 1) * SH_PAGE; e++, line++) {
-        char nm[40];
-        if (e < nf) {
-            const char *f = strrchr(folders[e], '/');
-            bind_upper(nm, 30, f ? f + 1 : folders[e]);
-            snprintf(s_sh_text[1][line], sizeof s_sh_text[1][line], "%s ...", nm);
-            snprintf(s_sh_line_folder[line], sizeof s_sh_line_folder[line], "%s", folders[e]);
-        } else {
-            const ShaderPreset *p = pres[e - nf];
-            sh_name(p->rel, nm, 28);
-            if (p->passes < 0)
-                snprintf(s_sh_text[1][line], sizeof s_sh_text[1][line], "%s  BROKEN", nm);
-            else
-                snprintf(s_sh_text[1][line], sizeof s_sh_text[1][line], "%s  %d %s", nm, p->passes,
-                         p->passes == 1 ? "PASS" : "PASSES");
-            s_sh_line_preset[line] = p;
-        }
-    }
-    if (pages > 1)
-        snprintf(s_sh_text[1][line], sizeof s_sh_text[1][line], "NEXT PAGE");
-}
-
-static float sh_step(const Nv2aVkShaderParam *p)
-{
-    float range = p->maximum - p->minimum, st = p->step;
-    if (!(st > 0.0f))
-        st = range / 100.0f;
-    if (range / st > 10000.0f)
-        st = range / 10000.0f;
-    return st;
-}
-
-static float sh_value(const Nv2aVkShaderParam *p)
-{
-    int i = sh_ov_find(p->name);
-    return i >= 0 ? s_sh_ov[i].v : p->initial;
-}
-
-static void sh_params_fetch(void)
-{
-    unsigned gen;
-    int n = nv2a_vk_shader_params(NULL, 0, &gen);
-    if (gen == s_sh_par_gen && s_sh_par)
-        return;
-    free(s_sh_par);
-    s_sh_par = n ? (Nv2aVkShaderParam *)calloc((size_t)(n < SH_MAX_PARAMS ? n : SH_MAX_PARAMS), sizeof *s_sh_par)
-                 : NULL;
-    s_sh_npar = s_sh_par ? nv2a_vk_shader_params(s_sh_par, SH_MAX_PARAMS, &gen) : 0;
-    if (s_sh_npar > SH_MAX_PARAMS)
-        s_sh_npar = SH_MAX_PARAMS;
-    s_sh_par_gen = gen;
-}
-
-static void sh_build_params(void)
-{
-    int pages, line = 0, i;
-    memset(s_sh_text[2], 0, sizeof s_sh_text[2]);
-    for (i = 0; i < 12; i++)
-        s_sh_line_par[i] = -1;
-    sh_params_fetch();
-    pages = s_sh_npar ? (s_sh_npar + SH_PAGE - 1) / SH_PAGE : 1;
-    if (s_sh_parpage >= pages)
-        s_sh_parpage = 0;
-    if (s_sh_parpage < 0)
-        s_sh_parpage = pages - 1;
-    snprintf(s_sh_title[2], sizeof s_sh_title[2], "PARAMETERS %d OF %d  %d CHANGED", s_sh_parpage + 1, pages,
-             s_sh_nov);
-    if (!s_sh_npar) {
-        snprintf(s_sh_text[2][0], sizeof s_sh_text[2][0], "NO PARAMETERS");
-        return;
-    }
-    for (i = s_sh_parpage * SH_PAGE; i < s_sh_npar && i < (s_sh_parpage + 1) * SH_PAGE; i++, line++) {
-        const Nv2aVkShaderParam *p = &s_sh_par[i];
-        char lab[40];
-        float v = sh_value(p), st = sh_step(p);
-        bind_upper(lab, 26, p->desc[0] ? p->desc : p->name);
-        if (!lab[0])
-            bind_upper(lab, 26, p->name);
-        if (p->maximum <= p->minimum)
-            snprintf(s_sh_text[2][line], sizeof s_sh_text[2][line], "%s", lab);       /* a caption */
-        else
-            snprintf(s_sh_text[2][line], sizeof s_sh_text[2][line], "%s: %.*f", lab,
-                     st >= 1.0f ? 0 : st >= 0.1f ? 1 : st >= 0.01f ? 2 : 3, (double)v);
-        s_sh_line_par[line] = i;
-    }
-    if (pages > 1)
-        snprintf(s_sh_text[2][line], sizeof s_sh_text[2][line], "NEXT PAGE");
-}
-
-static void sh_build_reset(void)
-{
-    memset(s_sh_text[3], 0, sizeof s_sh_text[3]);
-    snprintf(s_sh_title[3], sizeof s_sh_title[3], "RESET ALL PARAMETERS");
-    /* the panel font has no parentheses: CHANGE / CHANGES instead of CHANGE(S) */
-    snprintf(s_sh_text[3][0], sizeof s_sh_text[3][0], "RESET %d %s TO PRESET VALUES", s_sh_nov,
-             s_sh_nov == 1 ? "CHANGE" : "CHANGES");
-    snprintf(s_sh_text[3][1], sizeof s_sh_text[3][1], "RESET");
-    snprintf(s_sh_text[3][2], sizeof s_sh_text[3][2], "CANCEL");
-}
-
-static void sh_build(int list)
-{
-    if (list == OPT_SHADERS)
-        sh_build_main();
-    else if (list == OPT_SHBROWSE)
-        sh_build_browse();
-    else if (list == OPT_SHPARAMS)
-        sh_build_params();
-    else if (list == OPT_SHRESET)
-        sh_build_reset();
-}
-
-/* a preset picked in the browser (NULL = none) */
-static void sh_pick(const ShaderPreset *p)
-{
-    char lay[512];
-    size_t ll = strlen(sh_layout(lay, sizeof lay));
-    if (p && ll && !SDL_strncasecmp(p->path, lay, ll))
-        settings_set("shader_preset", p->path + ll);   /* inside the layout: relative (it may move) */
-    else
-        settings_set("shader_preset", p ? p->path : "");
-    s_sh_nov = 0;                                      /* another preset: its own values */
-    settings_set("shader_params", "");
-    settings_set("shader_on", "on");
-    sh_apply();
-    fprintf(stderr, "  options: shader preset %s\n", p ? p->rel : "none");
-}
-
-static void sh_save(void)
-{
-    char ref[1024], dir[700], out[1100], nm[40];
-    const char **names;
-    float *vals;
-    int i;
-    sh_preset_path(ref, sizeof ref);
-    if (!ref[0])
-        return;
-    names = (const char **)calloc((size_t)(s_sh_nov ? s_sh_nov : 1), sizeof *names);
-    vals = (float *)calloc((size_t)(s_sh_nov ? s_sh_nov : 1), sizeof *vals);
-    if (!names || !vals) {
-        free(names);
-        free(vals);
-        return;
-    }
-    for (i = 0; i < s_sh_nov; i++) {
-        names[i] = s_sh_ov[i].name;
-        vals[i] = s_sh_ov[i].v;
-    }
-    snprintf(dir, sizeof dir, "%s\\shaders\\My Presets", g_thps_save_dir);
-    if (shader_pack_save_preset(dir, "MY PRESET", ref, names, vals, s_sh_nov, out, sizeof out)) {
-        ShaderPreset mine;
-        sh_name(out, nm, 24);
-        fprintf(stderr, "  options: shader preset saved as %s\n", out);
-        sh_user_scan();
-        mine.path = out;
-        mine.rel = out;
-        mine.passes = 0;
-        sh_pick(&mine);                                /* the saved one is in use now, its values in the file */
-        snprintf(s_sh_saved, sizeof s_sh_saved, "SAVED AS %s", nm);
-    } else {
-        snprintf(s_sh_saved, sizeof s_sh_saved, "SAVE FAILED");
-    }
-    free(names);
-    free(vals);
-}
-
-/* A in one of the SHADERS lists; returns the cursor line */
-static uint32_t sh_action(uint32_t line)
-{
-    if (s_opt_list == OPT_SHADERS) {
-        if (!sh_menu_usable())
-            return line;
-        if (line == 0) {
-            settings_set("shader_on", sh_on() ? "off" : "on");
-            sh_apply();
-        } else if (line == 1 && shader_pack_state() != SHADER_PACK_WORKING) {
-            char path[1024];
-            int i;
-            sh_user_scan();
-            s_sh_dir[0] = 0;                           /* open on the folder of the preset in use */
-            sh_preset_path(path, sizeof path);
-            for (i = 0; path[0] && i < sh_presets(); i++)
-                if (!SDL_strcasecmp(sh_preset_at(i)->path, path)) {
-                    const char *sl = strrchr(sh_preset_at(i)->rel, '/');
-                    if (sl)
-                        snprintf(s_sh_dir, sizeof s_sh_dir, "%.*s", (int)(sl - sh_preset_at(i)->rel),
-                                 sh_preset_at(i)->rel);
-                    break;
-                }
-            s_sh_dirpage = 0;
-            s_opt_list = OPT_SHBROWSE;
-            sh_build(OPT_SHBROWSE);
-            return 0;
-        } else if (line == 2 && nv2a_vk_shader_params(NULL, 0, NULL) > 0) {
-            s_sh_parpage = 0;
-            s_opt_list = OPT_SHPARAMS;
-            sh_build(OPT_SHPARAMS);
-            return 0;
-        } else if (line == 3) {
-            sh_save();
-        } else if (line == 4 && s_sh_nov) {
-            s_opt_list = OPT_SHRESET;
-            sh_build(OPT_SHRESET);
-            return 2;                                  /* on CANCEL */
-        }
-        sh_build(OPT_SHADERS);
-        return line;
-    }
-    if (s_opt_list == OPT_SHBROWSE) {
-        if (line == 0) {
-            char *sl;
-            if (!s_sh_dir[0]) {                        /* NONE: no preset */
-                sh_pick(NULL);
-                s_opt_list = OPT_SHADERS;
-                sh_build(OPT_SHADERS);
-                return 1;
-            }
-            sl = strrchr(s_sh_dir, '/');               /* ..: one folder up */
-            if (sl)
-                *sl = 0;
-            else
-                s_sh_dir[0] = 0;
-            s_sh_dirpage = 0;
-        } else if (line < 12 && s_sh_line_folder[line][0]) {
-            snprintf(s_sh_dir, sizeof s_sh_dir, "%s", s_sh_line_folder[line]);
-            s_sh_dirpage = 0;
-        } else if (line < 12 && s_sh_line_preset[line]) {
-            sh_pick(s_sh_line_preset[line]);
-            s_opt_list = OPT_SHADERS;
-            sh_build(OPT_SHADERS);
-            return 1;
-        } else if (line < 12 && !strcmp(s_sh_text[1][line], "NEXT PAGE")) {
-            s_sh_dirpage++;
-            sh_build(OPT_SHBROWSE);
-            return line;
-        }
-        sh_build(OPT_SHBROWSE);
-        return 0;
-    }
-    if (s_opt_list == OPT_SHPARAMS) {
-        if (line < 12 && s_sh_line_par[line] >= 0) {   /* A: back to the preset's value */
-            const Nv2aVkShaderParam *p = &s_sh_par[s_sh_line_par[line]];
-            if (p->maximum > p->minimum)
-                sh_ov_set(p->name, p->initial, p->initial);
-        } else if (line < 12 && !strcmp(s_sh_text[2][line], "NEXT PAGE")) {
-            s_sh_parpage++;
-        }
-        sh_build(OPT_SHPARAMS);
-        return line;
-    }
-    if (s_opt_list == OPT_SHRESET) {
-        if (line == 1) {
-            int i;
-            sh_params_fetch();
-            for (i = 0; i < s_sh_npar; i++)
-                if (sh_ov_find(s_sh_par[i].name) >= 0)
-                    nv2a_vk_set_shader_param(s_sh_par[i].name, s_sh_par[i].initial);
-            s_sh_nov = 0;
-            sh_ov_save();
-            s_sh_saved[0] = 0;
-            fprintf(stderr, "  options: shader parameters reset\n");
-        }
-        s_opt_list = OPT_SHADERS;
-        sh_build(OPT_SHADERS);
-        return 4;
-    }
-    return line;
-}
-
-/* left / right in the SHADERS lists; 1 when the screen changed */
-static int sh_lr(uint32_t line, int dir)
-{
-    if (s_opt_shown == OPT_SHADERS && line == 0 && sh_menu_usable()) {
-        settings_set("shader_on", sh_on() ? "off" : "on");
-        sh_apply();
-        sh_build(OPT_SHADERS);
-        return 1;
-    }
-    if (s_opt_shown == OPT_SHBROWSE) {
-        s_sh_dirpage += dir;
-        sh_build(OPT_SHBROWSE);
-        return 1;
-    }
-    if (s_opt_shown == OPT_SHPARAMS && line < 12 && s_sh_line_par[line] >= 0) {
-        const Nv2aVkShaderParam *p = &s_sh_par[s_sh_line_par[line]];
-        float v, st;
-        if (p->maximum <= p->minimum)
-            return 0;
-        st = sh_step(p);
-        v = sh_value(p) + (float)dir * st;
-        if (v < p->minimum)
-            v = p->minimum;
-        if (v > p->maximum)
-            v = p->maximum;
-        v = p->minimum + st * floorf((v - p->minimum) / st + 0.5f);   /* on the step grid */
-        if (v > p->maximum)
-            v = p->maximum;
-        sh_ov_set(p->name, v, p->initial);
-        sh_build(OPT_SHPARAMS);
-        return 1;
-    }
-    if (s_opt_shown == OPT_SHPARAMS && line < 12 && !strcmp(s_sh_text[2][line], "NEXT PAGE")) {
-        s_sh_parpage += dir;
-        sh_build(OPT_SHPARAMS);
-        return 1;
-    }
-    return 0;
-}
-
-/* thps_options_tick: the SHADERS screen follows LOADING -> ON and the packs getting ready */
-static void sh_tick(void)
-{
-    if (s_opt_shown != OPT_SHADERS || s_opt_list != OPT_SHADERS)
-        return;
-    if (nv2a_vk_shader_status() != s_sh_shown_status || shader_pack_state() != s_sh_shown_pack) {
-        sh_build(OPT_SHADERS);
-        s_val_refresh = 1;
-        PAD_LATCH(0x00305369u, 0) = 1;
-    }
-}
+/* (SHADERS -- the RetroArch slang shader lists, browser, parameters and saved
+ * presets -- stood here: RetroArch shaders removed from THPS 2.0, maintainer
+ * 2026-11-19; still in option-c. Old shader_on / shader_preset /
+ * shader_params keys in saves\settings.ini are simply not read any more.) */
 
 /* ── PLAYER n CONTROLS: a BUTTON MAPPING line (M6 groundwork) ─────────────────
  * Why: maintainer, 2026-10-18 -- button mapping is per controller, so it goes
@@ -4904,10 +4413,10 @@ static void sh_tick(void)
  * count, push 3 at 0x0012F136) wrote through null pointers (0x0012F143 and,
  * when navigating, 0x0012F3F3) -- the screen keeps per-line state for three
  * lines only. */
-extern void sub_000988A0(void);
-extern void sub_00098660(void);
+extern void sub_000988A0(RECOMP_PARAMS);
+extern void sub_00098660(RECOMP_PARAMS);
 
-static uint32_t guest_alloc_like_loader(uint32_t size)
+static uint32_t guest_alloc_like_loader(RECOMP_PARAMS, uint32_t size)
 {
     uint32_t saved_ecx = g_ecx, saved_edx = g_edx, p;
     g_esp -= 4; GUEST32(g_esp) = 1;               /* push 1, push 0, push 1 (0x0017A0B7) */
@@ -4916,25 +4425,25 @@ static uint32_t guest_alloc_like_loader(uint32_t size)
     g_esp -= 4; GUEST32(g_esp) = 0;               /* return address; ret 0xC pops the args */
     g_ecx = size;
     g_edx = 1;
-    sub_000988A0();
+    sub_000988A0(RECOMP_ARGS);
     p = g_eax;
     g_ecx = saved_ecx;
     g_edx = saved_edx;
     return p;
 }
 
-static void guest_free_like_loader(uint32_t p)
+static void guest_free_like_loader(RECOMP_PARAMS, uint32_t p)
 {
     uint32_t saved_ecx = g_ecx, saved_edx = g_edx;
     g_ecx = p - *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + p - 1) + 4;   /* as 0x0012F02D */
     g_esp -= 4; GUEST32(g_esp) = 0;
-    sub_00098660();
+    sub_00098660(RECOMP_ARGS);
     g_ecx = saved_ecx;
     g_edx = saved_edx;
 }
 
 /* returns the buffer to use (the old one, or a new one with the text) */
-uint32_t thps_ctl_panel(uint32_t buf, uint32_t size_ptr)
+uint32_t thps_ctl_panel(RECOMP_PARAMS, uint32_t buf, uint32_t size_ptr)
 {
     static const char text[] = "BUTTON MAPPING";
     static const uint8_t next_el[] = { 0x96, 0x09, 0x00, '3', 'D', ' ', 'o', 'b', 'j', 'e', 'c', 't' };
@@ -4945,7 +4454,7 @@ uint32_t thps_ctl_panel(uint32_t buf, uint32_t size_ptr)
             break;
     if (p + sizeof next_el > size || g[buf + p - 2] || g[buf + p - 1])
         return buf;                                /* not the layout we know: leave it */
-    if (!(nb = guest_alloc_like_loader(size + n)))
+    if (!(nb = guest_alloc_like_loader(RECOMP_ARGS, size + n)))
         return buf;
     memcpy(g + nb, g + buf, p - 2);
     g[nb + p - 2] = (uint8_t)n;
@@ -4953,7 +4462,7 @@ uint32_t thps_ctl_panel(uint32_t buf, uint32_t size_ptr)
     memcpy(g + nb + p, text, n);
     memcpy(g + nb + p + n, g + buf + p, size - p);
     GUEST32(size_ptr) = size + n;
-    guest_free_like_loader(buf);
+    guest_free_like_loader(RECOMP_ARGS, buf);
     return nb;
 }
 
@@ -5293,7 +4802,7 @@ static void thps_bind_tick(void)
 
 /* ── PS2-style layout: spins on Black / White, nollie + switch on the triggers ──
  *
- * Why: player request (v0.9.2). The Xbox
+ * Why: player request (v0.9.2, docs/v092_tester_feedback.md item 7). The Xbox
  * version put all four PS shoulder roles on the two triggers: spin in the air,
  * nollie / switch on the ground. BUTTON MAPPING cannot split them - both read
  * the same trigger records. The PS2 games had spins on L1 / R1 (Black / White
@@ -5310,9 +4819,9 @@ static void thps_bind_tick(void)
  * trigger slots of every player's pad, swapped back after the call - so their
  * latch updates land on Black / White, the triggers stay untouched. Default
  * xbox = the original, both calls straight through.
- * Verified: v0.9.2 tests (PS2 layout test). */
-extern void sub_000AC9D0_gen(void);
-extern void sub_000A85E0_gen(void);
+ * Verified: docs/v092_tester_feedback.md (PS2 layout test). */
+extern void sub_000AC9D0_gen(RECOMP_PARAMS);
+extern void sub_000A85E0_gen(RECOMP_PARAMS);
 const char *settings_get(const char *key, const char *def);
 
 static int ps2_layout(void)
@@ -5336,7 +4845,7 @@ static void ps2_swap_shoulders(void)
     }
 }
 
-void sub_000AC9D0(void)
+void sub_000AC9D0(RECOMP_PARAMS)
 {
     /* THPS_LAYOUT_TRACE=1 (test, either layout): player 1's shoulder records
      * and the spin value the reader returned, while any of the four is down. */
@@ -5347,12 +4856,12 @@ void sub_000AC9D0(void)
         tr = e && *e == '1';
     }
     if (!ps2 && !tr) {
-        sub_000AC9D0_gen();
+        sub_000AC9D0_gen(RECOMP_ARGS);
         return;
     }
     if (ps2)
         ps2_swap_shoulders();
-    sub_000AC9D0_gen();
+    sub_000AC9D0_gen(RECOMP_ARGS);
     if (ps2)
         ps2_swap_shoulders();
     {
@@ -5378,7 +4887,7 @@ void sub_000AC9D0(void)
  * original clears them there anyway, nothing else reads them in the air. With
  * the PS2 layout the clear comes after the swap, so it hits Black / White.
  * Default on = the original.
- * Verified: v0.9.2 tests (spin taps test).
+ * Verified: docs/v092_tester_feedback.md (spin taps test).
  * spin_taps = separate (GitHub #15, maintainer 2026-11-13: the reporter's wish, taps on buttons of their own):
  * the triggers only spin by hand; the 180s come from the other shoulder pair - Black / White with the XBOX
  * playstyle, LT / RT with PS2 (after the swap they sit in the Black / White records +0xC0 / +0xD0). In the same
@@ -5398,7 +4907,7 @@ static int spin_taps_mode(void)
     return mode;
 }
 
-void sub_000A85E0(void)
+void sub_000A85E0(RECOMP_PARAMS)
 {
     int ps2 = ps2_layout(), mode = spin_taps_mode(), off = mode != SPIN_TAPS_ON;
     uint32_t sk = GUEST32(g_esp + 4);
@@ -5414,7 +4923,7 @@ void sub_000A85E0(void)
             fprintf(stderr, "[SPINTAP] air update runs during replay playback (%u)\n", n);
     }
     if (!ps2 && !off && !tr) {
-        sub_000A85E0_gen();
+        sub_000A85E0_gen(RECOMP_ARGS);
         return;
     }
     if (ps2)
@@ -5447,7 +4956,7 @@ void sub_000A85E0(void)
     }
     {
         uint32_t q0 = sk ? GUEST32(sk + 0x572C) : 0;
-        sub_000A85E0_gen();
+        sub_000A85E0_gen(RECOMP_ARGS);
         /* THPS_SPIN_TRACE=1 (test): the 180 queue of the skater whenever it changes */
         if (tr && sk && GUEST32(sk + 0x572C) != q0)
             fprintf(stderr, "[SPINTAP] queue %d -> %d (state %u, taps %s)\n", (int)q0,
@@ -5483,15 +4992,15 @@ void sub_000A85E0(void)
  * Verified: maintainer's play test 2026-10-31 with the trace (33 contacts:
  * every angle >= 61.9 deg bailed, 20 of 21 under 60 deg rode; the 53 deg bail
  * came from 0x000AD42B, another test). */
-extern THPS_TLS uint32_t g_esi;
-extern void sub_00095D80_gen(void);
-extern void sub_0017BE20_gen(void);
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
+extern void sub_00095D80_gen(RECOMP_PARAMS);
+extern void sub_0017BE20_gen(RECOMP_PARAMS);
 
 /* ── MANUALS ON / OFF (maintainer, 2026-11-05: GENERAL OPTIONS -> GAMEPLAY; THPS 1 had no manuals) ──
  * The pad history (ring at skater+0x52FC, codes from sub_000A72A0 / table 0x29DF88: 1 / 2 = up / down, 3 / 4 left /
  * right, 5..8 diagonals, 9..0x10 buttons) is matched against the ground trick list by sub_000A7740, called from
  * 0x000B2B24; its answer there starts MANUAL (1) / NOSE MANUAL (2) - see the override below. (A first guess,
- * the two-press check sub_000A7200, is not called at all during a manual: test run.) With manuals = off
+ * the two-press check sub_000A7200, is not called at all during a manual: run 20261105_105937.) With manuals = off
  * (THPS_MANUALS=off) that answer is 0. THPS_MANUAL_TRACE=1 logs the answers, =2 every pad-history reader. */
 static int score_th1_level(void);
 static int manuals_off(void)
@@ -5505,8 +5014,8 @@ static int manuals_off(void)
 
 /* THPS_MANUAL_TRACE=2 (research, 2026-11-05): the pad-history readers (every function that reads the ring at
  * skater+0x52FC) log each new (function, caller, eax/ebx/edx in, eax out) once, with the frame (0x2FD504) -- to
- * find the one that starts a manual (sub_000A7200 is not it: no call during a manual). */
-extern THPS_TLS uint32_t g_ebx;
+ * find the one that starts a manual (sub_000A7200 is not it: no call during a manual, run 20261105_105937). */
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
 static int manual_research(void)
 {
     static int tr = -1;
@@ -5534,15 +5043,15 @@ static void ring_trace(const char *fn, uint32_t ret, uint32_t a, uint32_t b, uin
     }
 }
 #define RING_TRACE(addr) \
-    extern void sub_##addr##_gen(void); \
-    void sub_##addr(void) \
+    extern void sub_##addr##_gen(RECOMP_PARAMS); \
+    void sub_##addr(RECOMP_PARAMS) \
     { \
         uint32_t ret = GUEST32(g_esp), a = g_eax, b = g_ebx, d = g_edx; \
-        sub_##addr##_gen(); \
+        sub_##addr##_gen(RECOMP_ARGS); \
         if (manual_research()) \
             ring_trace(#addr, ret, a, b, d, g_eax); \
     }
-/* MANUALS OFF, the real hook (found with THPS_MANUAL_TRACE=4): a manual is a trick script queued at
+/* MANUALS OFF, the real hook (THPS_MANUAL_TRACE=4 run 20261105_115850): a manual is a trick script queued at
  * skater+0x52C8; sub_000AC6D0 (esi = skater) starts a queued script - sub_000A7040 puts it at +0x52B4, the
  * interpreter sub_000C8890 runs it (call at 0x000AC73E), then +0x52C8 and +0x54C0 are cleared. The manual scripts
  * begin with op 0x52 <kind> and op 0x0B "<name>": 52 01 0B "MANUAL", 52 02 0B "NOSE MANUAL" (the specials such as
@@ -5569,8 +5078,8 @@ static int manual_script(uint32_t sp, char *name, size_t n)
     return 0;
 }
 
-extern void sub_000AC6D0_gen(void);
-void sub_000AC6D0(void)
+extern void sub_000AC6D0_gen(RECOMP_PARAMS);
+void sub_000AC6D0(RECOMP_PARAMS)
 {
     uint32_t sk = g_esi, sp = sk ? GUEST32(sk + 0x52C8u) : 0;
     char name[48];
@@ -5581,14 +5090,14 @@ void sub_000AC6D0(void)
         GUEST32(sk + 0x52C8u) = 0;
         GUEST32(sk + 0x54C0u) = 0;
     }
-    sub_000AC6D0_gen();
+    sub_000AC6D0_gen(RECOMP_ARGS);
 }
 
 /* THPS_MANUAL_TRACE=4 (research): the trick script interpreter sub_000C8890 (ecx = skater, script pointer at
  * skater+0x52B4, one op byte each) -- every new script pointer at entry, with the frame and its first 16 bytes,
  * to find the manual's script */
-extern void sub_000C8890_gen(void);
-void sub_000C8890(void)
+extern void sub_000C8890_gen(RECOMP_PARAMS);
+void sub_000C8890(RECOMP_PARAMS)
 {
     static int tr = -1;
     if (tr < 0) {
@@ -5609,7 +5118,7 @@ void sub_000C8890(void)
                 break;
             }
     }
-    sub_000C8890_gen();
+    sub_000C8890_gen(RECOMP_ARGS);
 }
 
 RING_TRACE(000A7250)
@@ -5618,9 +5127,9 @@ RING_TRACE(000A76C0)
 RING_TRACE(000AEA90)
 RING_TRACE(000B1650)
 
-/* The ground trick sequence check (traced with THPS_MANUAL_TRACE=2): sub_000A7740 called from
+/* The ground trick sequence check (run 20261105_111509 with THPS_MANUAL_TRACE=2): sub_000A7740 called from
  * 0x000B2B24 (eax = skater, edx = the ground trick list) answers the index of the matched entry, -1 for none
- * (-1 every frame without a sequence); right after up,down it answered 1, after down,up 2 --
+ * (run 20261105_112610: -1 every frame without a sequence); right after up,down it answered 1, after down,up 2 --
  * MANUAL and NOSE MANUAL. With MANUALS OFF (maintainer 2026-11-05: no manual at all, so no manual points) those two
  * answers become -1, every other answer stays. THPS_MANUAL_TRACE=1 logs every answer other than -1. */
 #define MANUAL_ENTRY      1u
@@ -5700,8 +5209,8 @@ static void special_loose_restore(uint32_t sk, const uint32_t slots[32], int n, 
             ring[8u * slots[i] + 1u] = 1;
 }
 
-extern void sub_000A7740_gen(void);
-void sub_000A7740(void)
+extern void sub_000A7740_gen(RECOMP_PARAMS);
+void sub_000A7740(RECOMP_PARAMS)
 {
     uint32_t ret = GUEST32(g_esp), a = g_eax, b = g_ebx, d = g_edx;
     uint32_t hid_slot[32], hid_sk = g_esi;
@@ -5712,7 +5221,7 @@ void sub_000A7740(void)
         for (i = 0; i < hid_n; i++)
             hid_code[i] = *(volatile uint8_t *)((uintptr_t)g_xbox_mem_offset + hid_sk + 0x52FCu + 8u * hid_slot[i]);
     }
-    sub_000A7740_gen();
+    sub_000A7740_gen(RECOMP_ARGS);
     if (hid_n)
         special_loose_restore(hid_sk, hid_slot, hid_n, hid_code);
     if (manual_research())
@@ -5809,7 +5318,7 @@ static int wall_trace(void)
 
 static double s_wall_speed;
 
-void sub_00095D80(void)
+void sub_00095D80(RECOMP_PARAMS)
 {
     if (GUEST32(g_esp) == 0x000AD3B8u)
         s_wall_angle_bail = 0;
@@ -5821,13 +5330,13 @@ void sub_00095D80(void)
         if (ny > 0xCCD)
             fprintf(stderr, "[WALL] speed %.0f normal y %d -> bail (surface not steep)\n", s_wall_speed, ny);
     }
-    sub_00095D80_gen();
+    sub_00095D80_gen(RECOMP_ARGS);
 }
 
-void sub_0017BE20(void)
+void sub_0017BE20(RECOMP_PARAMS)
 {
     uint32_t ret = GUEST32(g_esp);
-    sub_0017BE20_gen();
+    sub_0017BE20_gen(RECOMP_ARGS);
     if (ret == 0x000AD3F2u) {
         int32_t d = (int32_t)g_eax < 0 ? -(int32_t)g_eax : (int32_t)g_eax;
         s_wall_angle_bail = d >= 0xDDB;
@@ -5859,14 +5368,14 @@ void sub_0017BE20(void)
  * drop scores like one under the bail limit); off = neither (the drop lands
  * like any other). sub_000A5970's 32 other callers (every other bail) and
  * sub_000A4C30's other callers go straight through.
- * Verified: v0.9.2 tests (big drop test). */
-extern THPS_TLS uint32_t g_edi;
-extern void sub_000A5970_gen(void);
-extern void sub_000A4C30_gen(void);
-void sub_000A4C30(void);
+ * Verified: docs/v092_tester_feedback.md (big drop test). */
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
+extern void sub_000A5970_gen(RECOMP_PARAMS);
+extern void sub_000A4C30_gen(RECOMP_PARAMS);
+void sub_000A4C30(RECOMP_PARAMS);
 static int score_th1(void);                       /* SCORE CALCULATION (below) */
-static int score_th1_trick(void);
-void score_th1_call(void);
+static int score_th1_trick(RECOMP_PARAMS);
+void score_th1_call(RECOMP_PARAMS);
 
 static int big_drop_mode(void)                    /* 0 original, 1 no bail, 2 off */
 {
@@ -5874,7 +5383,7 @@ static int big_drop_mode(void)                    /* 0 original, 1 no bail, 2 of
     return !strcmp(v, "no_bail") ? 1 : !strcmp(v, "off") ? 2 : 0;
 }
 
-void sub_000A5970(void)
+void sub_000A5970(RECOMP_PARAMS)
 {
     static int tr = -1;
     uint32_t sk;
@@ -5895,7 +5404,7 @@ void sub_000A5970(void)
         return;
     }
     if (GUEST32(g_esp) != 0x000A7003u || (mode = big_drop_mode()) == 0) {
-        sub_000A5970_gen();
+        sub_000A5970_gen(RECOMP_ARGS);
         return;
     }
     sk = g_edi;
@@ -5908,8 +5417,56 @@ void sub_000A5970(void)
         g_esp -= 4; GUEST32(g_esp) = 0x002353E4u;      /* "BIG DROP" */
         g_esp -= 4; GUEST32(g_esp) = 0x000A7003u;      /* popped by ret 16 */
         g_eax = sk;
-        sub_000A4C30();
+        sub_000A4C30(RECOMP_ARGS);
     }
+}
+
+/* The big drop icon (GitHub #25, 2.0): sub_000A0C90 draws s2icon10.bmp (sprites
+ * 0x306BF0 / 0x306BF4, loaded at 0x0009F3xx) beside the skater while he falls,
+ * once the fall height (([skater+0x57EC] + [skater+0x57E4]) >> 12) is above the
+ * BIG DROP limit [skater+0x57E8] - the same test as the landing above, skipped
+ * by the same codes (0x306BC8). With BIG DROP OFF the drop is no event any more,
+ * so the icon goes too (the maintainer, 2026-11-24: hidden when switched off
+ * completely); ORIGINAL and NO BAIL keep it (the drop still scores). Plain
+ * function: skater in eax, screen position in si / di, no stack arguments
+ * (ret), 8 callers in the HUD code from 0x000A1F03 on. */
+extern void sub_000A0C90_gen(RECOMP_PARAMS);
+void sub_000A0C90(RECOMP_PARAMS);
+
+void sub_000A0C90(RECOMP_PARAMS)
+{
+    static unsigned skipped;
+    static int test_limit = -1;
+    uint32_t sk = g_eax, keep;
+    if (big_drop_mode() == 2) {
+        if (skipped++ % 600 == 0)                 /* proof in the log, not every frame (called every frame) */
+            fprintf(stderr, "[BIGDROP] icon check skipped (%u calls)\n", skipped);
+        g_esp += 4;                               /* ret: no icon */
+        return;
+    }
+    /* THPS_TEST_BIGDROP_ICON=<limit> (test only, tests/input/bigdrop_moon.txt): the icon's height limit for this
+     * call only (an ollie is enough to show it); the landing's own limit stays as it is */
+    if (test_limit < 0) {
+        const char *e = getenv("THPS_TEST_BIGDROP_ICON");
+        test_limit = e && *e ? atoi(e) : 0;
+        if (test_limit > 0)
+            fprintf(stderr, "  test: big drop icon limit %d (THPS_TEST_BIGDROP_ICON)\n", test_limit);
+    }
+    if (test_limit > 0 && sk) {
+        /* the icon's own test (sub_000A0C90 above): airborne state, no MOON PHYSICS, fall height above the limit -
+         * logged every 60th such call, so a run proves the icon by the log, not by a lucky screenshot */
+        static unsigned drawn;
+        int32_t fall = (int32_t)(GUEST32(sk + 0x57EC) + GUEST32(sk + 0x57E4)) >> 12;
+        if (GUEST32(sk + 0x5984) == 1u && GUEST32(sk + 0x5990) == 0u && GUEST32(0x00306BC8u) == 0u
+            && fall > test_limit && drawn++ % 60 == 0)
+            fprintf(stderr, "[BIGDROP] icon drawn (%u calls, fall %d)\n", drawn, (int)fall);
+        keep = GUEST32(sk + 0x57E8);
+        GUEST32(sk + 0x57E8) = (uint32_t)test_limit;
+        sub_000A0C90_gen(RECOMP_ARGS);
+        GUEST32(sk + 0x57E8) = keep;
+        return;
+    }
+    sub_000A0C90_gen(RECOMP_ARGS);
 }
 
 /* THPS_TEST_SCORE_X=<n> (test only, never a menu line; v1.2.2 2026-11-10): every
@@ -5928,7 +5485,7 @@ static int32_t test_score_x(void)
     return x;
 }
 
-void sub_000A4C30(void)
+void sub_000A4C30(RECOMP_PARAMS)
 {
     if (test_score_x() > 1 && (int32_t)GUEST32(g_esp + 8) > 0)
         GUEST32(g_esp + 8) = (uint32_t)((int32_t)GUEST32(g_esp + 8) * test_score_x());
@@ -5938,11 +5495,11 @@ void sub_000A4C30(void)
         return;
     }
     if (score_th1()) {                            /* SCORE CALCULATION THPS 1 (see there) */
-        if (score_th1_trick())
-            score_th1_call();
+        if (score_th1_trick(RECOMP_ARGS))
+            score_th1_call(RECOMP_ARGS);
         return;
     }
-    sub_000A4C30_gen();
+    sub_000A4C30_gen(RECOMP_ARGS);
 }
 
 /* ── RAIL CUT UNDER THE SKATER (GitHub #11, Philadelphia cable; v1.2.2) ──────
@@ -5970,10 +5527,10 @@ void sub_000A4C30(void)
  * cable (the one to the secret area; invisxp 2026-11-13) - with it on the game crashed right after "rail ... is
  * gone": a null object in sub_0009DAE0 (guest read of 0x6A); with it off no crash, the 2X behaviour. invisxp also
  * asks to keep the 2X behaviour (an original anomaly, harmless). */
-extern THPS_TLS uint32_t g_esi;
-extern void sub_000A9270_gen(void);
-extern void sub_000B5260_gen(void);
-extern void sub_000A91D0(void);
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
+extern void sub_000A9270_gen(RECOMP_PARAMS);
+extern void sub_000B5260_gen(RECOMP_PARAMS);
+extern void sub_000A91D0(RECOMP_PARAMS);
 #define RAIL_LIST 0x00306BB4u
 
 static int rail_env(const char *name, int dflt)
@@ -5998,7 +5555,7 @@ static uint32_t rail_of_skater(uint32_t sk)
     return 0;
 }
 
-static int rail_cut_step(void)
+static int rail_cut_step(RECOMP_PARAMS)
 {
     static int on = -1, test = -1, steps;
     static uint32_t last_rail;
@@ -6028,7 +5585,7 @@ static int rail_cut_step(void)
     g_esi = sk;
     g_esp -= 4;
     GUEST32(g_esp) = 0x000A9AAEu;                 /* popped by its ret */
-    sub_000A91D0();
+    sub_000A91D0(RECOMP_ARGS);
     g_esi = esi;
     fprintf(stderr, "  rail: rail %08X (start node %d) is gone -> off the rail\n", rail, rail_start(rail));
     return 1;
@@ -6093,7 +5650,7 @@ static int rail_trace(void)
 
 static int32_t s_rn_pos[3];
 
-static void rail_nodes_begin(void)
+static void rail_nodes_begin(RECOMP_PARAMS)
 {
     int k;
     s_rn.carry = -1;
@@ -6159,7 +5716,7 @@ static void rail_nodes_end(void)
 }
 
 /* at "add edi, ecx": g_edi = t << 12, g_ecx = Speed, g_esi = the segment's length */
-void thps_rail_step(void)
+void thps_rail_step(RECOMP_PARAMS)
 {
     int32_t speed = (int32_t)g_ecx, t = (int32_t)g_edi, len = (int32_t)g_esi, step, use, end;
     int32_t ts = (int32_t)GUEST32(0x00300850u);
@@ -6181,7 +5738,7 @@ void thps_rail_step(void)
 }
 
 /* at the move of a pass that stays on its segment (ebp = the skater, +8 = position, +0x4C = velocity) */
-int thps_rail_move(void)
+int thps_rail_move(RECOMP_PARAMS)
 {
     int k;
     if (!rail_nodes_on() || !s_rn.in_carry || !s_rn.speed)
@@ -6195,25 +5752,25 @@ int thps_rail_move(void)
     return 1;
 }
 
-void sub_000A9270(void)
+void sub_000A9270(RECOMP_PARAMS)
 {
-    if (rail_cut_step()) {
+    if (rail_cut_step(RECOMP_ARGS)) {
         g_esp += 4;                               /* ret (cdecl: the caller pops the skater) */
         return;
     }
-    rail_nodes_begin();
-    sub_000A9270_gen();
+    rail_nodes_begin(RECOMP_ARGS);
+    sub_000A9270_gen(RECOMP_ARGS);
     rail_nodes_end();
 }
 
-void sub_000B5260(void)
+void sub_000B5260(RECOMP_PARAMS)
 {
-    if (rail_cut_step()) {
+    if (rail_cut_step(RECOMP_ARGS)) {
         g_esp += 4;
         return;
     }
-    rail_nodes_begin();
-    sub_000B5260_gen();
+    rail_nodes_begin(RECOMP_ARGS);
+    sub_000B5260_gen(RECOMP_ARGS);
     rail_nodes_end();
 }
 
@@ -6242,7 +5799,7 @@ void sub_000B5260(void)
  * THPS_CRATE_STACK=0 = the original. THPS_CRATE_TRACE=1 (test): every bounce,
  * its box and the platforms near it.
  * Verified: docs/status.md (crate runs). */
-extern void sub_000B6AC0_gen(void);
+extern void sub_000B6AC0_gen(RECOMP_PARAMS);
 #define PLATFORM_LIST 0x00306C40u
 
 typedef struct { int64_t x0, y0, z0, x1, y1, z1; } CrateBox;
@@ -6310,7 +5867,7 @@ static void crate_trace(uint32_t p, const CrateBox *a, int64_t tol)
     }
 }
 
-void sub_000B6AC0(void)
+void sub_000B6AC0(RECOMP_PARAMS)
 {
     static int on = -1, trace, depth;
     static int64_t tol;
@@ -6325,7 +5882,7 @@ void sub_000B6AC0(void)
             fprintf(stderr, "  crate: crates on a knocked crate stay (THPS_CRATE_STACK=0, the original)\n");
     }
     have = p && platform_box(p, &a);              /* its box before it flies off */
-    sub_000B6AC0_gen();
+    sub_000B6AC0_gen(RECOMP_ARGS);
     if (!have)
         return;
     if (trace)
@@ -6345,7 +5902,7 @@ void sub_000B6AC0(void)
             g_esp -= 8;
             GUEST32(g_esp + 4) = skater;
             GUEST32(g_esp) = 0x000B8A28u;         /* popped by its ret 4 */
-            sub_000B6AC0();
+            sub_000B6AC0(RECOMP_ARGS);
             depth--;
         }
         g_eax = s_eax; g_ecx = s_ecx; g_edx = s_edx; g_ebx = s_ebx; g_esi = s_esi; g_edi = s_edi;
@@ -6372,11 +5929,11 @@ void sub_000B6AC0(void)
  * use, caller 0x000A4153) through Mess_Message sub_0009C230 (stdcall: text,
  * program, stacked, x, y; ret 0x14).
  * Verified: docs/status.md (message runs at 60 / 120). */
-extern void sub_0009C2A0_gen(void);
-extern void sub_0009C230(void);
+extern void sub_0009C2A0_gen(RECOMP_PARAMS);
+extern void sub_0009C230(RECOMP_PARAMS);
 #define MESS_LIST 0x00306C4Cu
 
-static void mess_test_message(void)
+static void mess_test_message(RECOMP_PARAMS)
 {
     uint32_t s_eax = g_eax, s_ecx = g_ecx, s_edx = g_edx, s_ebx = g_ebx, s_esi = g_esi, s_edi = g_edi;
     g_esp -= 0x18;
@@ -6386,7 +5943,7 @@ static void mess_test_message(void)
     GUEST32(g_esp + 0x08) = 0x00289208u;          /* the goal program */
     GUEST32(g_esp + 0x04) = 0x00237A08u;          /* "GOALS CLEARED" */
     GUEST32(g_esp) = 0x001AFBE0u;                 /* popped by its ret 0x14 */
-    sub_0009C230();
+    sub_0009C230(RECOMP_ARGS);
     fprintf(stderr, "  mess: test message %08X\n", g_eax);
     g_eax = s_eax; g_ecx = s_ecx; g_edx = s_edx; g_ebx = s_ebx; g_esi = s_esi; g_edi = s_edi;
 }
@@ -6431,7 +5988,7 @@ static void mess_trace(void)
     }
 }
 
-void sub_0009C2A0(void)
+void sub_0009C2A0(RECOMP_PARAMS)
 {
     static int on = -1, trace, test;
     static int have;
@@ -6452,8 +6009,8 @@ void sub_0009C2A0(void)
     have = 1;
     last = v;
     if (test > 0 && ++ticks % ((uint32_t)test * 60u) == 0)
-        mess_test_message();                      /* counted from its first update on */
-    sub_0009C2A0_gen();
+        mess_test_message(RECOMP_ARGS);                      /* counted from its first update on */
+    sub_0009C2A0_gen(RECOMP_ARGS);
     if (trace)
         mess_trace();
 }
@@ -6461,7 +6018,7 @@ void sub_0009C2A0(void)
 /* ── PHYSICS: 2X / ORIGINAL THPS 2 (maintainer, 2026-11-05) ──────────────────
  * Why: 2X jumps ~22 % further and ~36 % higher than THPS 2 (PS1) on flat ground
  * - not new physics code but two value changes by Treyarch (read from both
- * executables): every gravity
+ * executables, docs/physics_variants.md "Jumping further"): every gravity
  * -7.7 % (one level factor G = 12000, 12500 in Construction Site, where the PS1
  * has 13000 everywhere) and the flat-ground (Ollie stat) jump impulse x1.122.
  * The maintainer chose turning these knobs over porting the PS1 code.
@@ -6490,17 +6047,17 @@ static int physics_thps2(void)
     return v;
 }
 
-void thps_grav_eax(void) { if (physics_thps2()) g_eax = 13000u; }
-void thps_grav_ecx(void) { if (physics_thps2()) g_ecx = 13000u; }
-void thps_grav_edx(void) { if (physics_thps2()) g_edx = 13000u; }
+void thps_grav_eax(RECOMP_PARAMS) { if (physics_thps2()) g_eax = 13000u; }
+void thps_grav_ecx(RECOMP_PARAMS) { if (physics_thps2()) g_ecx = 13000u; }
+void thps_grav_edx(RECOMP_PARAMS) { if (physics_thps2()) g_edx = 13000u; }
 /* ecx = TrickGravity x 12000 -> x 13000 */
-void thps_grav_air_imul(void)
+void thps_grav_air_imul(RECOMP_PARAMS)
 {
     if (physics_thps2())
         g_ecx = (uint32_t)((int32_t)g_ecx / 12000 * 13000);
 }
-void thps_ollie_max(void) { if (physics_thps2()) g_ecx = (uint32_t)((int32_t)g_eax * 5000 + 2700000); }
-void thps_ollie_min(void) { if (physics_thps2()) g_ecx = (uint32_t)((int32_t)g_eax * 3300 + 1470000); }
+void thps_ollie_max(RECOMP_PARAMS) { if (physics_thps2()) g_ecx = (uint32_t)((int32_t)g_eax * 5000 + 2700000); }
+void thps_ollie_min(RECOMP_PARAMS) { if (physics_thps2()) g_ecx = (uint32_t)((int32_t)g_eax * 3300 + 1470000); }
 
 /* ── Ollie charge at 120 fps (maintainer, 2026-11-07) ────────────────────────
  * Why: in HandleJump sub_000AEA90 (= PS1 0x8001BB24) the ollie charge
@@ -6517,7 +6074,7 @@ void thps_ollie_min(void) { if (physics_thps2()) g_ecx = (uint32_t)((int32_t)g_e
  * second frame on the same value is skipped. Per skater (split screen: up to
  * four, by pointer).
  * Verified: docs/status.md (ollie charge run, take-off vel.y at 60 / 120). */
-int thps_ollie_charge_tick(void)
+int thps_ollie_charge_tick(RECOMP_PARAMS)
 {
     static uint32_t who[4];
     static uint8_t last[4];
@@ -6559,7 +6116,7 @@ int thps_ollie_charge_tick(void)
  * cut by 1/16 as before (a per-frame share, it does not add up).
  * THPS_CAR_BRAKE_60=0 = the original at every rate (test); THPS_CAR_TRACE=1 logs
  * the first brakes. */
-int thps_car_brake(void)
+int thps_car_brake(RECOMP_PARAMS)
 {
     static int on = -1, trace;
     static unsigned long n;
@@ -6588,15 +6145,15 @@ int thps_car_brake(void)
 
 /* CCar::AI itself: THPS_CAR_TRACE=2 (test) logs each car's position (+8/+C/+10)
  * and host time after every call, for the speed comparison 60 / 120 fps. */
-extern void sub_00072B60_gen(void);
+extern void sub_00072B60_gen(RECOMP_PARAMS);
 
-void sub_00072B60(void)
+void sub_00072B60(RECOMP_PARAMS)
 {
     static int tr = -1;
     uint32_t car = g_ecx;
     if (tr < 0)
         tr = crate_env("THPS_CAR_TRACE", 0);
-    sub_00072B60_gen();
+    sub_00072B60_gen(RECOMP_ARGS);
     if (tr >= 2)
         fprintf(stderr, "[CAR] %llu %08X %d %d %d\n", (unsigned long long)(host_time_ns() / 1000ull), car,
                 (int32_t)GUEST32(car + 8u), (int32_t)GUEST32(car + 0xCu), (int32_t)GUEST32(car + 0x10u));
@@ -6621,7 +6178,7 @@ void sub_00072B60(void)
  * no, the game's clock test decides as it does after a passed counter test.
  * THPS_LOOP_BAIL_60=0 = the original at every rate (test); THPS_LOOP_TRACE=1
  * logs each decision. */
-int thps_loop_bail(void)
+int thps_loop_bail(RECOMP_PARAMS)
 {
     static int on = -1, trace;
     uint32_t sk = g_esi;
@@ -6682,18 +6239,18 @@ static int thps_script_wait(uint32_t obj)
  * read it): sub_000B76D0 sets ebp = ecx (this) at entry, so its wrapper keeps
  * this for the hook (saved and restored, in case an AI runs inside another). */
 static uint32_t s_wait_this;
-extern void sub_000B76D0_gen(void);
+extern void sub_000B76D0_gen(RECOMP_PARAMS);
 
-void sub_000B76D0(void)
+void sub_000B76D0(RECOMP_PARAMS)
 {
     uint32_t prev = s_wait_this;
     s_wait_this = g_ecx;
-    sub_000B76D0_gen();
+    sub_000B76D0_gen(RECOMP_ARGS);
     s_wait_this = prev;
 }
 
-int thps_script_wait_edi(void) { return thps_script_wait(g_edi); }
-int thps_script_wait_this(void) { return s_wait_this ? thps_script_wait(s_wait_this) : 0; }
+int thps_script_wait_edi(RECOMP_PARAMS) { return thps_script_wait(g_edi); }
+int thps_script_wait_this(RECOMP_PARAMS) { return s_wait_this ? thps_script_wait(s_wait_this) : 0; }
 
 /* ── Sound starts by caller (test, fps120 ambient sounds, 2026-11-14) ────────
  * Why: the ambient sounds of a level repeat too fast at 120 fps; every new
@@ -6702,8 +6259,8 @@ int thps_script_wait_this(void) { return s_wait_this ? thps_script_wait(s_wait_t
  * starts more sounds at 120 than at 60, THPS_SFX_TRACE=1 logs each call of the
  * two with the game's return address and the first two arguments.
  * Off (default): straight through. */
-extern void sub_001B3210_gen(void);
-extern void sub_001B3590_gen(void);
+extern void sub_001B3210_gen(RECOMP_PARAMS);
+extern void sub_001B3590_gen(RECOMP_PARAMS);
 
 static int sfx_trace(void)
 {
@@ -6713,20 +6270,20 @@ static int sfx_trace(void)
     return on;
 }
 
-void sub_001B3210(void)
+void sub_001B3210(RECOMP_PARAMS)
 {
     if (sfx_trace())
         fprintf(stderr, "[SFX] 3210 ret=%08X a0=%08X a1=%08X tick=%u\n", GUEST32(g_esp), GUEST32(g_esp + 4),
                 GUEST32(g_esp + 8), GUEST32(0x0030697Cu));
-    sub_001B3210_gen();
+    sub_001B3210_gen(RECOMP_ARGS);
 }
 
-void sub_001B3590(void)
+void sub_001B3590(RECOMP_PARAMS)
 {
     if (sfx_trace())
         fprintf(stderr, "[SFX] 3590 ret=%08X a0=%08X a1=%08X tick=%u\n", GUEST32(g_esp), GUEST32(g_esp + 4),
                 GUEST32(g_esp + 8), GUEST32(0x0030697Cu));
-    sub_001B3590_gen();
+    sub_001B3590_gen(RECOMP_ARGS);
 }
 
 /* ── Test start point (test, fps120 loops, 2026-11-14) ───────────────────────
@@ -6743,9 +6300,9 @@ void sub_001B3590(void)
  * 4096 = 360 degrees, at the next 4-byte boundary) by that distance along its
  * Y angle for the restart (sin -> X, cos -> Z; negative = the other way), for a
  * run-up; restored afterwards. Off: unchanged. */
-extern void sub_000CABE0_gen(void);
+extern void sub_000CABE0_gen(RECOMP_PARAMS);
 
-void sub_000CABE0(void)
+void sub_000CABE0(RECOMP_PARAMS)
 {
     static int node = -2, back, speed;
     uint32_t pos = 0, x = 0, z = 0;
@@ -6781,7 +6338,7 @@ void sub_000CABE0(void)
                     (int32_t)GUEST32(pos), (int32_t)GUEST32(pos + 8u), ay);
         }
     }
-    sub_000CABE0_gen();
+    sub_000CABE0_gen(RECOMP_ARGS);
     if (pos) {
         GUEST32(pos) = x;
         GUEST32(pos + 8u) = z;
@@ -6824,7 +6381,7 @@ static int s_pq_open;                             /* our question is open (state
 static void pause_camera_line(uint32_t menu);     /* CAMERA OPTIONS, below */
 static void pause_drop_line(uint32_t menu, uint32_t text);
 
-void pause_quit_line(uint32_t menu)              /* soundtracks.c sub_000FF600 */
+void pause_quit_line(RECOMP_PARAMS, uint32_t menu)              /* soundtracks.c sub_000FF600 */
 {
     uint32_t n, last;
     if (GUEST32(g_esp) != 0x0010471Cu || !menu || menu != GUEST32(PQ_LIST))
@@ -6957,18 +6514,18 @@ static void pc_texts(void)
     }
 }
 
-static void pc_layout(uint32_t menu)               /* sub_000FF600 (ecx = menu) lays the lines out */
+static void pc_layout(RECOMP_PARAMS, uint32_t menu)               /* sub_000FF600 (ecx = menu) lays the lines out */
 {
-    extern void sub_000FF600_gen(void);
+    extern void sub_000FF600_gen(RECOMP_PARAMS);
     uint32_t esp = g_esp, eax = g_eax, ecx = g_ecx, edx = g_edx;
     g_ecx = menu;
     g_esp -= 4;
     GUEST32(g_esp) = 0;
-    sub_000FF600_gen();
+    sub_000FF600_gen(RECOMP_ARGS);
     g_esp = esp; g_eax = eax; g_ecx = ecx; g_edx = edx;
 }
 
-static void pc_open(void)                           /* our lines into the SOUND OPTIONS menu */
+static void pc_open(RECOMP_PARAMS)                           /* our lines into the SOUND OPTIONS menu */
 {
     uint32_t menu = GUEST32(PC_SND_MENU), n, i;
     if (!menu || s_pc_on || (n = GUEST8(menu + 9)) < 1 || n > 15)
@@ -6987,12 +6544,12 @@ static void pc_open(void)                           /* our lines into the SOUND 
     GUEST8(menu + 9) = PC_LINES + 1;
     GUEST8(menu + 6) = 0;
     pc_texts();
-    pc_layout(menu);
+    pc_layout(RECOMP_ARGS, menu);
     s_pc_on = 1;
     fprintf(stderr, "  pause: CAMERA OPTIONS (player %d)\n", s_pc_player + 1);
 }
 
-static void pc_close(void)                          /* the game's own SOUND OPTIONS lines back */
+static void pc_close(RECOMP_PARAMS)                          /* the game's own SOUND OPTIONS lines back */
 {
     uint32_t menu = GUEST32(PC_SND_MENU);
     s_pc_on = 0;
@@ -7001,20 +6558,20 @@ static void pc_close(void)                          /* the game's own SOUND OPTI
     memcpy((char *)(uintptr_t)g_xbox_mem_offset + menu + 0x18u, s_pc_saved, s_pc_saved_n * 0x18u);
     GUEST8(menu + 9) = s_pc_saved_n;
     GUEST8(menu + 6) = s_pc_saved_sel;
-    pc_layout(menu);
+    pc_layout(RECOMP_ARGS, menu);
     fprintf(stderr, "  pause: CAMERA OPTIONS closed\n");
 }
 
 /* every frame before the pause UI (soundtracks.c sub_00104210); 1 = our lines
  * are open (the SOUND OPTIONS handling there leaves them alone) */
-int pause_camera_frame(void)
+int pause_camera_frame(RECOMP_PARAMS)
 {
     uint32_t menu = GUEST32(PC_SND_MENU), sel, k;
     int dir = 0, a = 0, line;
     if (!s_pc_on)
         return 0;
     if (GUEST32(PQ_STATE) != 0x2Fu || !menu) {
-        pc_close();
+        pc_close(RECOMP_ARGS);
         return 0;
     }
     sel = GUEST8(menu + 6);
@@ -7033,7 +6590,7 @@ int pause_camera_frame(void)
             GUEST8(PC_PAD_LEFT(k)) = GUEST8(PC_PAD_RIGHT(k)) = 0;
             GUEST8(PC_PAD_A(k)) = 0;
         }
-        if (opt_val_step(id, dir ? dir : 1))
+        if (opt_val_step(RECOMP_ARGS, id, dir ? dir : 1))
             fprintf(stderr, "  pause: CAMERA OPTIONS %s -> %s\n", s_val[id].label,
                     s_val[id].txt[opt_val_index(id)]);
     }
@@ -7041,8 +6598,8 @@ int pause_camera_frame(void)
     return 1;
 }
 
-extern void sub_000FF880_gen(void);
-void sub_000FF880(void)
+extern void sub_000FF880_gen(RECOMP_PARAMS);
+void sub_000FF880(RECOMP_PARAMS)
 {
     uint32_t ret = GUEST32(g_esp), menu = g_ecx;
     if (ret == 0x00104DD9u && s_pc_label && menu      /* the SOUND OPTIONS test: CAMERA OPTIONS answers it */
@@ -7054,7 +6611,7 @@ void sub_000FF880(void)
                 s_pc_player = (int)k;
                 break;
             }
-        pc_open();
+        pc_open(RECOMP_ARGS);
         g_eax = 1;
         g_esp += 4 + 4;                           /* ret 4 */
         return;
@@ -7067,7 +6624,7 @@ void sub_000FF880(void)
         fprintf(stderr, "  pause: QUIT GAME - question\n");
         return;
     }
-    sub_000FF880_gen();
+    sub_000FF880_gen(RECOMP_ARGS);
     if (ret == 0x00105014u && s_pq_open && g_eax) {
         extern void host_quit(void);               /* platform/host.h */
         fprintf(stderr, "  pause: QUIT GAME - YES, exiting\n");
@@ -7075,19 +6632,19 @@ void sub_000FF880(void)
     }
 }
 
-extern void sub_00101790_gen(void);
-void sub_00101790(void)
+extern void sub_00101790_gen(RECOMP_PARAMS);
+void sub_00101790(RECOMP_PARAMS)
 {
     uint32_t text;
     if (GUEST32(PQ_STATE) != 3u)
         s_pq_open = 0;                            /* NO / B: back in the list */
     if (!s_pq_open) {
-        sub_00101790_gen();
+        sub_00101790_gen(RECOMP_ARGS);
         return;
     }
     text = GUEST32(0x00289E60u);
     GUEST32(0x00289E60u) = 0x0022D704u;           /* "DO YOU REALLY WANT TO QUIT?" */
-    sub_00101790_gen();
+    sub_00101790_gen(RECOMP_ARGS);
     GUEST32(0x00289E60u) = text;
 }
 
@@ -7241,12 +6798,12 @@ static int fc_active(void)
     return GUEST32(0x00300844u) != 1u && !GUEST8(0x003068DCu) && !GUEST8(0x003068DDu) && !thps_replay_playing();
 }
 
-extern void sub_001AF860_gen(void);
-void sub_001AF860(void)
+extern void sub_001AF860_gen(RECOMP_PARAMS);
+void sub_001AF860(RECOMP_PARAMS)
 {
     int i, p, rx, ry, down, moving;
     double step;
-    sub_001AF860_gen();
+    sub_001AF860_gen(RECOMP_ARGS);
     if (!fc_active())
         return;
     fc_load();
@@ -7298,19 +6855,19 @@ void sub_001AF860(void)
     }
 }
 
-extern void sub_0006F0D0_gen(void);
-void sub_0006F0D0(void)
+extern void sub_0006F0D0_gen(RECOMP_PARAMS);
+void sub_0006F0D0(RECOMP_PARAMS)
 {
-    uint32_t cam = g_ecx, base, ours;
+    uint32_t cam = g_ecx, pitch0, ours;   /* pitch0: was `base` in 1.x (option-c's guest-memory parameter) */
     int p, v;
     fc_load();
     p = cam ? fc_port(GUEST32(cam + 0x3A4u)) : -1;
     if (p < 0 || !s_fc_on[p] || !fc_active()) {
-        sub_0006F0D0_gen();
+        sub_0006F0D0_gen(RECOMP_ARGS);
         return;
     }
-    base = GUEST32(0x0028BE04u);
-    v = (int)base + s_fc_pitch[p];
+    pitch0 = GUEST32(0x0028BE04u);
+    v = (int)pitch0 + s_fc_pitch[p];
     if (v < FC_PITCH_MIN) {                           /* the offset stops at the limits */
         s_fc_pitch[p] += FC_PITCH_MIN - v;
         v = FC_PITCH_MIN;
@@ -7321,9 +6878,9 @@ void sub_0006F0D0(void)
     ours = (uint32_t)v;
     GUEST32(cam + 0x5C0u) = (uint32_t)s_fc_yaw[p];
     GUEST32(0x0028BE04u) = ours;
-    sub_0006F0D0_gen();
+    sub_0006F0D0_gen(RECOMP_ARGS);
     if (GUEST32(0x0028BE04u) == ours)                 /* a preset set during the update stays */
-        GUEST32(0x0028BE04u) = base;
+        GUEST32(0x0028BE04u) = pitch0;
 }
 
 /* The camera's orientation follows its target (cam + 0x458, built with our yaw)
@@ -7342,8 +6899,8 @@ void sub_0006F0D0(void)
 #define FC_FOLLOW_T 0x700
 #define FC_FOLLOW_STEP 0x180
 static int s_fc_follow[4], s_fc_follow_t[4];      /* frames left of the faster follow, its t */
-extern void sub_0006DF10_gen(void);
-void sub_0006DF10(void)
+extern void sub_0006DF10_gen(RECOMP_PARAMS);
+void sub_0006DF10(RECOMP_PARAMS)
 {
     uint32_t cam = GUEST32(g_esp + 4u);
     int p = cam && s_fc_loaded ? fc_port(GUEST32(cam + 0x3A4u)) : -1;
@@ -7366,10 +6923,10 @@ void sub_0006DF10(void)
                 GUEST32(g_esp + 8u) = (uint32_t)s_fc_follow_t[p];
         }
     }
-    sub_0006DF10_gen();
+    sub_0006DF10_gen(RECOMP_ARGS);
 }
 
-/* ── CAREER MODE classic: THPS 1 -> THPS 2 -> 2X (option B) ──
+/* ── CAREER MODE classic: THPS 1 -> THPS 2 -> 2X (option B, docs/classic_career.md) ──
  *
  * Why: maintainer 2026-10-30 (option B, the last GAMEPLAY line). The parts open
  * in release order, each with its own rules, and the THPS 1 part takes the
@@ -7406,15 +6963,15 @@ void sub_0006DF10(void)
 #define CC_REC(s)  (0x002FD604u + (uint32_t)(s) * 0x18Cu)
 #define CC_COMP(l) (GUEST8(0x003125C0u + (uint32_t)(l) * 0x1A8u) != 0)
 #define CC_GOALS(r, l) GUEST16((r) + 0x10u + (uint32_t)(l) * 2u)
-extern void sub_000768D0_gen(void);
-extern void sub_00108FA0_gen(void);
-extern void sub_00075D70_gen(void);
-extern void sub_00074F10_gen(void);
-extern void sub_00075B00_gen(void);
-extern void sub_00142F30_gen(void);
-extern void sub_001449B0_gen(void);
-void sub_00074EB0(void);
-void sub_00074E10(void);
+extern void sub_000768D0_gen(RECOMP_PARAMS);
+extern void sub_00108FA0_gen(RECOMP_PARAMS);
+extern void sub_00075D70_gen(RECOMP_PARAMS);
+extern void sub_00074F10_gen(RECOMP_PARAMS);
+extern void sub_00075B00_gen(RECOMP_PARAMS);
+extern void sub_00142F30_gen(RECOMP_PARAMS);
+extern void sub_001449B0_gen(RECOMP_PARAMS);
+void sub_00074EB0(RECOMP_PARAMS);
+void sub_00074E10(RECOMP_PARAMS);
 
 static int cc_classic(void)
 {
@@ -7426,8 +6983,8 @@ static int cc_classic(void)
  * THPS 1 levels (career mode, level slot 10..18) it always applies, elsewhere
  * when the player picks SCORE CALCULATION THPS 1 (GAMEPLAY; THPS_SCORE_CALC).
  * Manuals are off in those levels too (THPS 1 had none; manuals_off).
- * The rules (my research notes, from the MIT decomp TonyWasAProSkater and the
- * 2X code):
+ * The rules (docs/physics_variants.md, private research scoring_2x.md /
+ * trick_points.md from the MIT decomp TonyWasAProSkater and the 2X code):
  *  1. base values: a trick both games have gets THPS 1's value; a nollie /
  *     fakie flip (2X's UPPERCASE script variant) the base value; a tapped grab
  *     (2X's lower script value) half of it; tricks THPS 1 lacked are lowered by
@@ -7579,7 +7136,7 @@ static int is_spin_name(uint32_t va)
 
 /* sub_000A4C30 with THPS 1 scoring on (the BIG DROP override calls it): 0 = the
  * call was taken (skipped), 1 = go on with sub_000A4C30_gen */
-static int score_th1_trick(void)
+static int score_th1_trick(RECOMP_PARAMS)
 {
     uint32_t sk = g_eax, ret = GUEST32(g_esp), name = GUEST32(g_esp + 4);
     int32_t score = (int32_t)GUEST32(g_esp + 8);
@@ -7608,11 +7165,11 @@ static int score_th1_trick(void)
 }
 
 /* the THPS 1 switch bonus rule: no +20 % (skater+0x5A18 cleared around the call) */
-void score_th1_call(void)
+void score_th1_call(RECOMP_PARAMS)
 {
     uint32_t sk = g_eax, sw = GUEST32(sk + 0x5A18u);
     GUEST32(sk + 0x5A18u) = 0;
-    sub_000A4C30_gen();
+    sub_000A4C30_gen(RECOMP_ARGS);
     GUEST32(sk + 0x5A18u) = sw;
 }
 
@@ -7620,14 +7177,14 @@ void score_th1_call(void)
 #define SC_COUNT(p)  GUEST32((p) + 0x4EBCu)
 
 /* 4: the sum, THPS 1 style (eax = panel; plain ret) */
-extern void sub_000A1650_gen(void);
-void sub_000A1650(void)
+extern void sub_000A1650_gen(RECOMP_PARAMS);
+void sub_000A1650(RECOMP_PARAMS)
 {
     static const int pct[5] = { 100, 75, 50, 25, 10 };
     uint32_t p = g_eax, n, i;
     int32_t sum = 0;
     if (!score_th1()) {
-        sub_000A1650_gen();
+        sub_000A1650_gen(RECOMP_ARGS);
         return;
     }
     if (GUEST32(0x00310DB8u) == 2u && GUEST8(0x002F97E8u) == 0) {
@@ -7691,20 +7248,20 @@ static void mult_th1_end(void)
     s_mult_on = 0;
 }
 
-extern THPS_TLS uint32_t g_esi;
-extern void sub_000A3E40_gen(void);
-extern void sub_000A3FE0_gen(void);
-extern void sub_000A17D0_gen(void);
-void sub_000A3E40(void) { mult_th1_begin(g_esi); sub_000A3E40_gen(); mult_th1_end(); }
-void sub_000A3FE0(void) { mult_th1_begin(g_esi); sub_000A3FE0_gen(); mult_th1_end(); }
-void sub_000A17D0(void) { mult_th1_begin(g_eax); sub_000A17D0_gen(); mult_th1_end(); }
+/* register globals: option-c names them as fields of ctx (xbox_memory_layout.h) */
+extern void sub_000A3E40_gen(RECOMP_PARAMS);
+extern void sub_000A3FE0_gen(RECOMP_PARAMS);
+extern void sub_000A17D0_gen(RECOMP_PARAMS);
+void sub_000A3E40(RECOMP_PARAMS) { mult_th1_begin(g_esi); sub_000A3E40_gen(RECOMP_ARGS); mult_th1_end(); }
+void sub_000A3FE0(RECOMP_PARAMS) { mult_th1_begin(g_esi); sub_000A3FE0_gen(RECOMP_ARGS); mult_th1_end(); }
+void sub_000A17D0(RECOMP_PARAMS) { mult_th1_begin(g_eax); sub_000A17D0_gen(RECOMP_ARGS); mult_th1_end(); }
 /* the HUD (ecx = skater): the shown multiplier from the same table */
-extern void sub_000A0D60_gen(void);
-void sub_000A0D60(void) { mult_th1_begin(g_ecx + 0x288u); sub_000A0D60_gen(); mult_th1_end(); }
+extern void sub_000A0D60_gen(RECOMP_PARAMS);
+void sub_000A0D60(RECOMP_PARAMS) { mult_th1_begin(g_ecx + 0x288u); sub_000A0D60_gen(RECOMP_ARGS); mult_th1_end(); }
 
 /* 6: hold points (eax = skater, stack points; ret 4) */
-extern void sub_000A4DD0_gen(void);
-void sub_000A4DD0(void)
+extern void sub_000A4DD0_gen(RECOMP_PARAMS);
+void sub_000A4DD0(RECOMP_PARAMS)
 {
     uint32_t ret = GUEST32(g_esp), sk = g_eax, p, n;
     if (score_th1() && (ret == 0x000C8C7Bu || ret == 0x000C8CB7u || ret == 0x000A9139u)) {
@@ -7718,7 +7275,7 @@ void sub_000A4DD0(void)
                 GUEST32(g_esp + 4) = (uint32_t)(t->th1 / 40);          /* base/20 per 30 Hz frame */
         }
     }
-    sub_000A4DD0_gen();
+    sub_000A4DD0_gen(RECOMP_ARGS);
 }
 
 static uint32_t cc_rec_now(void)
@@ -7771,8 +7328,8 @@ static void cc_mark(void)
  * slots 0-9 stay shut until CC_TH2 (the Roswell medal), the 2X slots 19-23
  * until the 2X part flag 0x800 (the Bullring medal); the unlock cheat
  * [0x003061BC] and Empty Park (24) as before. */
-extern void sub_00076A10_gen(void);
-void sub_00076A10(void)
+extern void sub_00076A10_gen(RECOMP_PARAMS);
+void sub_00076A10(RECOMP_PARAMS)
 {
     int slot = (int32_t)g_esi;
     if (cc_classic() && !GUEST32(0x003061BCu) &&
@@ -7782,10 +7339,10 @@ void sub_00076A10(void)
         g_esp += 4;                               /* its ret */
         return;
     }
-    sub_00076A10_gen();
+    sub_00076A10_gen(RECOMP_ARGS);
 }
 
-void sub_000768D0(void)
+void sub_000768D0(RECOMP_PARAMS)
 {
     cc_mark();
     if (cc_classic() && !GUEST32(0x003061BCu) && (int32_t)g_eax < 8 && !(GUEST32(CC_FLAGS) & CC_TH2)) {
@@ -7793,7 +7350,7 @@ void sub_000768D0(void)
         g_esp += 4;
         return;
     }
-    sub_000768D0_gen();
+    sub_000768D0_gen(RECOMP_ARGS);
 }
 
 /* Select Player builds its lines (thiscall, ecx = the menu): the part line's
@@ -7832,14 +7389,14 @@ static void cc_preset(void)
     fprintf(stderr, "[CAREER] test preset: %s\n", p);
 }
 
-void sub_00142F30(void)
+void sub_00142F30(RECOMP_PARAMS)
 {
     cc_mark();
     cc_preset();
     if (cc_classic() && !(GUEST32(CC_FLAGS) & CC_TH2) && GUEST32(0x002F9AA4u) == 1)
         GUEST32(0x002F9AA4u) = 11;
     fprintf(stderr, "[CAREER] select player: part %u, flags 0x%08X\n", GUEST32(0x002F9AA4u), GUEST32(CC_FLAGS));
-    sub_00142F30_gen();
+    sub_00142F30_gen(RECOMP_ARGS);
 }
 
 /* Select Player's line handler (thiscall, ecx = the menu, [ecx+0x228] = the
@@ -7848,12 +7405,12 @@ void sub_00142F30(void)
  * THPS 2 part enters it from THPS 1 as if from TH2: THPS 1 -> 2X (when open)
  * -> THPS 1, TH2 never offered (with the all-levels cheat [0x003061BC] the
  * game's own cycle, as its level gate opens everything then). */
-void sub_001449B0(void)
+void sub_001449B0(RECOMP_PARAMS)
 {
     if (cc_classic() && !(GUEST32(CC_FLAGS) & CC_TH2) && !GUEST32(0x003061BCu) &&
         GUEST32(g_ecx + 0x228u) == 1 && GUEST32(0x002F9AA4u) == 11)
         GUEST32(0x002F9AA4u) = 1;
-    sub_001449B0_gen();
+    sub_001449B0_gen(RECOMP_ARGS);
 }
 
 /* The THPS 1 part's screen (state 0x39) names the part's first level, slot 10
@@ -7897,7 +7454,7 @@ void classic_frame(void)
     cc_screen_level(0);
 }
 
-void sub_00108FA0(void)
+void sub_00108FA0(RECOMP_PARAMS)
 {
     uint32_t r, f, st, ann;
     int s, l, n;
@@ -7905,13 +7462,13 @@ void sub_00108FA0(void)
      * [2] = "TONY HAWK 1 CAREER" at 0x0023800C (state 0x39) - its digit at +10 */
     GUEST8(0x0023800Cu + 10u) = cc_classic() ? '2' : '1';
     if (!cc_classic()) {
-        sub_00108FA0_gen();
+        sub_00108FA0_gen(RECOMP_ARGS);
         return;
     }
     f = GUEST32(CC_FLAGS);
     st = GUEST32(0x003068D4u);
     ann = GUEST32(0x002F9748u);
-    sub_00108FA0_gen();
+    sub_00108FA0_gen(RECOMP_ARGS);
     if (!(f & 0x1000u) && (GUEST32(CC_FLAGS) & 0x1000u)) {
         /* its last check, the original Subway rule (THPS 1 golds + 30 tapes):
          * not in a classic career - undone, as if it had found nothing */
@@ -7956,12 +7513,12 @@ void sub_00108FA0(void)
 }
 
 /* eax = skater; al = 1 when the reward part is complete */
-void sub_00075D70(void)
+void sub_00075D70(RECOMP_PARAMS)
 {
     uint32_t r;
     int l, gold = 0;
     if (!cc_classic()) {
-        sub_00075D70_gen();
+        sub_00075D70_gen(RECOMP_ARGS);
         return;
     }
     r = CC_REC(g_eax);
@@ -7980,20 +7537,20 @@ void sub_00075D70(void)
 }
 
 /* al = 1 when every gap of the reward part is found */
-void sub_00074F10(void)
+void sub_00074F10(RECOMP_PARAMS)
 {
     uint32_t part, total;
     if (!cc_classic()) {
-        sub_00074F10_gen();
+        sub_00074F10_gen(RECOMP_ARGS);
         return;
     }
     part = GUEST32(0x002F9AA4u);
     GUEST32(0x002F9AA4u) = 11;                    /* the THPS 1 part instead of TH2 */
     g_esp -= 4; GUEST32(g_esp) = 0;
-    sub_00074EB0();
+    sub_00074EB0(RECOMP_ARGS);
     total = g_eax;
     g_esp -= 4; GUEST32(g_esp) = 0;
-    sub_00074E10();
+    sub_00074E10(RECOMP_ARGS);
     GUEST32(0x002F9AA4u) = part;
     /* no totals known yet (levels not played): not all found */
     g_eax = (g_eax & ~0xFFu) | ((int32_t)total > 0 && (int32_t)g_eax >= (int32_t)total);
@@ -8001,12 +7558,12 @@ void sub_00074F10(void)
 }
 
 /* ecx = part, [esp+4] = record: golds in the part's competitions (ret 4) */
-void sub_00075B00(void)
+void sub_00075B00(RECOMP_PARAMS)
 {
     uint32_t ret = GUEST32(g_esp);
     if (cc_classic() && g_ecx == 1 && (ret == 0x001090D2u || ret == 0x001090FDu))
         g_ecx = 11;                               /* Chopper Drop counts THPS 1 golds */
-    sub_00075B00_gen();
+    sub_00075B00_gen(RECOMP_ARGS);
 }
 
 /* Select Level (Free Skate / Single Session) in a classic career: THPS 1 first.
@@ -8027,33 +7584,32 @@ void sub_00075B00(void)
  * screen opened on it; maintainer's play test). Only the stepping changes; everything per
  * level stays keyed by its slot. The career's level list (sub_0011B310) and the
  * high-score browser keep their own order.
- * Verified: static read; play test 2026-10-31 (the list Free Skate uses is the
- * next one below). */
-extern void sub_001188B0_gen(void);
-void sub_00076A10(void);
+ * Verified: static read (helper agent), maintainer's play test pending. */
+extern void sub_001188B0_gen(RECOMP_PARAMS);
+void sub_00076A10(RECOMP_PARAMS);
 static const int cc_order[26] = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                                   19, 20, 21, 22, 23, 24, 25 };
 
-static int cc_slot_open(int slot)                 /* sub_00076A10 as the screen asks it */
+static int cc_slot_open(RECOMP_PARAMS, int slot)                 /* sub_00076A10 as the screen asks it */
 {
     uint32_t a = g_eax, c = g_ecx, d = g_edx, si = g_esi, di = g_edi, open;
     g_eax = GUEST32(0x002F9AC4u);
     g_esi = (uint32_t)slot;
     g_esp -= 4;
     GUEST32(g_esp) = 0x001188B0u;                 /* popped by its ret */
-    sub_00076A10();
+    sub_00076A10(RECOMP_ARGS);
     open = g_eax;
     g_eax = a, g_ecx = c, g_edx = d, g_esi = si, g_edi = di;
     return open != 0;
 }
 
-void sub_001188B0(void)
+void sub_001188B0(RECOMP_PARAMS)
 {
     int step = (int32_t)GUEST32(g_esp + 8u), cur, pos, s, i, slot;
     fprintf(stderr, "[CAREER] select level: step %d slot %u flags %08X mode %u part %u\n", step,
             GUEST32(0x003068B8u), GUEST32(CC_FLAGS), GUEST32(0x002F9AC4u), GUEST32(0x002F9AA4u));
     if (!cc_classic()) {
-        sub_001188B0_gen();
+        sub_001188B0_gen(RECOMP_ARGS);
         return;
     }
     cur = (int32_t)GUEST32(0x003068B8u);
@@ -8062,20 +7618,20 @@ void sub_001188B0(void)
     if (pos == 26)
         pos = 0;
     s = step < 0 ? -1 : 1;
-    if (step == 0 && (!cc_slot_open(cur) || (cur < 10 && !(GUEST32(CC_FLAGS) & CC_TH2))))
+    if (step == 0 && (!cc_slot_open(RECOMP_ARGS, cur) || (cur < 10 && !(GUEST32(CC_FLAGS) & CC_TH2))))
         slot = 10;                                /* opens on a shut or a THPS 2 level: Warehouse */
     else {
         if (step != 0)
             pos = (pos + s + 26) % 26;
         for (i = 0; i < 26; i++, pos = (pos + s + 26) % 26) {
             slot = cc_order[pos];
-            if ((slot != 8 && slot != 9) || cc_slot_open(slot))
+            if ((slot != 8 && slot != 9) || cc_slot_open(RECOMP_ARGS, slot))
                 break;
         }
     }
     GUEST32(0x003068B8u) = (uint32_t)(slot - s);  /* the original adds s (and wraps -1 / 26) */
     GUEST32(g_esp + 8u) = (uint32_t)s;
-    sub_001188B0_gen();
+    sub_001188B0_gen(RECOMP_ARGS);
 }
 
 /* The Select Level screen Free Skate really uses (maintainer's play test: the
@@ -8087,22 +7643,22 @@ void sub_001188B0(void)
  * is set one before the target so the original lands on it; the set-up opens on
  * Warehouse while the THPS 2 part is shut (the screen's own check counts The
  * Hangar open in every career). */
-extern void sub_00119F20_gen(void);
-extern void sub_0011B090_gen(void);
-extern void sub_0011B310_gen(void);
+extern void sub_00119F20_gen(RECOMP_PARAMS);
+extern void sub_0011B090_gen(RECOMP_PARAMS);
+extern void sub_0011B310_gen(RECOMP_PARAMS);
 
-static int cc_b_open(int slot)                    /* the screen's skip test */
+static int cc_b_open(RECOMP_PARAMS, int slot)                    /* the screen's skip test */
 {
     uint32_t keep = GUEST32(0x002F9AC4u), open;
     if (slot != 8 && slot != 9 && slot != 22 && slot != 23)
         return 1;
     GUEST32(0x002F9AC4u) = GUEST32(0x002F9AA4u);  /* cc_slot_open asks with [0x002F9AC4] */
-    open = (uint32_t)cc_slot_open(slot);
+    open = (uint32_t)cc_slot_open(RECOMP_ARGS, slot);
     GUEST32(0x002F9AC4u) = keep;
     return open != 0;
 }
 
-static void cc_b_step(int s)                      /* set [0x003068B8] one before the classic target */
+static void cc_b_step(RECOMP_PARAMS, int s)                      /* set [0x003068B8] one before the classic target */
 {
     int cur = (int32_t)GUEST32(0x003068B8u), pos, i, slot = cur;
     for (pos = 0; pos < 25 && cc_order[pos] != cur; pos++)
@@ -8112,32 +7668,32 @@ static void cc_b_step(int s)                      /* set [0x003068B8] one before
     for (i = 0; i < 25; i++) {
         pos = (pos + s + 25) % 25;                /* cc_order[0..24]: the screen lists 0..24 */
         slot = cc_order[pos];
-        if (cc_b_open(slot))
+        if (cc_b_open(RECOMP_ARGS, slot))
             break;
     }
     fprintf(stderr, "[CAREER] level list %s: %d -> %d\n", s > 0 ? "next" : "previous", cur, slot);
     GUEST32(0x003068B8u) = (uint32_t)(slot - s);
 }
 
-void sub_00119F20(void)
+void sub_00119F20(RECOMP_PARAMS)
 {
     if (cc_classic() && !(GUEST32(CC_FLAGS) & CC_TH2) && GUEST32(0x003068B8u) < 10u && !GUEST32(0x003061BCu)) {
         fprintf(stderr, "[CAREER] level list opens on Warehouse (was %u)\n", GUEST32(0x003068B8u));
         GUEST32(0x003068B8u) = 10;
     }
-    sub_00119F20_gen();
+    sub_00119F20_gen(RECOMP_ARGS);
 }
 
-void sub_0011B310(void)
+void sub_0011B310(RECOMP_PARAMS)
 {
     if (cc_classic())
-        cc_b_step(+1);
-    sub_0011B310_gen();
+        cc_b_step(RECOMP_ARGS, +1);
+    sub_0011B310_gen(RECOMP_ARGS);
 }
 
-void sub_0011B090(void)
+void sub_0011B090(RECOMP_PARAMS)
 {
     if (cc_classic())
-        cc_b_step(-1);
-    sub_0011B090_gen();
+        cc_b_step(RECOMP_ARGS, -1);
+    sub_0011B090_gen(RECOMP_ARGS);
 }

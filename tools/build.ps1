@@ -27,7 +27,10 @@ param(
     [string]$Layout,
     [switch]$Lle,
     [switch]$Census,         # THPS_D3D_CENSUS: count D3D8 calls (src/d3d_census.c)
-    [string]$Variant
+    [string]$Variant,
+    # the build tools\release.ps1 packs: without option-c's F9 debug menu (porting guide, release steps:
+    # -DXR_DEBUG_PANEL=OFF; model Panzer Dragoon Orta Recompiled tools\build.ps1); dev builds keep it (ON)
+    [switch]$ForRelease
 )
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "paths.ps1")           # $Repo, $Private, $ToolsRoot, $Shared
@@ -73,7 +76,8 @@ try {
         "-DXBOXRECOMP_DIR=$(Cm $Toolkit)" `
         "-DRECOMP_GEN_DIR=$(Cm $GenDir)" `
         "-DTHPS_LLE=$(if ($Lle) { 'ON' } else { 'OFF' })" `
-        "-DTHPS_D3D_CENSUS=$(if ($Census) { 'ON' } else { 'OFF' })" | Out-Null
+        "-DTHPS_D3D_CENSUS=$(if ($Census) { 'ON' } else { 'OFF' })" `
+        "-DXR_DEBUG_PANEL=$(if ($ForRelease) { 'OFF' } else { 'ON' })" | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "CMake configure failed" }
     $t = [Diagnostics.Stopwatch]::StartNew()
     & cmake --build $Build --parallel $Jobs

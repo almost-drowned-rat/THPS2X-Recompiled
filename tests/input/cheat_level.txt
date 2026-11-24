@@ -34,14 +34,14 @@
 40000:down:300
 41000:down:300
 43000:a:300
-# RECOMP OPTIONS at 4:3: BUTTON CHEATS is the 8th line; opening it enters the test cheats
+# RECOMP OPTIONS at 4:3: BUTTON CHEATS is the 7th line (six downs since SHADERS was removed, 2026-11-19); opening
+# it enters the test cheats
 48000:down:300
 49000:down:300
 50000:down:300
 51000:down:300
 52000:down:300
 53000:down:300
-54000:down:300
 56000:a:300
 62000:shot=01_cheats_page1
 # back: RECOMP OPTIONS, OPTIONS, the main menu (on OPTIONS, the 7th entry)
