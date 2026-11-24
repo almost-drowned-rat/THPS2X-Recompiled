@@ -7,6 +7,9 @@ set of modern extras: higher resolutions, widescreen, 120 fps, custom soundtrack
 
 > **AI disclosure:**  AI assistance yes (Claude Code by Anthropic).
 
+> **Android:** the Android version is its own app and repository -
+> [THPS2X-Recompiled-Android](https://github.com/almost-drowned-rat/THPS2X-Recompiled-Android).
+
 ---
 
 ## Highlights: play it like the originals
@@ -275,7 +278,8 @@ delete the `bind.` lines from `saves\settings.ini`.
 ## Portability
 
 - Written in portable C with SDL3 and Vulkan only; platform code is kept in one thin layer.
-- Windows and Linux since 2.0; Android is planned for a later 2.0.x.
+- Windows and Linux since 2.0; Android since 2.0.0 as its own app:
+  [THPS2X-Recompiled-Android](https://github.com/almost-drowned-rat/THPS2X-Recompiled-Android).
 
 ### Linux
 A native Linux build follows on the release page shortly after the Windows one, with the same launcher flow: start
@@ -330,7 +334,7 @@ names what took the time (shader compiles, textures, file reads, sleeps). Please
 - **v1.1.0:** SCORE CALCULATION THPS 1, PHYSICS ORIGINAL THPS 2 PS1, frame pacing on 120 / 180 / 240 Hz displays.
 - **v2.0.0:** on the xboxrecomp option-c toolkit: native Linux, AMD FSR 1.0 upscaling, SHADER COMPILE HYBRID
   (no waiting for shaders), on-screen FPS / frame time / game speed, a new launcher.
-- **Later (2.0.x):** Android.
+- **v2.0.0 Android:** the same version as an Android app ([THPS2X-Recompiled-Android](https://github.com/almost-drowned-rat/THPS2X-Recompiled-Android)).
 
 ### Non-goals
 - Online play.
