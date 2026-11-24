@@ -4,6 +4,20 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download - and v1.2.8, which stays as the fallback for 2.0.
 
+## v2.0.1 - 2026-11-24
+
+A maintenance release on the newest toolkit state; nothing changes in the game, your settings and saves stay.
+
+- **The exes name themselves:** `thps2x_launcher.exe` and the game it builds carry a product name, a description,
+  the version and a standard application manifest (Explorer: *Properties > Details*); the launcher has no debug
+  sections any more and its built-in Python no longer carries modules it never uses (network, TLS, database,
+  sound). Antivirus heuristics had flagged the unsigned launcher; Panzer Dragoon Orta's launcher built this way went
+  from 2 detections to 1 low-score one on VirusTotal.
+- **Toolkit fixes (option-c):** the renderer no longer reads back from GPU upload memory (the HUD at 16:9 ORIGINAL
+  PROPORTIONS, vertex blocks); the same on a PC, much faster on phones.
+- **Linux:** the README's Linux section is complete; the release tools for the AppImage and the `.tar.gz` are in the
+  repository.
+
 ## v2.0.0 - 2026-11-24
 
 ### New

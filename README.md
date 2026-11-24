@@ -171,7 +171,7 @@ Other versions are refused with: *"This THPS 2X version is not supported. Suppor
 a supported version."*
 
 ### First start
-1. Download `THPS2X-Recompiled-v<version>-win64.zip` (about 210 MB, the compiler included) from the release page
+1. Download `THPS2X-Recompiled-v<version>-win64.zip` (about 100 MB, the compiler included) from the release page
    and unpack it (keep the `tools\` folder next to the exe).
 2. Start `thps2x_launcher.exe`. The setup window asks for two things: your disc image (`.iso`, XISO or full redump
    image) and the folder to install into (spaces in the path are fine). Press **Go**.
@@ -278,13 +278,20 @@ delete the `bind.` lines from `saves\settings.ini`.
 ## Portability
 
 - Written in portable C with SDL3 and Vulkan only; platform code is kept in one thin layer.
-- Windows and Linux since 2.0; Android since 2.0.0 as its own app:
+- Windows and Linux since 2.0; Android as an app of its own (with its own version numbers):
   [THPS2X-Recompiled-Android](https://github.com/almost-drowned-rat/THPS2X-Recompiled-Android).
 
 ### Linux
-A native Linux build follows on the release page shortly after the Windows one, with the same launcher flow: start
-`thps2x_launcher`, pick your disc image and an install folder (for example `~/Games/THPS2X`), **Go**.
-<!-- LINUX-DETAILS: the package format, requirements and tested distributions follow with the Linux download -->
+1. Download the AppImage (one file) or the `.tar.gz` (the same program, unpacked) from the release page and put it in
+   a folder of its own - the game, your saves and the settings stay in that folder.
+2. AppImage: `chmod +x THPS2X-Recompiled-v<version>-x86_64.AppImage`, then start it. tar.gz: unpack it and start
+   `./thps2x_launcher`.
+3. The first start asks for your disc image (USA) and builds the game on your PC, which takes a few minutes, only
+   once. After that the game starts directly.
+
+Needs: x86-64, glibc 2.35 or newer, a Vulkan 1.3 driver (Mesa RADV / ANV or the NVIDIA driver). The compiler and
+Python come with the download; nothing else to install. Tested on CachyOS (Arch) with an AMD Radeon 880M (RADV). In
+RecompLauncher it installs like the Windows version.
 
 ### Linux via Proton / Wine: best effort
 The Windows build runs under Proton and Wine too (from v0.9.1.1: the first start uses no Windows system tools any
@@ -334,7 +341,7 @@ names what took the time (shader compiles, textures, file reads, sleeps). Please
 - **v1.1.0:** SCORE CALCULATION THPS 1, PHYSICS ORIGINAL THPS 2 PS1, frame pacing on 120 / 180 / 240 Hz displays.
 - **v2.0.0:** on the xboxrecomp option-c toolkit: native Linux, AMD FSR 1.0 upscaling, SHADER COMPILE HYBRID
   (no waiting for shaders), on-screen FPS / frame time / game speed, a new launcher.
-- **v2.0.0 Android:** the same version as an Android app ([THPS2X-Recompiled-Android](https://github.com/almost-drowned-rat/THPS2X-Recompiled-Android)).
+- **v2.0.1:** maintenance on the newest toolkit state; the exes carry their name and version.
 
 ### Non-goals
 - Online play.

@@ -1,3 +1,51 @@
-// thps2x.rc -- the exe's icon in Explorer (maintainer, 2026-10-27: the approved neutral skateboard; assets/README.md).
-// Compiled with llvm-rc (tools\build.ps1 passes CMAKE_RC_COMPILER); Windows builds only.
+// thps2x.rc -- the exe's resources (assets/README.md): the icon in Explorer (maintainer, 2026-10-27: the approved
+// neutral skateboard), the exe's identity (VERSIONINFO) and an application manifest. Compiled with llvm-rc
+// (tools\build.ps1 passes CMAKE_RC_COMPILER); Windows builds only. Linked into the game and thps2x_launcher.exe; the
+// release payload carries it, so the game the player's machine builds has it too.
+// Model: the toolkit's templates/game/assets/game.rc (maintainer 2026-11-24: an unsigned exe at least names itself;
+// with it, Bkav no longer flags Orta's launcher). Per release: the version lines below = tools\release.ps1 -Version.
+// No #include (llvm-rc on the player's machine has no include path): plain numbers.
+
 1 ICON "icon.ico"
+
+1 24
+BEGIN
+    "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>\n"
+    "<assembly xmlns=""urn:schemas-microsoft-com:asm.v1"" manifestVersion=""1.0"">\n"
+    "  <assemblyIdentity type=""win32"" name=""THPS2XRecompiled"" version=""2.0.1.0"" processorArchitecture=""amd64""/>\n"
+    "  <description>THPS 2X Recomp</description>\n"
+    "  <trustInfo xmlns=""urn:schemas-microsoft-com:asm.v3"">\n"
+    "    <security><requestedPrivileges><requestedExecutionLevel level=""asInvoker"" uiAccess=""false""/></requestedPrivileges></security>\n"
+    "  </trustInfo>\n"
+    "  <compatibility xmlns=""urn:schemas-microsoft-com:compatibility.v1"">\n"
+    "    <application><supportedOS Id=""{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}""/></application>\n"
+    "  </compatibility>\n"
+    "</assembly>\n"
+END
+
+1 VERSIONINFO
+FILEVERSION 2,0,1,0
+PRODUCTVERSION 2,0,1,0
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0x0L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "ProductName", "THPS 2X Recomp"
+            VALUE "FileDescription", "THPS 2X Recomp - static recompilation (needs your own copy of the game)"
+            VALUE "ProductVersion", "2.0.1"
+            VALUE "FileVersion", "2.0.1"
+            VALUE "InternalName", "THPS2XRecompiled"
+            VALUE "Comments", "Contains no game data. Source: github.com/almost-drowned-rat/THPS2X-Recompiled"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

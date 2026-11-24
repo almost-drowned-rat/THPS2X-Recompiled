@@ -31,7 +31,7 @@ rate, VSync, FPS / frame time / game speed on screen), RENDERING (shader compile
 CHEATS, BOOT ANIMATION. Y puts a line back to its default.
 Custom soundtracks and your own boot animation: see media\README.txt in the install folder.
 
-Linux: a native Linux version is a separate download on the release page (it follows shortly after Windows).
+Linux: a native Linux version (AppImage or .tar.gz) is a separate download on the release page.
 
 Windows warning: the exe is not signed. SmartScreen shows 'Windows protected your PC' - click
 'More info' -> 'Run anyway'. Smart App Control (Windows 11) blocks unsigned apps completely; the port can

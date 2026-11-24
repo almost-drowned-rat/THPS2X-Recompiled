@@ -4,4 +4,7 @@
 # Everything the player keeps (game/, saves/, media/, data/) lives in the folder that holds the .AppImage file -
 # the toolkit's xbox_host_root() (platform/host_paths.h) - never in the mount and never in $HOME.
 HERE="$(dirname "$(readlink -f "$0")")"
+# Started by hand from an extracted image (no AppImage runtime): APPDIR as RecompLauncher sets it for an unpacked
+# AppImage, so the toolkit takes this folder as the player's root (host_paths.c), not usr/bin.
+[ -n "${APPDIR:-}" ] || export APPDIR="$HERE"
 exec "$HERE/usr/bin/thps2x-recomp" "$@"
