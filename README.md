@@ -342,6 +342,7 @@ names what took the time (shader compiles, textures, file reads, sleeps). Please
 - **v2.0.0:** on the xboxrecomp option-c toolkit: native Linux, AMD FSR 1.0 upscaling, SHADER COMPILE HYBRID
   (no waiting for shaders), on-screen FPS / frame time / game speed, a new launcher.
 - **v2.0.1:** maintenance on the newest toolkit state; the exes carry their name and version.
+- **v2.0.2:** Linux / Android: overwriting a save works again (issue #27). Windows: no change.
 
 ### Non-goals
 - Online play.

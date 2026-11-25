@@ -33,5 +33,5 @@
     # tag: the option-c snapshot made for this THPS release, tagged thps2x-v<version> (commit "xboxrecomp-option-c
     # (THPS 2X Recompiled v<version>)"); until that tag exists port_release.ps1 stops with "has no tag"
     PublicToolkit = "..\..\..\tools\xboxrecomp_option_c_public"
-    PublicTag     = "thps2x-v2.0.1"
+    PublicTag     = "thps2x-v2.0.2"
 }

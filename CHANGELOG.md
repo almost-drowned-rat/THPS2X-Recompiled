@@ -4,6 +4,12 @@ All releases of THPS 2X Recompiled. The download is on the
 [release page](https://github.com/almost-drowned-rat/THPS2X-Recompiled/releases); only the newest release keeps
 its download - and v1.2.8, which stays as the fallback for 2.0.
 
+## v2.0.2 - 2026-11-25
+
+- **Linux / Android: overwriting a save works again**
+  ([#27](https://github.com/almost-drowned-rat/THPS2X-Recompiled/issues/27)): saving the career over an existing save
+  said *"the memory unit was removed during use"*. Windows: no change.
+
 ## v2.0.1 - 2026-11-24
 
 A maintenance release on the newest toolkit state; nothing changes in the game, your settings and saves stay.
