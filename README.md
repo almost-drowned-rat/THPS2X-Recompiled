@@ -293,6 +293,11 @@ Needs: x86-64, glibc 2.35 or newer, a Vulkan 1.3 driver (Mesa RADV / ANV or the 
 Python come with the download; nothing else to install. Tested on CachyOS (Arch) with an AMD Radeon 880M (RADV). In
 RecompLauncher it installs like the Windows version.
 
+**Arch Linux and derivatives (community package):** [`thps2x-recompiled-bin`](https://aur.archlinux.org/packages/thps2x-recompiled-bin)
+in the AUR, made and kept by [sxdot](https://github.com/sxdot) (issue #28), e.g. `paru -S thps2x-recompiled-bin`. It
+installs the release `.tar.gz` system-wide; your game, saves and settings go to
+`~/.local/share/thps2x-recompiled/`. Not official: problems with the package itself go to its AUR page.
+
 ### Linux via Proton / Wine: best effort
 The Windows build runs under Proton and Wine too (from v0.9.1.1: the first start uses no Windows system tools any
 more, and the crash at the title screen is fixed). It is not tested as thoroughly as Windows. **Known to work:**
